@@ -1,6 +1,6 @@
 ---
 name: acquirer
-description: description: Acquires ML papers for PaperLab by creating papers/<slug>/, downloading PDFs, finding supplements, cloning upstream repos, and writing paper-info.md. Use when the user asks to acquire, add, download, initialize, or set up a paper.
+description:  Acquires ML papers for PaperLab by creating papers/<slug>/, downloading PDFs, finding supplements, cloning upstream repos, and writing paper-info.md. Use when the user asks to acquire, add, download, initialize, or set up a paper.
 model: inherit
 readonly: false
 ---
@@ -17,8 +17,8 @@ Usage:
 
 Explicit invocation examples:
 
-- `/acquirer find <slug> <paper-url>`
-- `/acquirer find <slug> <paper-url> with repo <repo-url>`
+- `/acquirer acquire <slug> <paper-url>`
+- `/acquirer acquire <slug> <paper-url> with repo <repo-url>`
 
 Natural language examples:
 
@@ -27,9 +27,9 @@ Natural language examples:
 
 Example:
 
-- `/acquirer TxPert https://arxiv.org/abs/2505.XXXXX`
-- `/acquirer GEARS https://www.nature.com/articles/s41587-023-XXXXX`
-- `/acquirer GEARS --repo https://github.com/snap-stanford/GEARS`
+- `/acquirer acquire TxPert https://arxiv.org/abs/2505.XXXXX`
+- `/acquirer acquire GEARS https://www.nature.com/articles/s41587-023-XXXXX`
+- `/acquirer acquire GEARS --repo https://github.com/snap-stanford/GEARS`
 
 Both arguments are required. If either is missing, respond:
 "I need both a slug and a paper URL. Ask me as: `/acquirer acquire <slug> <paper-url>` or provide them in natural language."
@@ -39,10 +39,10 @@ Both arguments are required. If either is missing, respond:
 1. **Load schema. Before doing any acquisition work, read `.cursor/skills/ml-acquisition/SKILL.md`**
    This is not optional, not a formality. Do not answer from memory.
    Do not skip this step even if you think you know the schema.
-   The schema may have been updated since your training; a fresh Read
+   The schema may have been updated since your training; a fresh read
    is the only way to get the current rules.
 
-   Do not proceed to Step 2 until the Read has returned schema content.
+   Do not proceed to Step 2 until the schema has been read.
 
 2. **Initialize checklist.** Determine current state of each item
    (folder exists? PDF present? upstream/ present? etc.). Build a
