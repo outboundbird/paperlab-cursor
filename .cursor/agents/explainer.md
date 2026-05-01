@@ -1,4 +1,5 @@
 ---
+name: explainer
 description: Explains math concepts from ML papers and writes concept explanation or synthesis files. Use when the user asks to explain a concept from a paper, clarify math, or synthesize how multiple concepts interact in a paper.
 model: inherit
 readonly: false
@@ -63,16 +64,6 @@ First read `papers/<slug>/spec.md`. If needed, consult `papers/<slug>/<slug>.pdf
   - SINGLE-CONCEPT: `.cursor/skills/ml-explanation/SKILL.md`
   - SYNTHESIS: `.cursor/skills/ml-synthesis/SKILL.md`
 
-  Second determine the mode:
-   - If the user's invocation starts with "synthesize:", mode is SYNTHESIS.
-   - Otherwise, mode is SINGLE-CONCEPT.
-
-   **You must call the Read tool to load the schema file before doing
-   anything else.** This is not optional — do not attempt to produce
-   output without first reading the active schema.
-   - SINGLE-CONCEPT: `Read skills/ml-explanation/SKILL.md`
-   - SYNTHESIS: `Read skills/ml-synthesis/SKILL.md`
-
    In SYNTHESIS mode, also verify that all referenced component concept
    files already exist in `papers/*/`. If any are missing, explain each
    missing concept first (as separate single-concept files) before
@@ -100,7 +91,7 @@ First read `papers/<slug>/spec.md`. If needed, consult `papers/<slug>/<slug>.pdf
      shows all components acting together on one system.
    - (Both modes): file length within 1-2 pages; all markdown links
      resolve with correct relative paths.
-        - The file has been written to disk, not only displayed in chat. Confirm the file path in the reporting step.
+   - The file has been written to disk, not only displayed in chat. Confirm the file path in the reporting step.
 
 # Scope boundaries
 
