@@ -1,8 +1,13 @@
+---
+name: ml-paper-spec
+description: Defines the spec.md schema for structured extraction of ML methods papers. Use when dissecting, parsing, summarizing, or creating a paper spec for a paper under papers/<slug>/.
+---
+
 # ML Paper Spec Schema
 
 ## Purpose
 
-This file defines the schema for spec.md, the structured extraction of an ML methods paper. spec.md is produced by the @dissector agent and consumed by all downstream agents (@explainer, @implementer, @critic). A consistent schema across papers is what lets downstream agents know where to look for any given piece of information.
+This file defines the schema for `spec.md`, the structured extraction of an ML methods paper. `spec.md` is produced by the Dissector subagent and consumed by downstream subagents such as Explainer, Implementer, and Critic. A consistent schema across papers lets downstream subagents know where to look for any given piece of information.
 
 ## Conventions
 
@@ -14,13 +19,13 @@ Global rules that apply to all sections:
 
 ## Document header
 
-Every spec.md must begin with:
+Every `spec.md` must begin with:
 
 ```markdown
 ---
 category: model
 tags:
-- claude-guided-paper-reading
+- AI-guided-paper-reading
 - paper-overview
 ---
 

@@ -1,8 +1,13 @@
+---
+name: ml-explanation
+description: Defines the schema for writing single-concept math explanations from ML papers. Use when explaining a concept from a paper, clarifying paper math, or writing papers/<slug>/<concept>.md.
+---
+
 # ML Explanation Schema
 
 ## Purpose
 
-This file defines the schema for @explainer agent to explain the concept that user demanded.
+This file defines the schema for single-concept explanation files produced by the Explainer subagent.
 
 ## Conventions
 Global rules that apply to all sections:
@@ -21,12 +26,12 @@ Global rules that apply to all sections:
   note the alternative once in the Definition section (e.g., "$U'$ in this
   paper corresponds to what Pearl (2009) writes as $X$") but then use the
   paper's notation consistently thereafter.
-- **output file naming**: the output file should be named <concept>.md. DO NOT output `explanation_<concept>.md`
+- **output file naming**: the output file should be named `<concept>.md`. Do NOT output `explanation_<concept>.md`
 - **diagram rules**: Mermaid for graphs/flows; ASCII for tensor shapes; reference paper figures when they exist. Use graphs/ flows for concept explanation as necessary.
 - **cross-reference syntax**: Plain markdown links
 - **structure**: 6 sections: Definition, Motivation, Intuition, Formal statement, Worked example, Cross-references
 - **file placement rule** : write up the file at `papers/<slug>/<concept>.md` where `<slug>` is the paper where Explainer is first asked to explain this concept. If the same concept appears in another paper later, do not create a duplicate file — link to the existing one from the second paper's context, and optionally add a short note describing how the second paper uses the concept differently.
-- **Bidirectional cross-referencing**: when Section 6 of a new concept file links to an existing concept file, Explainer must also add a reciprocal link in the existing file's Section 6. Specifically:
+- **Bidirectional cross-referencing**: when Section 6 of a new concept file links to an existing concept file, Explainer subagent must also add a reciprocal link in the existing file's Section 6. Specifically:
   - Read the existing file's Section 6 ("Related concepts" subsection).
   - If it currently says "None", replace that entire line with a new  bulleted list containing the reciprocal link.
   - If it already has a "Related concepts" list, append the new link as a new bullet. Do not modify, reorder, or remove existing entries.
@@ -34,20 +39,19 @@ Global rules that apply to all sections:
     `[<concept>](<concept>.md) — one-sentence description of the
     relationship`.
   The invariant to maintain: if file A's Section 6 links to file B, then file B's Section 6 must link back to A.
-- Before writing, Explainer checks all `papers/*/<concept>.md` paths. If the concept already has a file anywhere in the project, do not create a new file — instead, read the existing file, offer to update or extend it if appropriate, and/or add a cross-reference from the current paper's context.
+- Before writing, Explainer subagent checks all `papers/*/<concept>.md` paths. If the concept already has a file anywhere in the project, do not create a new file — instead, read the existing file, offer to update or extend it if appropriate, and/or add a cross-reference from the current paper's context.
 
-explanation
 ## Required sections (in this order)
 
 ### 0. Header
 
-Every <concept>.md must begin with a header in this format:
+Every `<concept>.md` must begin with a header in this format:
 
 ```markdown
 ---
 category: model
 tags:
-- claude-guided-paper-reading
+- AI-guided-paper-reading
 - concept-explanation
 ---
 

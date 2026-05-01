@@ -1,11 +1,13 @@
+---
+name: ml-critique
+description: Defines the critic_reviews.md audit schema for calibrating trust in ML papers by reviewing claims, evidence, reproducibility, and paper-code alignment. Use when auditing, critiquing, reviewing, or trust-calibrating a PaperLab paper.
+---
+
 # ML Critique Schema
 
 ## Purpose
 
-This file defines the schema for critic_reviews.md, the structured
-audit that helps the user calibrate trust in a paper. critic_reviews.md
-is produced by the @critic agent and lives at
-papers/<slug>/critic_reviews.md.
+This file defines the schema for `critic_reviews.md`, the structured audit that helps the user calibrate trust in a paper. `critic_reviews.md` is produced by the Critic subagent and lives at `papers/<slug>/critic_reviews.md`.
 
 The audit covers two scopes: paper methodology (claims, evidence,
 unstated limitations) and paper-code alignment (what the implementation
@@ -44,7 +46,7 @@ Every critic_reviews.md must begin with a header in this format:
 ---
 category: model
 tags:
-- claude-guided-paper-reading
+- AI-guided-paper-reading
 - critic-review
 ---
 
@@ -54,7 +56,7 @@ tags:
 **Paper context:** one-sentence summary of what the paper does
 **Repo:** `upstream/<slug>/<repo-subdir>/`, source URL (<URL>),
 **Audit date:** MM/DD/YYYY
-**Sources audited:**: spec.md, code_map.md
+**Sources audited**: spec.md, code_map.md
 
 ---
 ```

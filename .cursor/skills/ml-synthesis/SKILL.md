@@ -1,3 +1,8 @@
+---
+name: ml-synthesis
+description: Defines the schema for synthesis files that explain how multiple ML paper concepts interact. Use when synthesizing, relating, comparing, or explaining how multiple concepts compose in a paper.
+---
+
 # ML Synthesis Schema
 
 ## Purpose
@@ -10,7 +15,7 @@ questions.
 ## Conventions
 
 - **Prerequisite**: all referenced concepts must already have single-concept
-  explanation files. If any do not, Explainer creates those first, then
+  explanation files. If any do not, Explainer subagent creates those first, then
   writes the synthesis file.
 - **All symbols and notation** must be consistent with the concept files being
   synthesized.
@@ -18,9 +23,9 @@ questions.
 - **File placement**: `papers/<slug>/<filename>`, where `<slug>` is the
   paper in whose context this synthesis was first requested and
   `<filename>` follows the Synthesis filename rule below.
-- **Bidirectional cross-referencing**: Synthesis files do not trigger bidirectional cross-referencing. The synthesis file links to its component concept files (in Sections 2 and 7), but Explainer does not modify those component files to add back-links to the synthesis.
+- **Bidirectional cross-referencing**: Synthesis files do not trigger bidirectional cross-referencing. The synthesis file links to its component concept files (in Sections 2 and 7), but Explainer subagent does not modify those component files to add back-links to the synthesis.
 - **Synthesis filename**: `synth__<concept_a>__<concept_b>.md`, where `<concept_a>` and `<concept_b>` are the existing filenames of the component concept files (without the `.md` extension), alphabetized. Example: for the synthesis of `graph-mutilation.md` and `causal-markov-condition.md`, the filename is `synth__causal-markov-condition__graph-mutilation.md.` Extend to N components as `synth__a__b__c.md`
-- **Audience, notation, diagram** rules and LaTex conventions follow those of `skills/ml-explanation/SKILL.md`.
+- **Audience, notation, diagram** rules and LaTeX conventions follow those of `.cursor/skills/ml-explanation/SKILL.md`.
 
 ## Required sections
 
@@ -32,12 +37,12 @@ Every `synth__<concept_a>__<concept_b>.md` must begin with:
 ---
 category: model
 tags:
-- claude-guided-paper-reading
+- AI-guided-paper-reading
 - paper-concept-explanation
 ---
 
 # <concept_a> and <concept_b> in <slug>
-<!-- Capitalize the each word in <concept_a>, <concept b> -->
+<!-- Capitalize the each word in <concept_a> and <concept b> -->
 
 **Paper context**:  one-sentence summary of what the paper does
 ```
