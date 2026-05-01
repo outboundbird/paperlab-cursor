@@ -30,21 +30,10 @@ from deferred features — these are constraints, not unbuilt work.
 
 ## Schema improvement candidates
 
-Small refinements to existing schemas that aren't urgent but are worth
-remembering. These tend to surface during use.
+Small refinements to existing schemas that aren't urgent but are worth remembering. These tend to surface during use.
 
 - **[Schema/section]:** what to change, why
 
-## Migration notes
-
-Things to keep in mind when migrating to Cursor (Option C).
-
-- **What ports cleanly:** schemas, artifacts, conventions
-- **What needs rewriting:** agent files (`.claude/agents/*.md`)
-- **What needs new design:** anything that depends on Claude Code's
-  subagent-with-fresh-context model
-
 ## Reference: what's currently working
 
-A short list of what the system does today, so future-you can quickly
-orient.
+A short list of what the system does today, so future-you can quickly orient.
