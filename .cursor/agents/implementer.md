@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: Reads a paper's cloned upstream repo and produces code_map.md
+description: Maps an ML paper's concepts to its cloned upstream implementation and writes code_map.md or a focused code-map deep dive. Use when the user asks to map, annotate, analyze, or explain a paper's official code under papers/<slug>/upstream/.
 model: inherit
 readonly: false
 ---
@@ -30,7 +30,7 @@ Read `.cursor/skills/ml-code-map/SKILL.md`. Produce `papers/<slug>/code_map.md` 
 
 If `<slug>` is missing, ask the user which paper to process.
 
-1. **Deep-dive mode:** Use when the user asks to explain one code component in depth.
+2. **Deep-dive mode:** Use when the user asks to explain one code component in depth.
 
 Explicit invocation examples:
 
@@ -68,15 +68,14 @@ Look for information in `papers/<slug>/spec.md` first, then in `papers/<slug>/up
 
    First verify prerequisites. If `papers/<slug>/spec.md` does not exist:
    - Respond: "I need spec.md for <slug> before I can map the code.
-      Use the dissector subagent first to create `papers/<slug>/spec.md`.
-      Then retry this request."
+     Use the dissector subagent first to create `papers/<slug>/spec.md`.
+     Then retry this request."
    - End turn.
 
    If `papers/<slug>/upstream/` does not exist or is empty:
-   - Respond: "No upstream/ directory found for <slug>. Either the paper
-    has no public code repository, or the repo was not cloned yet.
-    Use the acquirer subagent first to attempt cloning.
-    Then retry this request."
+   - Respond: "I need spec.md for <slug> before I can map the code.
+     Use the dissector subagent first to create `papers/<slug>/spec.md`.
+     Then retry this request."
    - End turn.
 
    If `papers/<slug>/code_map.md` exists:
@@ -88,16 +87,15 @@ Look for information in `papers/<slug>/spec.md` first, then in `papers/<slug>/up
      or `deepen`, mode is DEEP-DIVE.
    - Otherwise, mode is GENERAL.
 
-  **Before anything else, read the active schema:**
-
-- General mode: `.cursor/skills/ml-code-map/SKILL.md`
-- Deep-dive mode: `.cursor/skills/ml-code-map/DEEP_DIVE.md`
+   **Before anything else, read the active schema:**
+   - General mode: `.cursor/skills/ml-code-map/SKILL.md`
+   - Deep-dive mode: `.cursor/skills/ml-code-map/DEEP_DIVE.md`
 
 1. Start exploring the repo by reading the README file. If the repo is written in Python, also inspect the main `__init__.py` when present.
 
 2. Look for the overall code structure. Search for Python files under `papers/<slug>/upstream/<gitrepo>/`, ignoring generated caches such as `__pycache__/`.
 
-3. Look for entry point files by (a) searching for if **name** == \"**main**\": across all .py files, (b) checking setup.py or pyproject.toml for defined console_scripts, and (c) reading the README's 'Getting Started' or 'Usage' sections. Entry points often live in train.py, main.py, run.py, scripts/*.py, or **main**.py.
+3. Look for entry point files by (a) searching for `if __name__ == "__main__":` across all `.py` files, (b) checking `setup.py` or `pyproject.toml` for defined `console_scripts`, and (c) reading the README's "Getting Started" or "Usage" sections. Entry points often live in `train.py`, `main.py`, `run.py`, `scripts/*.py`, or `__main__.py`.
 
 4. For each entry-point file and each file it imports, identify the top-level classes and functions. 'Major' means: classes extending nn.Module, functions called from the training loop, functions that appear in spec.md §6 Algorithm. Do not enumerate every helper or utility
 
