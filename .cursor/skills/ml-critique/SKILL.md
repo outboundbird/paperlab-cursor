@@ -17,24 +17,17 @@ actually does vs. what the paper says).
 
 - **Audience:** reader who has already read spec.md and code_map.md.
   Assume familiarity with the paper's terminology and method.
-- **Posture:** annotator, not judge. Surface material that bears on
-  trust calibration. Do not classify findings as "good" or "bad."
-- **Inference types:** when extending beyond what the paper states,
-  prefix the inference with its type:
-  - `[A] Mechanical:` — a consequence that follows from a stated
-    limitation by the paper's own framework
-  - `[B] Scope:` — an observation about what experiments cover or
-    don't cover, where the comparison reference is named in the paper
-    itself (e.g., "compared X but not Y, where Y is mentioned in
-    related work")
+- **Posture:** annotator, not judge. Surface material that bears on trust calibration. Do not classify findings as "good" or "bad."
+- **Inference types:** when extending beyond what the paper states, prefix the inference with its type:
+  - `[A] Mechanical:` — a consequence that follows from a stated limitation by the paper's own framework
+  - `[B] Scope:` — an observation about what experiments cover or don't cover, where the comparison reference is named in the paper itself (e.g., "compared X but not Y, where Y is mentioned in related work")
   - **Forbidden:** `[C]` field-level critique. Do not introduce
-    limitations based on general field knowledge or comparison to
-    work the paper does not reference.
+    limitations based on general field knowledge or comparison to work the paper does not reference.
 - **Sources:** spec.md and code_map.md are primary. The PDF is
   consulted only when the spec or code_map references something
   ambiguously.
-- **Length target:** 2–4 pages. Longer than spec.md, shorter than
-  code_map.md.
+- **Length target:** 2–4 pages. Longer than spec.md, shorter than code_map.md.
+- **math notation**: when citing equations in claims/discrepancies, use `$ ... $` for inline math and `$$ ... $$` for display math. Never use `\( ... \)` or `\[ ... \]`.
 
 ## Required sections
 

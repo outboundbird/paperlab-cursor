@@ -16,7 +16,7 @@ Global rules that apply to all sections:
 - **invocation**: Concept on demand
 - **sources**: spec.md first; PDF if needed; external knowledge freely
 - **length target**: 1- 2 pages
-- **math notation conventions**: use LaTeX, not Unicode math; Full notation matching paper; derive when the derivation itself is the unfamiliar part.
+- **math notation conventions**: use LaTeX between `$ ... $` (inline) and `$$ ... $$` (display). Never use Unicode math. Never use `\( ... \)` or `\[ ... \]` — they don't render in GitHub markdown preview. Match the paper's notation; derive when the derivation itself is the unfamiliar part.
 - **notation**: when the paper defines a symbol for a concept, use the paper's
   notation throughout the explanation file — not a textbook version or
   alternative convention. Notation must be internally consistent across

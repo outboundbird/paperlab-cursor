@@ -8,6 +8,9 @@ PaperLab helps the user understand mathematics in machine learning and deep lear
 - Code examples and reference-code reading assume PyTorch and PyTorch Geometric conventions.
 - Papers are stored under `papers/`.
 - Paper folders use `papers/<slug>`.
+- Math notation: use LaTeX between `$ ... $` for inline math and `$$ ... $$` for display math.
+  Never use Unicode math characters (e.g., write `$\theta$` not `θ`).
+  Never use `\( ... \)` or `\[ ... \]` — these don't render in GitHub markdown preview.
 
 Each paper folder may contain:
 

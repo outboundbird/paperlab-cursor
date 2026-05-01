@@ -85,7 +85,7 @@ Produce a two-column markdown table with columns `Symbol | Meaning`.
 
 Rules:
 
-- Use standard LaTeX between `$...$`, never Unicode math characters.
+- Use standard LaTeX between `$...$` (inline) and `$$...$$` (display), never Unicode math characters; never `\(... \)` or `\[ ... \]`
   Write `$\mathcal{D}$` not `𝒟`, `$\theta_g$` not `θg`.
 - Include domain/type information inline in the Meaning column when the
   paper provides it (e.g., "gene expression vector, $\in \mathbb{R}^K$").

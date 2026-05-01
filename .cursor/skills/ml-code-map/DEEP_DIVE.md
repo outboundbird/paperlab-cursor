@@ -57,13 +57,11 @@ perturbations with GEARS
 ### 2. Component
 
 In this section you will provide:
-- Fuller code context — up to ~50 lines, including helper functions the
-  component calls
-- Tensor-shape walkthrough — for forward() methods, annotate each line
-  with the tensor shape after execution (e.g., `# h: (batch, n_genes, d)`)
-- Edge cases — how the code handles special conditions (empty sets,
-  NaN inputs, single-item batches). If none found, state "No explicit
-  edge case handling in this component."
+
+- Fuller code context — up to ~50 lines, including helper functions the component calls.
+- Math notation conventions follow `.cursor/skills/ml-code-map/SKILL.md`.
+- Tensor-shape walkthrough — for forward() methods, annotate each line with the tensor shape after execution (e.g., `# h: (batch, n_genes, d)`)
+- Edge cases — how the code handles special conditions (empty sets, NaN inputs, single-item batches). If none found, state "No explicit edge case handling in this component."
 
 **Example:**
 
