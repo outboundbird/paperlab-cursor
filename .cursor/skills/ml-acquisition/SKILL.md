@@ -1,42 +1,45 @@
+---
+name: ml-acquisition
+description: Sets up a PaperLab paper folder by acquiring source materials: paper PDF, optional supplements, optional upstream repository clone, commit SHA, and paper-info.md. Use when acquiring, adding, initializing, downloading, or setting up an ML paper under papers/<slug>/.
+---
+
 # ML Acquisition Schema
 
 ## Purpose
 
-This file defines what the @acquirer agent produces: a scaffolded paper folder with PDF, optional upstream repo clone, and a paper-info.md metadata file. Acquirer is the first agent in the pipeline; all other agents depend on the folder structure it creates.
+This file defines the PaperLab acquisition protocol: a scaffolded paper folder with PDF, optional upstream repo clone, and a `paper-info.md` metadata file. The Acquirer subagent uses this as its authoritative schema, and downstream subagents depend on the folder structure it creates.
 
 ## Scope boundaries
 
-- Acquirer uses Read, Glob, Bash (for git operations), and WebFetch
-  (for PDF download, landing page fetch, supplement detection).
+- Acquirer may read project files, search the workspace, use shell commands for git/download operations, and fetch paper or publisher landing pages for PDF download, repo detection, and supplement detection.
 - Acquirer does NOT modify files inside `upstream/<repo-name>/` after
   cloning.
 - Acquirer does NOT produce spec.md, code_map.md, or any other agent's
   artifacts.
 - Acquirer does NOT process or extract content from downloaded PDFs —
-  it only downloads them. Extraction is Dissector's job.
+  it only downloads them. Extraction is the Dissector subagent's job.
 - Acquirer reads the main PDF's text ONLY for repo URL detection. It
   does not extract or record any other content from the PDF.
 
 ## Conventions
 
 - **Naming**:
-  - `<slug>` is user-provided; Acquirer does not invent it.
+  - `<slug>` is user-provided; Acquirer subagent does not invent it.
   - Main PDF: `<slug>.pdf`
-  - Supplement PDFs (Acquirer-produced when supplements are detected):
+- Supplement PDFs produced during acquisition if supplemental materials are available:
     - Single supplement → `<slug>_supplement.pdf`
     - Multiple supplements → `<slug>_supplement1.pdf`,
       `<slug>_supplement2.pdf`, etc., in landing-page order
-    - Dissector recognizes both patterns.
+  - Dissector subagent recognizes both patterns.
 
-- **Structure**: acquirer will create a folder named after the slug under papers/. The PDF file will be renamed as `<slug>.pdf`. If the git repo exist, acquire will create a subfolder named `upstream/` and clone the repo there. The `paper-info.md` file will be created in the slug folder.
-- **Idempotency**: Acquirer uses a state-driven checklist (see §3).
+- **Structure**: Acquirer subagent will create a folder named after the slug under `papers/`. The PDF file will be renamed as `<slug>.pdf`. If the git repo exists, Acquirer subagent will create a subfolder named `upstream/` and clone the repo there. The `paper-info.md` file will be created in the slug folder.
+- **Idempotency**: Acquirer subagent uses a state-driven checklist (see §3).
   Each item is checked before attempting. Items already done are
   marked "done (previously)" and skipped. If everything is already
-  complete, Acquirer writes an updated paper-info.md reporting full
+  complete, Acquirer subagent writes an updated `paper-info.md` reporting full
   completion and reports "nothing to do" — no refusal.
 
-- Each WebFetch attempt has a reasonable timeout. If a supplement URL
-  doesn't respond, skip it and continue; do not retry.
+- Each landing-page fetch attempt has a reasonable timeout. If a supplement URL doesn't respond, skip it and continue; do not retry.
 
 - Before downloading a candidate supplement PDF, verify the URL ends in
   `.pdf` (case-insensitive). Skip non-PDF supplements even if they
@@ -65,11 +68,12 @@ papers/GEARS/
     └── GEARS/             ← cloned by Acquirer
 
 Files added later by other agents (not shown above):
-- spec.md (by @dissector)
-- code_map.md (by @implementer)
-- <concept>.md (by @explainer)
-- critique.md (by @critic, if run)
-- <slug>_supplement.pdf (added manually by user, if needed)
+Files added later by other subagents (not shown above):
+- `spec.md` by the Dissector subagent
+- `code_map.md` by the Implementer subagent
+- `<concept>.md` by the Explainer subagent
+- `critic_reviews.md` by the Critic subagent
+- `<slug>_supplement.pdf` (added manually by user, if needed)
 ```
 
 ### 2. paper-info.md format
@@ -80,7 +84,7 @@ Provide general information of the paper and write to the `paper-info.md` file u
 ---
 category: model
 tags:
-- claude-guided-paper-reading
+- AI-guided-paper-reading
 - paper-acquisition
 ---
 
@@ -106,12 +110,12 @@ tags:
 <warnings, partial failures, sources used for repo detection, etc.>
 
 ```
-Acquisition notes should also capture any disclaimers or limitations of the cloned repo that the agent encountered while scanning the PDF (e.g., 'some data/models noted in paper are not in the public repo'). This informs downstream agents that coverage may be incomplete.
+Acquisition notes should also capture any disclaimers or limitations of the cloned repo that the Acquirer subagent encountered while scanning the PDF. (e.g., 'some data/models noted in paper are not in the public repo'). This informs downstream agents that coverage may be incomplete.
 
 ### 3. Acquisition policy
 
-Acquirer operates on a **state-driven checklist**. For each required
-item, Acquirer checks the current state and attempts to provide the
+Acquirer subagent operates on a **state-driven checklist**. For each required
+item, Acquirer subagent checks the current state and attempts to provide the
 item if missing. Each item is independent — one failure does not
 prevent attempts on others.
 
@@ -191,9 +195,7 @@ material, not a separate sequence of steps.
 
 #### PDF download rules (Item 2)
 
-- If the URL is a direct PDF link, attempt download with curl or
-  WebFetch. Verify the response is actually a PDF (starts with `%PDF-`)
-  and not HTML.
+- If the URL is a direct PDF link, attempt download with available download or fetch tooling. Verify the response is actually a PDF (starts with `%PDF-`) and not HTML.
 - If the URL is a landing page, attempt to find the PDF link on that
   page and follow it.
 - Known paywalled publishers (Nature, Elsevier/ScienceDirect, Wiley,
@@ -206,9 +208,7 @@ material, not a separate sequence of steps.
 
 #### Supplement publisher rules (Item 3)
 
-Acquirer uses WebFetch on the user-provided URL to retrieve the
-landing page HTML, then identifies supplements using publisher-specific
-rules:
+The Acquirer subagent fetches the user-provided URL to retrieve the landing page HTML, then identifies supplements using publisher-specific rules:
 
 - **arXiv** (`arxiv.org`): check for "Ancillary files"; download each
   file ending in `.pdf`.
@@ -247,7 +247,7 @@ URL patterns to match in any scanned text:
 Priority order when searching:
 1. `--repo <url>` argument (if provided, use directly; skip scanning)
 2. Main PDF text (only if Item 2 produced a PDF)
-3. Landing page HTML (only if Item 3's WebFetch succeeded)
+3. Landing page HTML (only if Item 3's landing-page fetch succeeded)
 
 Multiple matches from PDF + landing page → deduplicate by URL, then
 present to user.
