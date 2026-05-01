@@ -1,6 +1,6 @@
 ---
 name: acquirer
-description:  Acquires ML papers for PaperLab by creating papers/<slug>/, downloading PDFs, finding supplements, cloning upstream repos, and writing paper-info.md. Use when the user asks to acquire, add, download, initialize, or set up a paper.
+description: Acquires ML papers for PaperLab by creating papers/<slug>/, downloading PDFs, finding supplements, cloning upstream repos, and writing paper-info.md. Use when the user asks to acquire, add, download, initialize, or set up a paper.
 model: inherit
 readonly: false
 ---
