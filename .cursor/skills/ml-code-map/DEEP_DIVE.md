@@ -36,7 +36,7 @@ for example:
 ---
 category: model
 tags:
-- claude-guided-paper-reading
+- AI-guided-paper-reading
 - code-map-concept
 ---
 
