@@ -1,19 +1,20 @@
 # ML Code Map Deep Dive Mode Schema
+This file is a companion schema used by `.cursor/skills/ml-code-map/SKILL.md` and the Implementer subagent for deep-dive mode.
 
 ## Purpose
 
-This file defines the schema for the code Implementer when deep dive mode is invoked by user. The Implementer will produce `code_map__<slug>__<component>.md` file when invoked.
+This file defines the schema for deep-dive code mapping. In deep-dive mode, the Implementer subagent produces `code_map__<slug>__<component>.md`.
 
 ## Required sections
 
 ### 1. Header
-The `code_map__<slug>__<component>.md` document begin with header:
+The `code_map__<slug>__<component>.md` document begins with header:
 
 ```markdown
 ---
 category: model
 tags:
-- claude-guided-paper-reading
+- AI-guided-paper-reading
 - code-map-concept
 ---
 

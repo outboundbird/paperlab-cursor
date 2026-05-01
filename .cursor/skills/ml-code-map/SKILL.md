@@ -1,8 +1,13 @@
+---
+name: ml-code-map
+description: Maps an ML paper's algorithmic concepts to its cloned official implementation and defines the code_map.md schema. Use when mapping, annotating, or explaining a paper's upstream code under papers/<slug>/upstream/.
+---
+
 # ML Code Map Schema
 
 ## Purpose
 
-This file defines the schema for code_map.md, the structured mapping from a paper's algorithm to its official implementation. code_map.md is produced by the @implementer agent and read by the user to understand how the paper translates to code. It lives at papers/<slug>/code_map.md.
+This file defines the schema for `code_map.md`, the structured mapping from a paper's algorithm to its official implementation. `code_map.md` is produced by the Implementer subagent and read by the user to understand how the paper translates to code. It lives at `papers/<slug>/code_map.md`.
 
 ## Conventions
 
@@ -14,7 +19,7 @@ Global rules that apply to all sections:
 - **code block**: Code blocks must be verbatim except for inline clarifying comments that tie variables to paper notation. If Implementer adds a comment, mark it as Implementer-added (e.g., a trailing # [annot]).
 - **language tag convention**: based on the original code
 - **commit/date recording convention**: MM/DD/YYYY
-- **the "read-only" boundary**: Read-only boundary: Implementer uses only Read, Glob, and Grep. It does not execute code (no Bash), does not modify upstream/ files, and does not produce new Python files. Its only writes are to papers/<slug>/code_map.md.
+- **the read-only boundary**: The Implementer subagent reads and searches source files, but does not execute upstream code, modify files under `upstream/`, or produce new Python files. Its only writes are PaperLab annotation artifacts such as `papers/<slug>/code_map.md`.
 - **accuracy rule for line numbers**: Line numbers must reflect actual file contents at the annotated commit. Verify each line range by reading the file — do not infer line numbers from imports, class names, or file structure. Inline code snippets must exactly match the file content at those line ranges.
 - **what triggers re-annotation**: If the upstream repository has been updated since the commit recorded in the header, line numbers and code snippets may have drifted. Re-run Implementer to refresh code_map.md after any upstream update.
 
@@ -29,7 +34,7 @@ Every code_map.md must begins with a document header in this format:
 ---
 category: model
 tags:
-- claude-guided-paper-reading
+- AI-guided-paper-reading
 - code-map
 ---
 
@@ -52,7 +57,7 @@ Example (filled in for GEARS):
 ---
 category: model
 tags:
-- claude-guided-paper-reading
+- AI-guided-paper-reading
 - code-map
 ---
 
