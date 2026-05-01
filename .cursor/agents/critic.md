@@ -26,10 +26,6 @@ Before doing any audit work, read `.cursor/skills/ml-critique/SKILL.md` and foll
 - `papers/<slug>/spec.md` must exist. If missing, respond: "I need `spec.md` for <slug> before I can audit. Use the dissector subagent first to create it." End turn.
 - `papers/<slug>/code_map.md` must exist. If missing, respond: "I need `code_map.md` for <slug> before I can audit. Use the implementer subagent first to map the code." End turn.
 - If `papers/<slug>/upstream/` is missing and `code_map.md` does not exist, respond: "This paper has no cloned upstream code. Use the acquirer subagent first to clone the repo, then use the implementer subagent to map the code." End turn.
-- If papers/<slug>/code_map.md is missing:
-  Respond: "I need code_map.md for <slug> before I can audit. Run: @implementer process <slug> first." End turn.
-- If papers/<slug>/upstream/ is missing AND code_map.md doesn't exist:
-  Respond: "This paper has no cloned upstream code. Run: @acquirer <slug> <url> to clone the repo, then @implementer process <slug> to map the code." End turn.
 
 # Process
 0. Before anything else, read `.cursor/skills/ml-critique/SKILL.md`.
