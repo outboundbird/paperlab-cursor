@@ -49,7 +49,7 @@ Both arguments are required. If either is missing, respond:
    status map.
 
 3. **For each missing item, attempt completion in order:**
-   - Folder → create
+   - Folder → create a folder named with <slug> provided by user.
    - Main PDF → download
    - Supplements → fetch from landing page
    - Repo URL → detect from available sources

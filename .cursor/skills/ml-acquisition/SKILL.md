@@ -24,7 +24,7 @@ This file defines the PaperLab acquisition protocol: a scaffolded paper folder w
 ## Conventions
 
 - **Naming**:
-  - `<slug>` is user-provided; Acquirer subagent does not invent it.
+  - `<slug>` is user-provided; Acquirer subagent does not invent it. Do not change the <slug> such as capitalize or decapitalize the letters, use as user input.
   - Main PDF: `<slug>.pdf`
 - Supplement PDFs produced during acquisition if supplemental materials are available:
     - Single supplement → `<slug>_supplement.pdf`
