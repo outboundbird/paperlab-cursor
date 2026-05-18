@@ -20,9 +20,7 @@ questions.
 - **All symbols and notation** must be consistent with the concept files being
   synthesized.
 - **Length target**: 1-2 pages.
-- **File placement**: `papers/<slug>/<filename>`, where `<slug>` is the
-  paper in whose context this synthesis was first requested and
-  `<filename>` follows the Synthesis filename rule below.
+- **File placement**: `vault_path(slug, "<filename>")` (resolved via `tools/paths.py`), where `<slug>` is the paper in whose context this synthesis was first requested and `<filename>` follows the Synthesis filename rule below.
 - **Bidirectional cross-referencing**: Synthesis files do not trigger bidirectional cross-referencing. The synthesis file links to its component concept files (in Sections 2 and 7), but Explainer subagent does not modify those component files to add back-links to the synthesis.
 - **Synthesis filename**: `synth__<concept_a>__<concept_b>.md`, where `<concept_a>` and `<concept_b>` are the existing filenames of the component concept files (without the `.md` extension), alphabetized. Example: for the synthesis of `graph-mutilation.md` and `causal-markov-condition.md`, the filename is `synth__causal-markov-condition__graph-mutilation.md.` Extend to N components as `synth__a__b__c.md`
 - **Audience, notation, diagram** rules and LaTeX conventions follow those of `.cursor/skills/ml-explanation/SKILL.md`. n particular: `$ ... $` for inline math, `$$ ... $$` for display math; never `\( ... \)` or `\[ ... \]`.

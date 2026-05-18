@@ -1,6 +1,6 @@
 ---
 name: ml-paper-spec
-description: Defines the spec.md schema for structured extraction of ML methods papers. Use when dissecting, parsing, summarizing, or creating a paper spec for a paper under papers/<slug>/.
+description: Defines the `spec.md` schema for structured extraction of ML methods papers. `spec.md` is written to the vault at `vault_path(slug, "spec.md")`. Use when dissecting, parsing, summarizing, or creating a paper spec.
 ---
 
 # ML Paper Spec Schema

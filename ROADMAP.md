@@ -1,65 +1,73 @@
 # PaperLab Roadmap
 
-Status as of 2026-05-18. Living document.
+Status as of 2026-05-18. Living document — items move between sections as their status changes.
 
-## Planned units
+## File layout contract
 
-Each entry is a capability we've agreed to build, mapped to the right Cursor primitive (subagent / skill / rule / hook / MCP). Build order is top-to-bottom; revisit after each unit ships.
+Two locations, clean split: **code and source material in the repo, agent-generated notes in the vault**.
 
-### 1. `visualizer` subagent + `ml-visualization` skill
+### Repo (`paperlab-cursor/`)
 
-- **What:** Turns `spec.md`, `<concept>.md`, and `code_map.md` into visual artifacts — diagrams, flowcharts, slide decks — to support visual learning.
-- **Primary outputs:** Mermaid diagrams (inline in markdown) and Marp slide decks (`papers/<slug>/slides.md`). Both render natively in GitHub and Obsidian.
-- **Fallback outputs when Mermaid/Marp are inadequate:**
-  - matplotlib / PIL figures saved as PNG/SVG for numerical plots or precise geometry
-  - TikZ for publication-quality math diagrams
-  - tldraw canvases (via the `tldraw` MCP already configured) for architectural sketches
-- **Why subagent + skill:** Choosing *what* to visualize needs judgment (subagent); diagram conventions and format-selection rules are reusable reference material (skill).
-- **First test case:** Memento paper — visualize the MDP from `papers/Memento/mdp.md` and the algorithm framework from `papers/Memento/spec.md`.
-- **Acceptance:** produces at least one Mermaid diagram + a Marp deck summarizing the paper's algorithm with diagrams, not just bullet points rephrasing `spec.md`.
+```
+paperlab-cursor/
+├── .cursor/                       agents, skills, rules
+├── papers/
+│   └── <slug>/
+│       ├── <slug>.pdf             paper PDF (large; git-ignored)
+│       ├── supplementals/         appendices, supplementary PDFs
+│       └── upstream/
+│           └── <slug>/            cloned official git repo
+├── sandbox/
+│   └── <slug>/                    toy experiments
+├── paperlab.config.yaml           per-machine, git-ignored
+├── paperlab.config.example.yaml   committed template
+├── AGENTS.md
+├── ROADMAP.md
+└── README.md
+```
 
-### 2. `tutor` subagent + `ml-socratic` skill
+### Vault (Obsidian)
 
-- **What:** Interactive, multi-turn teacher. Reads `spec.md` + concept files, asks what the user knows, picks next concept, explains with visuals (delegates to `visualizer` when useful), quizzes, adapts.
-- **State:** Writes `papers/<slug>/tutor_log.md` so progress persists across sessions.
-- **Why subagent + skill:** Adaptive multi-turn dialogue needs judgment; Socratic patterns and quiz templates are reference (skill).
+All agent-generated files live flat under one folder per paper:
 
-### 3. Obsidian integration
+```
+<vault_paperlab_path>/
+└── <slug>/
+    ├── paper-info.md
+    ├── spec.md
+    ├── mdp.md
+    ├── code_map.md
+    ├── critic_reviews.md
+    ├── <concept>.md
+    ├── synth__<a>__<b>.md
+    ├── slides.md                  Marp deck (later: visualizer)
+    ├── *.tldr / *.svg / *.png     diagrams (later: visualizer)
+    ├── notes.md                   user notes
+    └── tutor_log.md               later: tutor
+```
 
-- **Hook:** post-write hook that syncs new/changed `papers/<slug>/*.md` and `comparisons/*.md` into the user's Obsidian vault, rewriting links to `[[wikilinks]]` where appropriate.
-- **Rule:** `obsidian-compatible-markdown.mdc` — enforces wikilink-friendly, GitHub-compatible markdown (no exclusive-to-one-renderer syntax).
-- **Open question:** vault path; one-way (paperlab → vault) vs. two-way sync.
+Current `vault_paperlab_path` (work machine): `C:/Users/e0482362/OneDrive - Sanofi/Workspace/Topics/public/Modeling 🎓/PaperLab`.
 
-### 4. `prerequisite` subagent + `ml-prerequisites` skill
+### Cross-references
 
-- **What:** Scans `spec.md`, identifies assumed background concepts, checks existing `papers/*/` and the Obsidian vault for coverage, produces a prerequisite graph + primers for gaps.
-- **Why subagent + skill:** Detecting assumed knowledge needs judgment; the prereq-graph schema is reference.
+- `paper-info.md` in the vault contains **absolute** links to the repo-side PDF and upstream code, constructed from `repo_root` in `paperlab.config.yaml`.
+- Absolute paths differ per machine. `paperlab.config.yaml` is per-machine and git-ignored. Each machine carries its own copy.
 
-### 5. `comparator` subagent + `ml-comparison` skill
+### Unified file convention
 
-- **What:** Cross-paper synthesis. Inputs: N paper slugs + a comparison axis (e.g., "GIB objective formulation"). Output: `comparisons/<topic>/comparison.md` with a comparison table and a synthesis narrative.
-- **Why subagent + skill:** Synthesis is judgment-heavy; the comparison-doc schema is reference.
-- **New top-level folder:** `comparisons/`.
-
-### 6. `experimenter` subagent + `ml-sandbox` skill
-
-- **What:** Generates a minimal toy implementation in `sandbox/<paper-slug>/` with a small synthetic or standard dataset, enabling A/B comparison of methods across papers. Pairs with `comparator`.
-- **Why subagent + skill:** Experiment design is judgment-heavy; toy-experiment scaffolding patterns are reference.
-
-### 7. External-data access
-
-- **MCP:** start by reusing `firecrawl` (already configured). Add a thin `arxiv` MCP only if structured metadata becomes a recurring need.
-- **Rule:** `external-fetch-budget.mdc` — max 5 external fetches per concept; prefer arXiv abstract + 1 blog + author page; never crawl whole sites.
+- One schema. No agent-only or user-only file variants.
+- On regeneration of an existing file, agents MUST ask: **replace**, **append**, or **abort**. See `.cursor/rules/paperlab-regenerate-prompt.mdc`.
+- All paper folders follow the same flat structure. No per-paper config files.
 
 ## Decision framework: agent vs. skill vs. rule vs. hook vs. MCP
 
-Recorded here so future-us doesn't re-derive it.
+Recorded so future-us doesn't re-derive it.
 
-1. Needs access outside the repo? → **MCP**
-2. Runs automatically on events? → **Hook**
-3. Is a *role* with judgment? → **Subagent** (typically uses skills + MCPs)
-4. Is *reference material* for specific tasks? → **Skill**
-5. Is an always-on (or glob-scoped) *constraint*? → **Rule**
+1. Needs access outside the repo (API, DB, external file)? → **MCP**.
+2. Should run automatically on events, deterministically? → **Hook**.
+3. Is a *role* with judgment, multi-step? → **Subagent** (typically uses skills + MCPs).
+4. Is *reference material* loaded on demand for specific tasks? → **Skill**.
+5. Is an always-on (or glob-scoped) *constraint or convention*? → **Rule**.
 
 Litmus tests:
 
@@ -70,20 +78,99 @@ Litmus tests:
 
 Anti-pattern: building a subagent for a deterministic transformation. Use a hook or script.
 
+## Planned units
+
+Build order is top-to-bottom. Each unit lists the primitive(s) it requires.
+
+### 1. `visualizer` subagent + `ml-visualization` skill
+
+- **What:** turns `spec.md`, `<concept>.md`, and `code_map.md` into visual artifacts — diagrams, flowcharts, slide decks — to support visual learning.
+- **Primary outputs:** Mermaid diagrams (inline in markdown) and Marp slide decks (`<slug>/slides.md`). Both render natively in Obsidian (Marp Slides plugin) and GitHub.
+- **Fallback outputs when Mermaid/Marp are inadequate:**
+  - matplotlib / PIL figures saved as PNG/SVG for numerical plots or precise geometry.
+  - TikZ for publication-quality math diagrams.
+  - tldraw canvases (`.tldr` files written directly into the vault, opens natively in Obsidian's tldraw plugin) for architectural sketches.
+- **Why subagent + skill:** choosing *what* to visualize needs judgment (subagent); diagram conventions and format-selection rules are reusable reference (skill).
+- **First test case:** a freshly-acquired paper (not Memento — we'll exercise the full pipeline end-to-end).
+- **Acceptance:** produces at least one Mermaid diagram + a Marp deck with diagrams (not just rephrased bullets).
+
+### 2. Obsidian integration — primarily a layout + config concern
+
+Most of the integration is the file layout contract above plus `paperlab.config.yaml`. Remaining work:
+
+- Update every existing subagent (`acquirer`, `dissector`, `implementer`, `explainer`, `critic`) and skill to:
+  - Read `paperlab.config.yaml` to resolve `vault_paperlab_path` and `repo_root`.
+  - Write all markdown to `<vault_paperlab_path>/<slug>/` instead of `papers/<slug>/`.
+  - Reference PDFs/upstream via absolute paths under `repo_root`.
+- Add a rule (`paperlab-regenerate-prompt.mdc`) so regeneration never silently overwrites.
+
+### 3. `prerequisite` subagent + `ml-prerequisites` skill
+
+- **What:** scans `spec.md`, identifies assumed background concepts, cross-references existing `<vault_paperlab_path>/*/` and the curated `obsidian_vault_root` for coverage, produces a prerequisite graph + on-demand primers for gaps.
+- **Interaction model:** detect → check → ask. Presents the unknown list as a checklist; the user picks what to learn. Generated primers delegate to `explainer`.
+- **Why subagent + skill:** detecting assumed knowledge needs judgment; the prereq-graph schema is reference.
+
+### 4. `experimenter` subagent + `ml-sandbox` skill
+
+- **What:** scaffolds a minimal toy implementation in `sandbox/<slug>/` with a small synthetic or standard dataset, enabling A/B comparison of methods.
+- **Interactive data-design phase:** before generating code, the agent dialogues with the user about:
+  - What property of the method is being tested (expressivity, sample efficiency, robustness, ...).
+  - What data features would stress that property (size, density, noise, distribution shift, ...).
+  - Synthetic vs. small real dataset.
+  - Minimum viable comparison (metrics, baselines, seeds).
+- **Pairs with:** future `comparator`.
+
+### 5. External-data access
+
+- **MCP:** reuse `firecrawl` (already configured). Add a thin `arxiv` MCP only if structured metadata becomes a recurring need.
+- **Rule:** `external-fetch-budget.mdc` — max ~5 external fetches per concept; prefer arXiv abstract + 1 blog + author page; never crawl whole sites. Threshold to be tuned.
+
+## Parked
+
+Designed but deferred until the units above are stable.
+
+### `tutor` subagent + `ml-socratic` skill
+
+- **What:** interactive, multi-turn Socratic teacher. Reads `spec.md` + concept files, picks next concept, explains (delegating to `visualizer`), quizzes, adapts.
+- **State:** `tutor_log.md` per paper.
+- **Why parked:** log schema and overlap with explainer outputs need more thought.
+
+### `comparator` subagent + `ml-comparison` skill
+
+- **What:** cross-paper synthesis. Inputs N paper slugs + a comparison axis (e.g., "Graph Information Bottleneck objective formulations"). Output: `<vault>/PaperLab/comparisons/<topic>/comparison.md`.
+- **Why parked:** synthesis design is tricky; revisit when there are 3+ comparable papers in the vault.
+
 ## Deferred features
 
-_(template preserved — fill in as we defer things)_
+Things explicitly deferred during design, with the reason. Each entry should be specific enough to act on without rereading the conversation that produced it.
+
+### Two-way sync of `notes.md` between vault and repo
+
+- **What:** if `notes.md` ever needs to be edited from outside Obsidian.
+- **Why deferred:** current model is vault-only; no demonstrated need.
+- **Trigger to revisit:** if user wants to add notes from a machine without the vault.
+- **Estimated effort:** small.
+- **Notes:** none.
 
 ## Known limitations
 
-_(template preserved)_
+Things the system can't do, with workarounds where they exist.
+
+### Repo-to-vault absolute paths break across machines
+
+- **What:** the PDF/upstream links inside `paper-info.md` are absolute and machine-specific.
+- **Why:** the paperlab repo path may differ between work and personal machines.
+- **Workaround:** regenerate `paper-info.md` on each machine (cheap), or treat broken links as expected on the other machine.
+- **Possible fix:** make `paper-info.md` use a placeholder like `{repo_root}/papers/<slug>/<slug>.pdf` that an Obsidian plugin or hook resolves at view time. Medium effort, low priority.
 
 ## Schema improvement candidates
 
-_(template preserved)_
+Small refinements to existing schemas that aren't urgent but are worth remembering. These tend to surface during use.
+
+- _(none yet — fill in as we use the system)_
 
 ## Reference: what's currently working
 
-- Subagents: `acquirer`, `dissector`, `implementer`, `explainer`, `critic`
-- Skills: `ml-acquisition`, `ml-paper-spec`, `ml-code-map` (+ `DEEP_DIVE`), `ml-explanation`, `ml-synthesis`, `ml-critique`
-- Papers acquired: `Memento` (with `spec.md`, `mdp.md`)
+- **Subagents:** `acquirer`, `dissector`, `implementer`, `explainer`, `critic`.
+- **Skills:** `ml-acquisition`, `ml-paper-spec`, `ml-code-map` (+ `DEEP_DIVE`), `ml-explanation`, `ml-synthesis`, `ml-critique`.
+- **Papers acquired:** `Memento` (with `spec.md`, `mdp.md`) — currently in repo at `papers/Memento/`; will be left in place (no migration) per the agreed plan; new papers go to the vault.

@@ -1,2 +1,9 @@
-# directory
+# Per-paper source material (PDFs, supplementals, upstream clones)
 papers/
+
+# Per-machine config
+paperlab.config.yaml
+
+# Sandbox experiment outputs
+sandbox/**/outputs/
+sandbox/**/__pycache__/

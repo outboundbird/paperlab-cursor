@@ -6,23 +6,45 @@ PaperLab helps the user understand mathematics in machine learning and deep lear
 
 - Python code uses type hints, follows PEP 8, and has NumPy-style docstrings.
 - Code examples and reference-code reading assume PyTorch and PyTorch Geometric conventions.
-- Papers are stored under `papers/`.
-- Paper folders use `papers/<slug>`.
 - Math notation: use LaTeX between `$ ... $` for inline math and `$$ ... $$` for display math.
   Never use Unicode math characters (e.g., write `$\theta$` not `θ`).
   Never use `\( ... \)` or `\[ ... \]` — these don't render in GitHub markdown preview.
 
-Each paper folder may contain:
+## Where things live
 
-- `<slug>.pdf` — the paper itself
-- `paper-info.md` — acquisition metadata
-- `spec.md` — structured extraction from the Dissector subagent
-- `code_map.md` — mapping from paper concepts to official code from the Implementer subagent
-- `critic_reviews.md` — audit from the Critic subagent
-- `<concept>.md` — concept explanation from the Explainer subagent
-- `synth__<concept_a>__<concept_b>.md` — concept synthesis from the Explainer subagent
-- `notes.md` — user notes
-- `upstream/` — cloned official GitHub repo, if available
+PaperLab splits files between two locations. Every subagent MUST read `paperlab.config.yaml` at the repo root first to resolve paths.
+
+### Repo (this directory)
+
+- `papers/<slug>/<slug>.pdf` — paper PDF.
+- `papers/<slug>/supplementals/` — appendices, supplementary PDFs.
+- `papers/<slug>/upstream/<slug>/` — cloned official git repo (if any).
+- `sandbox/<slug>/` — toy experiments.
+- `paperlab.config.yaml` — per-machine paths (git-ignored). Copy from `paperlab.config.example.yaml`.
+
+### Vault (`vault_paperlab_path` from the config)
+
+All agent-generated files live flat under one folder per paper at `<vault_paperlab_path>/<slug>/`:
+
+- `paper-info.md` — acquisition metadata, includes absolute links to repo-side PDF/upstream.
+- `spec.md` — structured extraction from the `dissector` subagent.
+- `code_map.md` — mapping from paper concepts to official code from the `implementer` subagent.
+- `critic_reviews.md` — audit from the `critic` subagent.
+- `<concept>.md` — concept explanation from the `explainer` subagent.
+- `synth__<concept_a>__<concept_b>.md` — concept synthesis from the `explainer` subagent.
+- `notes.md` — user notes.
+- (Later) `slides.md`, `*.tldr`, `*.svg`, `*.png` from the `visualizer` subagent.
+- (Later) `tutor_log.md` from the `tutor` subagent.
+
+### Unified file convention
+
+- One schema; no agent-only or user-only file variants. The user reads and may edit any file.
+- On regeneration of an existing file, the agent MUST ask before overwriting. See `.cursor/rules/paperlab-regenerate-prompt.mdc`.
+- All paper folders follow the same flat structure; no per-paper config files.
+
+### Cross-references
+
+`paper-info.md` (in the vault) includes absolute paths to the repo-side PDF and upstream code, built from `repo_root` in `paperlab.config.yaml`. These links are machine-specific.
 
 ## Cursor Subagents
 

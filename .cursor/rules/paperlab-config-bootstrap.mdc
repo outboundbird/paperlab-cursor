@@ -1,0 +1,67 @@
+---
+description: Always-on rule. Every PaperLab subagent reads paperlab.config.yaml at the repo root via tools/paths.py before constructing any path, then writes markdown to the vault and source material to the repo.
+alwaysApply: true
+---
+
+# PaperLab config bootstrap
+
+Applies to every PaperLab subagent (`acquirer`, `dissector`, `implementer`, `explainer`, `critic`, and any future agent). Loaded automatically in every chat in this workspace.
+
+## Resolve paths via `tools/paths.py`
+
+Path conventions are encoded in `tools/paths.py` at the repo root. The agent MUST NOT hard-code paths or concatenate strings to build them. Use the helpers in `tools.paths`:
+
+```python
+from tools.paths import (
+    vault_slug_dir, vault_path,        # vault (agent-generated markdown)
+    repo_pdf_path, repo_paper_dir,     # repo (source material)
+    repo_supplementals_dir,
+    repo_upstream_dir,                 # cloned official code
+    repo_sandbox_dir,                  # toy experiments
+    obsidian_vault_root,               # optional: curated vault for cross-checks
+)
+```
+
+For quick shell-level lookups (when the agent prefers `Shell` over Python imports):
+
+```bash
+python -m tools.paths vault <slug> <filename>   # absolute path to <vault>/<slug>/<filename>
+python -m tools.paths pdf <slug>                # absolute path to <repo>/papers/<slug>/<slug>.pdf
+python -m tools.paths upstream <slug>           # absolute path to <repo>/papers/<slug>/upstream/<slug>/
+python -m tools.paths sandbox <slug>            # absolute path to <repo>/sandbox/<slug>/
+```
+
+If `paperlab.config.yaml` is missing, the helpers raise a clear error pointing at `paperlab.config.example.yaml`. The agent should surface that error to the user rather than guessing a path.
+
+## Read vs. write — where each kind of file lives
+
+| Kind | Location | Read/write |
+|---|---|---|
+| Paper PDF | `repo_pdf_path(slug)` | Read only |
+| Supplementals | `repo_supplementals_dir(slug)` | Read only |
+| Cloned upstream code | `repo_upstream_dir(slug)` | Read only (write only when cloning) |
+| Toy experiments | `repo_sandbox_dir(slug)` | Read / write |
+| All generated markdown (`spec.md`, `code_map.md`, `<concept>.md`, etc.) | `vault_path(slug, filename)` | Read / write |
+| Slides, diagrams, tldraw | `vault_path(slug, filename)` | Read / write |
+| `notes.md` | `vault_path(slug, "notes.md")` | Read (user-owned; never modify content the user wrote) |
+
+Generated markdown NEVER lives under `<repo>/papers/`. Source material NEVER lives in the vault.
+
+## Cross-references inside generated notes
+
+When the `acquirer` writes `paper-info.md` (and any other note that links to repo-side material), use **absolute paths** built from `repo_pdf_path(slug)` etc. These links are machine-specific; that is acknowledged in `ROADMAP.md` under "Known limitations".
+
+## Slug convention
+
+Slugs are lowercase, hyphen-separated, no spaces, no emoji. Example: `memento`, `gib-via-mi`.
+
+## Regeneration
+
+Before overwriting any existing file under `vault_slug_dir(slug)`, the regeneration prompt rule applies: ask **replace / append / abort**. See `.cursor/rules/paperlab-regenerate-prompt.mdc`.
+
+## Anti-patterns
+
+- ❌ Writing `papers/<slug>/spec.md` (old layout — no longer valid for generated markdown).
+- ❌ Hard-coding the user's vault path in a skill or agent prompt.
+- ❌ Building paths with f-strings outside `tools/paths.py`.
+- ❌ Putting any generated `.md` under `<repo>/papers/`.

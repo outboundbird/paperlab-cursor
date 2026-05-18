@@ -1,0 +1,20 @@
+# paperlab.config.yaml — per-machine paths for the PaperLab agents.
+#
+# Copy this file to `paperlab.config.yaml` (git-ignored) and edit the paths
+# for your machine. Every PaperLab subagent reads this file first to resolve
+# where to read PDFs/upstream code from and where to write generated notes to.
+
+# Absolute path to the paperlab-cursor repo root on this machine.
+# Used to build absolute links from vault notes back to the repo-side PDF and
+# upstream code.
+repo_root: "C:/Users/<your-user>/Workspace/paperlab-cursor"
+
+# Absolute path to the PaperLab subtree inside your Obsidian vault. Each paper
+# gets a flat folder at <vault_paperlab_path>/<slug>/ containing all
+# agent-generated markdown, slides, diagrams, and tldraw canvases.
+vault_paperlab_path: "C:/Users/<your-user>/path/to/Obsidian/Vault/.../PaperLab"
+
+# (Optional) Absolute path to the root of your curated Obsidian vault. The
+# `prerequisite` and `explainer` agents may read from here to check whether you
+# have prior notes on assumed concepts. Read-only.
+obsidian_vault_root: "C:/Users/<your-user>/path/to/Obsidian/Vault"

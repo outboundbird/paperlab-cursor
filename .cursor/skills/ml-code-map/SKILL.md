@@ -1,13 +1,13 @@
 ---
 name: ml-code-map
-description: Maps an ML paper's algorithmic concepts to its cloned official implementation and defines the code_map.md schema. Use when mapping, annotating, or explaining a paper's upstream code under papers/<slug>/upstream/.
+description: Maps an ML paper's algorithmic concepts to its cloned official implementation and defines the `code_map.md` schema. Reads cloned code under `repo_upstream_dir(slug)` (in the repo) and writes `code_map.md` to `vault_path(slug, "code_map.md")` (in the vault). Use when mapping, annotating, or explaining a paper's upstream code.
 ---
 
 # ML Code Map Schema
 
 ## Purpose
 
-This file defines the schema for `code_map.md`, the structured mapping from a paper's algorithm to its official implementation. `code_map.md` is produced by the Implementer subagent and read by the user to understand how the paper translates to code. It lives at `papers/<slug>/code_map.md`.
+This file defines the schema for `code_map.md`, the structured mapping from a paper's algorithm to its official implementation. `code_map.md` is produced by the Implementer subagent and read by the user to understand how the paper translates to code. It lives at `vault_path(slug, "code_map.md")` (resolved via `tools/paths.py`); cloned code being annotated lives at `repo_upstream_dir(slug)`.
 
 ## Conventions
 
@@ -19,7 +19,7 @@ Global rules that apply to all sections:
 - **code block**: Code blocks must be verbatim except for inline clarifying comments that tie variables to paper notation. If Implementer adds a comment, mark it as Implementer-added (e.g., a trailing # [annot]).
 - **language tag convention**: based on the original code
 - **commit/date recording convention**: MM/DD/YYYY
-- **the read-only boundary**: The Implementer subagent reads and searches source files, but does not execute upstream code, modify files under `upstream/`, or produce new Python files. Its only writes are PaperLab annotation artifacts such as `papers/<slug>/code_map.md`.
+- **the read-only boundary**: The Implementer subagent reads and searches source files under `repo_upstream_dir(slug)`, but does not execute upstream code, modify files there, or produce new Python files. Its only writes are PaperLab annotation artifacts such as `vault_path(slug, "code_map.md")`.
 - **accuracy rule for line numbers**: Line numbers must reflect actual file contents at the annotated commit. Verify each line range by reading the file — do not infer line numbers from imports, class names, or file structure. Inline code snippets must exactly match the file content at those line ranges.
 - **what triggers re-annotation**: If the upstream repository has been updated since the commit recorded in the header, line numbers and code snippets may have drifted. Re-run Implementer to refresh code_map.md after any upstream update.
 
@@ -44,7 +44,7 @@ tags:
 
 **Paper:** <paper title>
 **Paper context:** one-sentence summary of what the paper does
-**Repo:** `upstream/<slug>/<repo-subdir>/`, source URL (<URL>),
+**Repo:** absolute path from `repo_upstream_dir(slug)` (record it explicitly so the link works from Obsidian), source URL (<URL>),
 **Annotation date:** MM/DD/YYYY. No commit hash required — Implementer records the date it read the repo. If the upstream updates, re-run to refresh
 **Code language/framework:** <e.g., Python + PyTorch + PyTorch Geometric>
 
@@ -69,7 +69,7 @@ tags:
 perturbations with GEARS
 **Paper context:** GNN + GO-graph method for predicting transcriptional
 response to unseen gene perturbations.
-**Repo:** `upstream/GEARS/GEARS/`, https://github.com/snap-stanford/GEARS,
+**Repo:** `C:/Users/<you>/Workspace/paperlab-cursor/papers/GEARS/upstream/GEARS/` (i.e. `repo_upstream_dir("GEARS")`), https://github.com/snap-stanford/GEARS,
 annotation date: 04/23/2026
 **Code language/framework:** Python + PyTorch + PyTorch Geometric
 
@@ -85,7 +85,7 @@ Specifically you will write up:
 
 - Provide the brief section title
 - Cite the paper formula from spec.md correspond to this section if available
-- Provide the code location with information of code path: `upstream/<slug>/<git repo>/<code file>` : lines xx -xx
+- Provide the code location as a path relative to `repo_upstream_dir(slug)` followed by line numbers: `<relative path inside upstream>:lines xx-xx`. The reader resolves the absolute path via `tools/paths.py`.
 - The snippet of the that corresponding to the algorithm
 - **code snippet max length**:  20 lines
 - Annotation for this piece of code.
@@ -99,7 +99,7 @@ for example:
 
 $$\mathbf{h}^{\text{gene}}_u = \text{GNN}_{\theta_g}(\mathbf{x}^{\text{gene}}_u, \mathcal{G}_{\text{gene}}) \in \mathbb{R}^d$$
 
-**Code location:** `upstream/GEARS/gears/model.py` lines 48–72
+**Code location:** `gears/model.py:lines 48–72` (relative to `repo_upstream_dir("GEARS")`)
 
 ```python
 class PertGeneEncoder(nn.Module):
@@ -121,7 +121,7 @@ class PertGeneEncoder(nn.Module):
 - `self.gnn` is a single-layer SGC (Simplifying Graph Convolution) as
   specified in `spec.md §7` (`GNN layers = 1`, `GNN architecture = SGC`).
   The `edge_index` argument is $\mathcal{G}_{\text{gene}}$, computed once
-  at preprocessing time (see `upstream/GEARS/gears/data_utils.py:L112`).
+  at preprocessing time (see `gears/data_utils.py:L112`).
 - The output `h` is $\mathbf{h}^{\text{gene}}_u \in \mathbb{R}^d$,
   ready to be combined with the perturbation embedding $\mathbf{h}^z$
   in the next module.
@@ -134,7 +134,7 @@ Write a numbered list that describes the training loop structure. Briefly summar
 For example:
 
 1. Entry point: `python -m gears.train --config configs/gears_norman.yaml`
-   → `upstream/GEARS/gears/train.py:L1-30`. Parses CLI args, loads config.
+   → `gears/train.py:L1-30` (under `repo_upstream_dir("GEARS")`). Parses CLI args, loads config.
 2. Data loading: `gears/data.py:PertData` class loads LINCS-formatted
    perturbation data, constructs gene co-expression graph G_gene
    (`data.py:L120-140`) and GO-derived perturbation graph G_pert
@@ -199,7 +199,7 @@ and the paper's other artifacts.
 
 **Upstream repository:**
 - Official source: <URL>
-- Local clone: `upstream/<slug>/`
+- Local clone: absolute path from `repo_upstream_dir(slug)`
 
 **External references** (optional):
 - Any documentation, tutorials, or blog posts from the authors that help

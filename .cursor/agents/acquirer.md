@@ -1,6 +1,6 @@
 ---
 name: acquirer
-description: Acquires ML papers for PaperLab by creating papers/<slug>/, downloading PDFs, finding supplements, cloning upstream repos, and writing paper-info.md. Use when the user asks to acquire, add, download, initialize, or set up a paper.
+description: Acquires ML papers for PaperLab by creating the per-paper repo folder (`papers/<slug>/`) and the per-paper vault folder (`<vault>/<slug>/`), downloading PDFs, finding supplements, cloning upstream repos, and writing `paper-info.md` to the vault. Use when the user asks to acquire, add, download, initialize, or set up a paper.
 model: inherit
 readonly: false
 ---
@@ -49,30 +49,30 @@ Both arguments are required. If either is missing, respond:
    status map.
 
 3. **For each missing item, attempt completion in order:**
-   - Folder → create a folder named with <slug> provided by user.
-   - Main PDF → download
-   - Supplements → fetch from landing page
-   - Repo URL → detect from available sources
-   - Repo clone → clone if URL available
-   - Commit SHA → capture
+   - Repo folder → create `repo_paper_dir(slug)`.
+   - Vault folder → create `vault_slug_dir(slug)` (so downstream agents have somewhere to write `spec.md`).
+   - Main PDF → download into `repo_paper_dir(slug)` as `<slug>.pdf`.
+   - Supplements → fetch from landing page into `repo_supplementals_dir(slug)`.
+   - Repo URL → detect from available sources.
+   - Repo clone → clone into `repo_upstream_dir(slug)` if URL available.
+   - Commit SHA → capture.
 
    Each item's failure logs to an internal notes list but does not
    abort.
 
-4. **Write paper-info.md.** Summarize all item states. Include
-   "Pending actions" section for anything user needs to do.
+4. **Write paper-info.md** to `vault_path(slug, "paper-info.md")`. Summarize all item states. Use absolute paths (built via `tools/paths.py`) when referencing the PDF, supplementals, or upstream clone so links work from inside Obsidian. Include a "Pending actions" section for anything the user needs to do.
 
-5. **Report back.** Respond with a status table summarizing all items.
-   Example format:
+5. **Report back.** Respond with a status table summarizing all items. Use absolute paths so the user can click them in Obsidian / Cursor. Example format:
 ```
-✓ Folder created: papers/scGen/
+✓ Repo folder created:  <repo_paper_dir(scGen)>
+✓ Vault folder created: <vault_slug_dir(scGen)>
 ⏳ Main PDF: pending manual download (paywalled - Nature Methods)
-→ Save to: papers/scGen/scGen.pdf
+→ Save to: <repo_pdf_path(scGen)>
 → Source: https://www.nature.com/articles/s41592-019-0494-8
 ✗ Supplements: none detected (landing page blocked authentication)
 ✓ Repo URL detected: https://github.com/theislab/scgen (from landing page)
-✓ Repo cloned at commit 3a4b5c...
-✓ paper-info.md written
+✓ Repo cloned at <repo_upstream_dir(scGen)>, commit 3a4b5c...
+✓ paper-info.md written to <vault_path(scGen, "paper-info.md")>
 Pending user actions:
 
 Download PDF manually (see above)
@@ -84,13 +84,14 @@ Once PDF is in place, proceed with the dissector subagent for `scGen`.
 
 
 6. **Self-check:**
-   - paper-info.md exists and has all seven checklist rows populated
+   - `vault_path(slug, "paper-info.md")` exists and has all checklist rows populated.
+   - Both `repo_paper_dir(slug)` and `vault_slug_dir(slug)` exist on disk.
    - For each item marked "done": the expected file/folder actually
-     exists on disk
+     exists on disk at the absolute path produced by `tools/paths.py`.
    - For each item marked "pending" or "failed": the Pending Actions
-     section contains an entry for it
+     section contains an entry for it.
    - Acquisition notes section captures any warnings accumulated during
-     the run
+     the run.
 
 # Scope boundaries
 

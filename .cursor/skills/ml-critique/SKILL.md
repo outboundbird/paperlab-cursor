@@ -1,13 +1,13 @@
 ---
 name: ml-critique
-description: Defines the critic_reviews.md audit schema for calibrating trust in ML papers by reviewing claims, evidence, reproducibility, and paper-code alignment. Use when auditing, critiquing, reviewing, or trust-calibrating a PaperLab paper.
+description: Defines the `critic_reviews.md` audit schema for calibrating trust in ML papers by reviewing claims, evidence, reproducibility, and paper-code alignment. `critic_reviews.md` lives at `vault_path(slug, "critic_reviews.md")`. Use when auditing, critiquing, reviewing, or trust-calibrating a PaperLab paper.
 ---
 
 # ML Critique Schema
 
 ## Purpose
 
-This file defines the schema for `critic_reviews.md`, the structured audit that helps the user calibrate trust in a paper. `critic_reviews.md` is produced by the Critic subagent and lives at `papers/<slug>/critic_reviews.md`.
+This file defines the schema for `critic_reviews.md`, the structured audit that helps the user calibrate trust in a paper. `critic_reviews.md` is produced by the Critic subagent and lives at `vault_path(slug, "critic_reviews.md")` (resolved via `tools/paths.py`).
 
 The audit covers two scopes: paper methodology (claims, evidence,
 unstated limitations) and paper-code alignment (what the implementation
@@ -47,7 +47,7 @@ tags:
 
 **Paper:** <paper title>
 **Paper context:** one-sentence summary of what the paper does
-**Repo:** `upstream/<slug>/<repo-subdir>/`, source URL (<URL>),
+**Repo:** absolute path from `repo_upstream_dir(slug)`, source URL (<URL>),
 **Audit date:** MM/DD/YYYY
 **Sources audited**: spec.md, code_map.md
 
@@ -125,7 +125,7 @@ A binary (yes / no / partial) check on each item, verifiable from files on disk,
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Upstream code available | yes / no | path to upstream/ if yes |
+| Upstream code available | yes / no | absolute path from `repo_upstream_dir(slug)` if yes |
 | Datasets accessible without authentication | yes / no | source link |
 | All hyperparameters from spec.md §7 documented in code or config | yes / no / partial | which are missing |
 | Random seeds fixed in training code | yes / no | grep result |

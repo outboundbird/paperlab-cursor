@@ -1,6 +1,6 @@
 ---
 name: ml-explanation
-description: Defines the schema for writing single-concept math explanations from ML papers. Use when explaining a concept from a paper, clarifying paper math, or writing papers/<slug>/<concept>.md.
+description: Defines the schema for writing single-concept math explanations from ML papers. Concept files live at `vault_path(slug, "<concept>.md")`. Use when explaining a concept from a paper, clarifying paper math, or writing a concept file.
 ---
 
 # ML Explanation Schema
@@ -30,7 +30,7 @@ Global rules that apply to all sections:
 - **diagram rules**: Mermaid for graphs/flows; ASCII for tensor shapes; reference paper figures when they exist. Use graphs/ flows for concept explanation as necessary.
 - **cross-reference syntax**: Plain markdown links
 - **structure**: 6 sections: Definition, Motivation, Intuition, Formal statement, Worked example, Cross-references
-- **file placement rule** : write up the file at `papers/<slug>/<concept>.md` where `<slug>` is the paper where Explainer is first asked to explain this concept. If the same concept appears in another paper later, do not create a duplicate file — link to the existing one from the second paper's context, and optionally add a short note describing how the second paper uses the concept differently.
+- **file placement rule** : write up the file at `vault_path(slug, "<concept>.md")` where `<slug>` is the paper where Explainer is first asked to explain this concept. If the same concept appears in another paper later, do not create a duplicate file — link to the existing one from the second paper's context, and optionally add a short note describing how the second paper uses the concept differently. Paths are resolved via `tools/paths.py`.
 - **Bidirectional cross-referencing**: when Section 6 of a new concept file links to an existing concept file, Explainer subagent must also add a reciprocal link in the existing file's Section 6. Specifically:
   - Read the existing file's Section 6 ("Related concepts" subsection).
   - If it currently says "None", replace that entire line with a new  bulleted list containing the reciprocal link.
@@ -39,7 +39,7 @@ Global rules that apply to all sections:
     `[<concept>](<concept>.md) — one-sentence description of the
     relationship`.
   The invariant to maintain: if file A's Section 6 links to file B, then file B's Section 6 must link back to A.
-- Before writing, Explainer subagent checks all `papers/*/<concept>.md` paths. If the concept already has a file anywhere in the project, do not create a new file — instead, read the existing file, offer to update or extend it if appropriate, and/or add a cross-reference from the current paper's context.
+- Before writing, Explainer subagent checks all `vault_root()/*/<concept>.md` paths. If the concept already has a file anywhere in the vault, do not create a new file — instead, read the existing file, offer to update or extend it if appropriate, and/or add a cross-reference from the current paper's context.
 
 ## Required sections (in this order)
 

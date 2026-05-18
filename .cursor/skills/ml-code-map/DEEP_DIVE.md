@@ -3,7 +3,7 @@ This file is a companion schema used by `.cursor/skills/ml-code-map/SKILL.md` an
 
 ## Purpose
 
-This file defines the schema for deep-dive code mapping. In deep-dive mode, the Implementer subagent produces `code_map__<slug>__<component>.md`.
+This file defines the schema for deep-dive code mapping. In deep-dive mode, the Implementer subagent produces `vault_path(slug, "code_map__<slug>__<component>.md")` (resolved via `tools/paths.py`).
 
 ## Required sections
 
@@ -23,7 +23,7 @@ tags:
 ## 1. Annotation Info
 
 **Paper:** <paper title>
-**Repo:** `upstream/<slug>/<repo-subdir>/`, source URL (<URL>),
+**Repo:** absolute path from `repo_upstream_dir(slug)`, source URL (<URL>),
 **Annotation date:** MM/DD/YYYY. No commit hash required — Implementer records the date it read the repo. If the upstream updates, re-run to refresh
 **Module name**: name of the module code or the component that user asked for
 **Code language/framework:** <e.g., Python + PyTorch + PyTorch Geometric>
@@ -46,7 +46,7 @@ tags:
 
 **Paper:** Predicting transcriptional outcomes of novel multigene
 perturbations with GEARS
-**Repo:** `upstream/GEARS/GEARS/`, https://github.com/snap-stanford/GEARS,
+**Repo:** `C:/Users/<you>/Workspace/paperlab-cursor/papers/GEARS/upstream/GEARS/` (i.e. `repo_upstream_dir("GEARS")`), https://github.com/snap-stanford/GEARS,
 **Annotation date:**: 04/23/2026
 **Module name:** gene encoder
 **Code language/framework:** Python + PyTorch + PyTorch Geometric
@@ -65,7 +65,7 @@ In this section you will provide:
 
 **Example:**
 
-**Code context** (`upstream/GEARS/gears/model.py` lines 48–92):
+**Code context** (`gears/model.py:lines 48–92`, relative to `repo_upstream_dir("GEARS")`):
 
 ```python
 class PertGeneEncoder(nn.Module):

@@ -44,15 +44,15 @@ Convert the concept name to lowercase and replace spaces with hyphens. Strip pun
 - "cycle loss" → `cycle-loss.md`
 
 # Inputs
-First read `papers/<slug>/spec.md`. If needed, consult `papers/<slug>/<slug>.pdf` or supplement files such as `<slug>_supplement.pdf`, `<slug>_supplementary.pdf`, `<slug>_SI.pdf`, or `<slug>-supp.pdf`.
+First read `vault_path(slug, "spec.md")`. If needed, consult `repo_pdf_path(slug)` or supplement files under `repo_supplementals_dir(slug)` such as `<slug>_supplement.pdf`, `<slug>_supplementary.pdf`, `<slug>_SI.pdf`, or `<slug>-supp.pdf`. Paths are resolved via `tools/paths.py`.
 
 # Process
 
 0. **Mode detection, prerequisite check, and schema loading.**
 
-  First verify the paper exists. If `papers/<slug>/spec.md` does not exist:
+  First verify the paper exists. If `vault_path(slug, "spec.md")` does not exist:
   - Respond: "I need spec.md for <slug> before I can explain concepts.
-    Use the dissector subagent first to create `papers/<slug>/spec.md`.
+    Use the dissector subagent first to create it.
     Then retry this request."
   - End turn. Do not proceed.
 
@@ -65,18 +65,18 @@ First read `papers/<slug>/spec.md`. If needed, consult `papers/<slug>/<slug>.pdf
   - SYNTHESIS: `.cursor/skills/ml-synthesis/SKILL.md`
 
    In SYNTHESIS mode, also verify that all referenced component concept
-   files already exist in `papers/*/`. If any are missing, explain each
-   missing concept first (as separate single-concept files) before
-   proceeding with the synthesis.
-1. Read the `papers/<slug>/spec.md` for the math method.
+   files already exist somewhere under `vault_root()/*/`. If any are
+   missing, explain each missing concept first (as separate
+   single-concept files) before proceeding with the synthesis.
+1. Read `vault_path(slug, "spec.md")` for the math method.
 2. Read the PDF and supplemental material if the information on `spec.md` is not enough.
-3. Before writing, search `papers/*/<concept>.md` for an existing explanation of this concept in any paper folder. If found:
+3. Before writing, search `vault_root()/*/<concept>.md` for an existing explanation of this concept in any paper folder. If found:
    a. Do not overwrite.
    b. Respond in chat: report the path of the existing file, and ask the user whether to (i) leave it alone, (ii) update/extend it, or (iii) create a short stub in the current paper's folder that cross-links to the existing file.
    c. Wait for the user's decision before proceeding.
 4. Write the output file to disk. Do not print the content to chat as a substitute. The file location depends on mode:
-   - SINGLE-CONCEPT: `papers/<slug>/<concept>.md`, where `<concept>` follows the filename convention above. Follow `.cursor/skills/ml-explanation/SKILL.md`.
-   - SYNTHESIS: `papers/<slug>/synth__<concept_a>__<concept_b>.md`, where the component filenames are alphabetized. Follow `.cursor/skills/ml-synthesis/SKILL.md`.
+   - SINGLE-CONCEPT: `vault_path(slug, "<concept>.md")`, where `<concept>` follows the filename convention above. Follow `.cursor/skills/ml-explanation/SKILL.md`.
+   - SYNTHESIS: `vault_path(slug, "synth__<concept_a>__<concept_b>.md")`, where the component filenames are alphabetized. Follow `.cursor/skills/ml-synthesis/SKILL.md`.
    Do the write in one session. Do not ask for confirmation mid-write unless an existing concept file requires a user decision.
 5. **Single-concept mode only:** Update back-links. For every concept file linked in the new file's Section 6 "Related concepts" subsection, add a reciprocal link to the new file in that concept's Section 6, following the bidirectional cross-referencing rule in `.cursor/skills/ml-explanation/SKILL.md`. In synthesis mode, skip this step because synthesis files do not trigger back-links per `.cursor/skills/ml-synthesis/SKILL.md`.
 6. Produce exactly the sections defined in the schema.
@@ -97,7 +97,7 @@ First read `papers/<slug>/spec.md`. If needed, consult `papers/<slug>/<slug>.pdf
 
 Explainer does not:
 - Modify spec.md (Dissector's territory)
-- Read or modify upstream/ code (Implementer's territory)
+- Read or modify code under `repo_upstream_dir(slug)` (Implementer's territory)
 - Evaluate or critique the paper's approach (not in scope)
 - Produce runnable code
 

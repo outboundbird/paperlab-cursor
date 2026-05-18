@@ -1,0 +1,42 @@
+---
+description: PaperLab regeneration prompt — agents must ask before overwriting any existing file under <vault_paperlab_path>/<slug>/.
+alwaysApply: true
+---
+
+# PaperLab regeneration prompt
+
+Applies to every PaperLab subagent (`acquirer`, `dissector`, `implementer`, `explainer`, `critic`, and any future agent) when about to write a file under `<vault_paperlab_path>/<slug>/`.
+
+## Rule
+
+Before writing a file that already exists at the target path, the agent MUST stop and ask the user which mode to use:
+
+1. **Replace** — overwrite the existing file with the new content.
+2. **Append** — add the new content to the end of the existing file, under a clear separator (`---` line + an H2 header indicating the date and agent, e.g. `## Regenerated 2026-05-18 by dissector`).
+3. **Abort** — do not write; return the new content in the chat so the user can decide manually.
+
+Use the `AskQuestion` tool for this prompt. Do not infer the user's intent from earlier context — always ask, even if the user previously said "regenerate".
+
+## When this rule does NOT apply
+
+- The target file does not yet exist (first-time write — proceed without asking).
+- The file is a write to the repo, not the vault (e.g., cloning upstream code, writing to `sandbox/`).
+- The user has explicitly said in the *current* message: "replace all", "append all", or similar blanket instruction for this run.
+
+## Append-mode formatting
+
+When appending, separate the new content with:
+
+```
+---
+
+## Regenerated <YYYY-MM-DD> by <agent-name>
+
+<new content>
+```
+
+This keeps the file readable in Obsidian and makes it trivial for the user to diff or revert.
+
+## Rationale
+
+PaperLab files are read in Obsidian and may carry hand-edits or annotations the user added between agent runs. Silent overwrites destroy those edits. Asking once per file is cheap; recovering lost notes is not.

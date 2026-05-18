@@ -1,18 +1,20 @@
 ---
 name: ml-acquisition
-description: Sets up a PaperLab paper folder by acquiring source materials: paper PDF, optional supplements, optional upstream repository clone, commit SHA, and paper-info.md. Use when acquiring, adding, initializing, downloading, or setting up an ML paper under papers/<slug>/.
+description: Sets up the per-paper repo folder (`papers/<slug>/`) for source materials AND the per-paper vault folder (`<vault>/<slug>/`) for agent-generated notes. Acquires paper PDF, optional supplements, optional upstream repository clone, commit SHA, and writes `paper-info.md` to the vault. Use when acquiring, adding, initializing, downloading, or setting up an ML paper.
 ---
 
 # ML Acquisition Schema
 
 ## Purpose
 
-This file defines the PaperLab acquisition protocol: a scaffolded paper folder with PDF, optional upstream repo clone, and a `paper-info.md` metadata file. The Acquirer subagent uses this as its authoritative schema, and downstream subagents depend on the folder structure it creates.
+This file defines the PaperLab acquisition protocol: a scaffolded **repo folder** with PDF + optional supplements + optional upstream repo clone, a parallel scaffolded **vault folder** for agent-generated notes, and a `paper-info.md` metadata file written to the vault. The Acquirer subagent uses this as its authoritative schema, and downstream subagents depend on the folder structure it creates.
+
+Paths are resolved via the helpers in `tools/paths.py` (see `.cursor/rules/paperlab-config-bootstrap.mdc`). Never hard-code paths.
 
 ## Scope boundaries
 
 - Acquirer may read project files, search the workspace, use shell commands for git/download operations, and fetch paper or publisher landing pages for PDF download, repo detection, and supplement detection.
-- Acquirer does NOT modify files inside `upstream/<repo-name>/` after
+- Acquirer does NOT modify files inside `repo_upstream_dir(slug)` after
   cloning.
 - Acquirer does NOT produce spec.md, code_map.md, or any other agent's
   artifacts.
@@ -32,7 +34,10 @@ This file defines the PaperLab acquisition protocol: a scaffolded paper folder w
       `<slug>_supplement2.pdf`, etc., in landing-page order
   - Dissector subagent recognizes both patterns.
 
-- **Structure**: Acquirer subagent will create a folder named after the slug under `papers/`. The PDF file will be renamed as `<slug>.pdf`. If the git repo exists, Acquirer subagent will create a subfolder named `upstream/` and clone the repo there. The `paper-info.md` file will be created in the slug folder.
+- **Structure**: Acquirer subagent creates two parallel folders for each paper:
+  - **Repo side** — `repo_paper_dir(slug)` holds the PDF (`<slug>.pdf`), `supplementals/` (if any), and `upstream/<slug>/` (if a git repo exists).
+  - **Vault side** — `vault_slug_dir(slug)` is created empty for downstream subagents to fill with `spec.md`, `code_map.md`, etc.
+  The `paper-info.md` file is written to the **vault** folder (`vault_path(slug, "paper-info.md")`) and links back to the repo-side PDF and upstream paths using absolute paths from `tools/paths.py`.
 - **Idempotency**: Acquirer subagent uses a state-driven checklist (see §3).
   Each item is checked before attempting. Items already done are
   marked "done (previously)" and skipped. If everything is already
@@ -54,31 +59,41 @@ This file defines the PaperLab acquisition protocol: a scaffolded paper folder w
 
 ### 1. Folder structure
 
-Under the papers/ folder, each acquisition will create a <slug> folder. Under the <slug> folder, the fetched paper PDF and supplemental material will be stored. Acquirer will create a upstream/ folder under <slug>/ for git cloning the repo, if available.
+Each acquisition creates two parallel folders: one in the repo for source material, one in the vault for generated notes.
 
-for example, GEARS is the slug name.
+For example, GEARS is the slug name.
 
-```bash
-After Acquirer runs, papers/<slug>/ contains:
+**Repo side** (`repo_paper_dir("GEARS")`):
 
-papers/GEARS/
-├── GEARS.pdf              ← downloaded by Acquirer
-├── paper-info.md          ← written by Acquirer
-└── upstream/              ← created by Acquirer (if repo found)
-    └── GEARS/             ← cloned by Acquirer
-
-Files added later by other agents (not shown above):
-Files added later by other subagents (not shown above):
-- `spec.md` by the Dissector subagent
-- `code_map.md` by the Implementer subagent
-- `<concept>.md` by the Explainer subagent
-- `critic_reviews.md` by the Critic subagent
-- `<slug>_supplement.pdf` (added manually by user, if needed)
 ```
+<repo>/papers/GEARS/
+├── GEARS.pdf                 ← downloaded by Acquirer
+├── supplementals/            ← created by Acquirer if any supplements found
+│   ├── GEARS_supplement.pdf
+│   └── ...
+└── upstream/                 ← created by Acquirer if a git repo is found
+    └── GEARS/                ← cloned by Acquirer
+```
+
+**Vault side** (`vault_slug_dir("GEARS")`):
+
+```
+<vault>/GEARS/
+└── paper-info.md             ← written by Acquirer
+
+Files added later by other subagents (not shown above):
+- spec.md            by the Dissector subagent
+- code_map.md        by the Implementer subagent
+- <concept>.md       by the Explainer subagent
+- critic_reviews.md  by the Critic subagent
+- notes.md           by the user
+```
+
+Both folders must exist before downstream subagents run.
 
 ### 2. paper-info.md format
 
-Provide general information of the paper and write to the `paper-info.md` file using the template below:
+Write `paper-info.md` to `vault_path(slug, "paper-info.md")`. Use absolute paths (built via `tools/paths.py`) when referencing repo-side files so the links are clickable from Obsidian. Template:
 
 ```markdown
 ---
@@ -95,11 +110,11 @@ tags:
 
 ## Files
 
-| Item | Status | Location / Notes |
-|------|--------|------------------|
-| Main PDF | ✓ done / ⏳ pending | `<slug>.pdf` or "manual download required" |
-| Supplement PDFs | ✓ (N found) / — none detected / ⏳ pending | list of filenames |
-| Upstream repo | ✓ cloned / ⏳ pending / ✗ not found | URL and commit SHA |
+| Item | Status | Absolute path / Notes |
+|------|--------|-----------------------|
+| Main PDF | ✓ done / ⏳ pending | absolute path from `repo_pdf_path(slug)` or "manual download required" |
+| Supplement PDFs | ✓ (N found) / — none detected / ⏳ pending | absolute path of `repo_supplementals_dir(slug)` + filenames |
+| Upstream repo | ✓ cloned / ⏳ pending / ✗ not found | absolute path of `repo_upstream_dir(slug)`, URL, and commit SHA |
 
 ## Pending actions
 
@@ -119,94 +134,88 @@ item, Acquirer subagent checks the current state and attempts to provide the
 item if missing. Each item is independent — one failure does not
 prevent attempts on others.
 
-**The checklist:**
+**The checklist** (all paths resolved via `tools/paths.py`):
 
-1. Paper folder (`papers/<slug>/`)
-2. Main PDF (`papers/<slug>/<slug>.pdf`)
-3. Supplement PDFs (`papers/<slug>/<slug>_supplement*.pdf`)
-4. Git repo URL (determined from PDF, landing page, or user argument)
-5. Git repo clone (`papers/<slug>/upstream/<repo-name>/`)
-6. Commit SHA (captured after clone)
-7. paper-info.md (written last, summarizing state)
+1. Repo folder (`repo_paper_dir(slug)`)
+2. Vault folder (`vault_slug_dir(slug)`)
+3. Main PDF (`repo_pdf_path(slug)`)
+4. Supplement PDFs (`repo_supplementals_dir(slug)/<slug>_supplement*.pdf`)
+5. Git repo URL (determined from PDF, landing page, or user argument)
+6. Git repo clone (`repo_upstream_dir(slug)`)
+7. Commit SHA (captured after clone)
+8. paper-info.md (written last to `vault_path(slug, "paper-info.md")`, summarizing state)
 
 **Per-item behavior:**
 
-**Item 1: Paper folder**
-- If `papers/<slug>/` exists → mark "done," skip creation
-- If missing → `mkdir papers/<slug>/`, mark "done"
-- Never fails
-- **CRITICAL: Once created, this folder must NOT be removed during the
-  run, regardless of whether other items succeed or fail. Acquirer
-  writes paper-info.md into this folder at the end of the run to
-  report partial success. Removing the folder destroys the state
-  record the user needs.**
+**Item 1: Repo folder**
+- If `repo_paper_dir(slug)` exists → mark "done," skip creation.
+- If missing → create it, mark "done."
+- Never fails.
+- **CRITICAL: Once created, this folder must NOT be removed during the run, regardless of whether other items succeed or fail.**
 
-**Item 2: Main PDF**
-- If `papers/<slug>/<slug>.pdf` already exists → mark "done"
-- Otherwise, attempt download per publisher rules (§ PDF download below)
-- If download succeeds → mark "done"
-- If download fails → mark "pending manual download," record failure
-  reason in Acquisition notes. Do NOT abort the run.
+**Item 2: Vault folder**
+- If `vault_slug_dir(slug)` exists → mark "done," skip creation.
+- If missing → create it, mark "done."
+- Never fails.
+- This is where `paper-info.md` (Item 8) and all downstream artifacts live.
 
-**Item 3: Supplement PDFs**
-- If any `<slug>_supplement*.pdf` files already exist → mark "done
-  (manual or previous run)"
-- Otherwise, attempt landing-page scrape per publisher rules (§
-  Supplement handling below)
-- If scrape succeeds and supplements found → download each, mark "done"
-- If scrape fails or finds none → mark "none detected" or "pending
-  manual download," depending on whether the scrape itself worked
+**Item 3: Main PDF**
+- If `repo_pdf_path(slug)` already exists → mark "done."
+- Otherwise, attempt download per publisher rules (§ PDF download below) and save to `repo_pdf_path(slug)`.
+- If download succeeds → mark "done."
+- If download fails → mark "pending manual download," record failure reason in Acquisition notes. Do NOT abort the run.
 
-**Item 4: Git repo URL**
-- If `--repo <url>` provided → use that directly, mark "done"
+**Item 4: Supplement PDFs**
+- If any `<slug>_supplement*.pdf` files already exist under `repo_supplementals_dir(slug)` → mark "done (manual or previous run)."
+- Otherwise, create `repo_supplementals_dir(slug)` if needed, then attempt landing-page scrape per publisher rules (§ Supplement handling below).
+- If scrape succeeds and supplements found → download each into `repo_supplementals_dir(slug)`, mark "done."
+- If scrape fails or finds none → mark "none detected" or "pending manual download," depending on whether the scrape itself worked.
+
+**Item 5: Git repo URL**
+- If `--repo <url>` provided → use that directly, mark "done."
 - Else, try sources in order:
-  - (a) Main PDF text (if PDF exists from item 2)
-  - (b) Landing page HTML (if reachable from item 3)
-- If exactly one URL found → mark "done" with source noted
-- If multiple URLs found → list them to user and ask which to clone
-  ("clone URL-1," "clone all," or "skip"). Do not guess. End turn;
-  user's response re-invokes the checklist from Item 5.
-- If no URL found → mark "unknown." User can re-invoke with
-  `--repo <url>`.
+  - (a) Main PDF text (if PDF exists from item 3)
+  - (b) Landing page HTML (if reachable from item 4)
+- If exactly one URL found → mark "done" with source noted.
+- If multiple URLs found → list them to user and ask which to clone ("clone URL-1," "clone all," or "skip"). Do not guess. End turn; user's response re-invokes the checklist from Item 6.
+- If no URL found → mark "unknown." User can re-invoke with `--repo <url>`.
 
-**Item 5: Git repo clone**
-- Requires item 4 to have produced a URL.
-- If `papers/<slug>/upstream/<repo-name>/` already exists and contains
-  `.git/` → mark "done (previously cloned)"
-- Else, run `git clone <url> papers/<slug>/upstream/<repo-name>/`
-- If clone succeeds → mark "done"
-- If clone fails → mark "failed," record error in Acquisition notes
+**Item 6: Git repo clone**
+- Requires item 5 to have produced a URL.
+- If `repo_upstream_dir(slug)` already exists and contains `.git/` → mark "done (previously cloned)."
+- Else, run `git clone <url> "$(python -m tools.paths upstream <slug>)"`.
+- If clone succeeds → mark "done."
+- If clone fails → mark "failed," record error in Acquisition notes.
 
-**Item 6: Commit SHA**
-- Requires item 5 to have succeeded (or the repo to already exist).
-- Run `git -C papers/<slug>/upstream/<repo-name> rev-parse HEAD`
-- Record in paper-info.md
+**Item 7: Commit SHA**
+- Requires item 6 to have succeeded (or the repo to already exist).
+- Run `git -C "$(python -m tools.paths upstream <slug>)" rev-parse HEAD`.
+- Record in `paper-info.md`.
 
-**Item 7: paper-info.md**
-- Always written, summarizing the state of all prior items
-- Includes an explicit "Pending actions" section listing any items
-  marked "pending manual" or "unknown"
-- Never fails — this is the final step that leaves the user informed
+**Item 8: paper-info.md**
+- Always written to `vault_path(slug, "paper-info.md")`, summarizing the state of all prior items.
+- Includes an explicit "Pending actions" section listing any items marked "pending manual" or "unknown."
+- Never fails — this is the final step that leaves the user informed.
 
 ### 4. Reference rules
 
 These rules are cited by checklist items above. They are reference
 material, not a separate sequence of steps.
 
-#### PDF download rules (Item 2)
+#### PDF download rules (Item 3)
 
 - If the URL is a direct PDF link, attempt download with available download or fetch tooling. Verify the response is actually a PDF (starts with `%PDF-`) and not HTML.
 - If the URL is a landing page, attempt to find the PDF link on that
   page and follow it.
 - Known paywalled publishers (Nature, Elsevier/ScienceDirect, Wiley,
   Springer non-open-access, Cell family) will typically require
-  authentication and fail. On failure, mark Item 2 as "pending manual
+  authentication and fail. On failure, mark Item 3 as "pending manual
   download" and continue with the rest of the checklist.
 - IMPORTANT: if PDF download returns HTML (check first bytes for
   `%PDF-` vs `<!DOC`), delete the bogus file but do NOT delete the
-  folder. Mark Item 2 as pending and continue.
+  folder. Mark Item 3 as pending and continue.
 
-#### Supplement publisher rules (Item 3)
+#### Supplement publisher rules (Item 4)
 
 The Acquirer subagent fetches the user-provided URL to retrieve the landing page HTML, then identifies supplements using publisher-specific rules:
 
@@ -216,7 +225,7 @@ The Acquirer subagent fetches the user-provided URL to retrieve the landing page
   "Supplementary Material" section; download each linked `.pdf`.
 - **Nature family** (`nature.com`): find "Supplementary Information";
   download `MOESM<N>_ESM.pdf` files. If landing page is auth-gated,
-  mark Item 3 as pending manual download.
+  mark Item 4 as pending manual download.
 - **Cell family** (`cell.com`, `sciencedirect.com`): find "Supplemental
   Information"; download `mmc<N>.pdf` or "Document S<N>" linked PDFs.
 - **Open publishers** (PLOS, eLife, Frontiers): find "Supporting
@@ -225,9 +234,9 @@ The Acquirer subagent fetches the user-provided URL to retrieve the landing page
   visible text or URL contains "supplement", "supporting", "extended",
   "appendix", "SI" (case-insensitive) AND whose URL ends in `.pdf`.
 
-Naming:
+Naming (all under `repo_supplementals_dir(slug)`):
 - Zero supplements found → no file created.
-- One supplement → save as `papers/<slug>/<slug>_supplement.pdf`.
+- One supplement → save as `<slug>_supplement.pdf`.
 - Multiple supplements → save as `<slug>_supplement1.pdf`,
   `<slug>_supplement2.pdf`, etc., in landing-page order.
 
@@ -235,7 +244,7 @@ Per-supplement failure: a supplement URL returning 404/403/empty →
 log the failure; continue with remaining supplements. Does not affect
 any other checklist item.
 
-#### Repo detection sources (Item 4)
+#### Repo detection sources (Item 5)
 
 URL patterns to match in any scanned text:
 - `github.com/<owner>/<repo>`
@@ -246,25 +255,26 @@ URL patterns to match in any scanned text:
 
 Priority order when searching:
 1. `--repo <url>` argument (if provided, use directly; skip scanning)
-2. Main PDF text (only if Item 2 produced a PDF)
-3. Landing page HTML (only if Item 3's landing-page fetch succeeded)
+2. Main PDF text (only if Item 3 produced a PDF)
+3. Landing page HTML (only if Item 4's landing-page fetch succeeded)
 
 Multiple matches from PDF + landing page → deduplicate by URL, then
 present to user.
 
-#### Repo clone rules (Item 5)
+#### Repo clone rules (Item 6)
 
-- Clone command: `git clone <url> papers/<slug>/upstream/<repo-name>/`
-  where `<repo-name>` is the last path segment of the repo URL.
-- If clone succeeds, proceed to Item 6.
+- Resolve the destination: `DEST="$(python -m tools.paths upstream <slug>)"`.
+  Note: this destination uses `<slug>` as the inner directory name regardless of the upstream repo's own name.
+- Clone command: `git clone <url> "$DEST"`.
+- If clone succeeds, proceed to Item 7.
 - If clone fails (private repo, 404, network error, auth required),
-  mark Item 5 as "failed," record the error message in Acquisition
+  mark Item 6 as "failed," record the error message in Acquisition
   notes. Do NOT remove the folder or any other acquired assets.
 
-#### Commit capture (Item 6)
+#### Commit capture (Item 7)
 
 - After successful clone, run:
-  `git -C papers/<slug>/upstream/<repo-name>/ rev-parse HEAD`
-- Record the 40-char SHA in paper-info.md.
+  `git -C "$(python -m tools.paths upstream <slug>)" rev-parse HEAD`.
+- Record the 40-char SHA in `paper-info.md`.
 - If the repo was cloned in a previous run (directory already exists
   with `.git/`), still run rev-parse to refresh the SHA.
