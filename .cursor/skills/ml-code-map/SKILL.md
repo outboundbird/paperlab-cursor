@@ -9,6 +9,22 @@ description: Maps an ML paper's algorithmic concepts to its cloned official impl
 
 This file defines the schema for `code_map.md`, the structured mapping from a paper's algorithm to its official implementation. `code_map.md` is produced by the Implementer subagent and read by the user to understand how the paper translates to code. It lives at `vault_path(slug, "code_map.md")` (resolved via `tools/paths.py`); cloned code being annotated lives at `repo_upstream_dir(slug)`.
 
+## Reading the PDF
+
+When this skill needs paper text (e.g., to cross-reference equations or
+algorithm steps against code), extract it via `tools.pdf.extract_pdf_text`,
+which uses `pypdf` with a `pdftotext` fallback and caches to
+`papers/<slug>/.cache/paper.txt`. Do **not** invent ad-hoc extraction.
+
+```python
+from tools.pdf import extract_pdf_text
+text = extract_pdf_text(slug)
+```
+
+```bash
+python -m tools.pdf extract <slug> [--refresh]
+```
+
 ## Conventions
 
 Global rules that apply to all sections:

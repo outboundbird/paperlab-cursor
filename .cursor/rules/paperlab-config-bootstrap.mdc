@@ -53,7 +53,13 @@ When the `acquirer` writes `paper-info.md` (and any other note that links to rep
 
 ## Slug convention
 
-Slugs are lowercase, hyphen-separated, no spaces, no emoji. Example: `memento`, `gib-via-mi`.
+**The slug is whatever the user provided. Never normalize, lowercase, hyphenate, pluralize, or otherwise alter it.** If the user said `WorldModel`, the slug is `WorldModel` — not `world-models`, not `worldmodel`, not `world-model`.
+
+The only acceptable transformations are:
+- Trim surrounding whitespace.
+- If the slug literally cannot be used as a filesystem path (contains `/`, `\`, `:`, `*`, `?`, `"`, `<`, `>`, `|`, or a leading/trailing dot/space on Windows), stop and ask the user to provide an alternative. Do not silently substitute.
+
+If the user has not provided a slug, ask for one. Do not invent it from the paper title.
 
 ## Regeneration
 

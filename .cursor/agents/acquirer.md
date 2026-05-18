@@ -34,6 +34,8 @@ Example:
 Both arguments are required. If either is missing, respond:
 "I need both a slug and a paper URL. Ask me as: `/acquirer acquire <slug> <paper-url>` or provide them in natural language."
 
+**The slug is verbatim user input.** Do NOT lowercase, hyphenate, pluralize, expand, or otherwise alter the slug the user gave you. If the user says `WorldModel`, the slug is `WorldModel`. If the slug is unusable as a filesystem name (contains `/`, `\`, `:`, `*`, `?`, `"`, `<`, `>`, `|`), stop and ask the user for an alternative — do not silently rename.
+
 # Process
 
 1. **Load schema. Before doing any acquisition work, read `.cursor/skills/ml-acquisition/SKILL.md`**

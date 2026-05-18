@@ -1,0 +1,10 @@
+# Python dependencies for PaperLab.
+#
+# Install with:
+#     pip install -r requirements.txt
+
+# Used by tools/paths.py to parse paperlab.config.yaml.
+PyYAML>=6.0
+
+# Used by tools/pdf.py to extract text from paper PDFs.
+pypdf>=4.0

@@ -172,6 +172,14 @@ def _cli() -> None:
     """
     import sys
 
+    # The configured vault path may contain non-ASCII characters (e.g. emoji
+    # folder names common in Obsidian). On Windows the default console
+    # encoding (cp1252) can't represent these, so force UTF-8 on stdout.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except (AttributeError, OSError):
+        pass
+
     args = sys.argv[1:]
     if not args or args[0] in ("-h", "--help"):
         print(_cli.__doc__)

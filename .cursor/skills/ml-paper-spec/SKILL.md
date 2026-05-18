@@ -9,6 +9,30 @@ description: Defines the `spec.md` schema for structured extraction of ML method
 
 This file defines the schema for `spec.md`, the structured extraction of an ML methods paper. `spec.md` is produced by the Dissector subagent and consumed by downstream subagents such as Explainer, Implementer, and Critic. A consistent schema across papers lets downstream subagents know where to look for any given piece of information.
 
+## Reading the PDF
+
+Always extract paper text via `tools.pdf.extract_pdf_text`, which uses
+`pypdf` (pinned in `requirements.txt`) with a `pdftotext` fallback and
+caches to `papers/<slug>/.cache/paper.txt`. Do **not** invent ad-hoc
+extraction with other libraries.
+
+Python:
+
+```python
+from tools.pdf import extract_pdf_text
+text = extract_pdf_text(slug)
+```
+
+Shell:
+
+```bash
+python -m tools.pdf extract <slug>          # prints text, caches result
+python -m tools.pdf extract <slug> --refresh  # force re-extract
+```
+
+For supplements, pass an explicit `pdf_path=` and a unique `source=` name
+so the cache files don't collide.
+
 ## Conventions
 
 Global rules that apply to all sections:

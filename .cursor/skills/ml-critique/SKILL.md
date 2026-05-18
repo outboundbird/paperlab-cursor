@@ -13,6 +13,22 @@ The audit covers two scopes: paper methodology (claims, evidence,
 unstated limitations) and paper-code alignment (what the implementation
 actually does vs. what the paper says).
 
+## Reading the PDF
+
+When the spec or code_map references the PDF ambiguously and you need to
+consult the paper text, extract it via `tools.pdf.extract_pdf_text`, which
+uses `pypdf` with a `pdftotext` fallback and caches to
+`papers/<slug>/.cache/paper.txt`. Do **not** invent ad-hoc extraction.
+
+```python
+from tools.pdf import extract_pdf_text
+text = extract_pdf_text(slug)
+```
+
+```bash
+python -m tools.pdf extract <slug> [--refresh]
+```
+
 ## Conventions
 
 - **Audience:** reader who has already read spec.md and code_map.md.
