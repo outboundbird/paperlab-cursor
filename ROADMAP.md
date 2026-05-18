@@ -1,6 +1,6 @@
 # PaperLab Roadmap
 
-Status as of 2026-05-18. Living document — items move between sections as their status changes.
+Status as of 2026-05-18 (end of day). Living document — items move between sections as their status changes.
 
 ## File layout contract
 
@@ -82,7 +82,7 @@ Anti-pattern: building a subagent for a deterministic transformation. Use a hook
 
 Build order is top-to-bottom. Each unit lists the primitive(s) it requires.
 
-### 1. `visualizer` subagent + `ml-visualization` skill
+### 1. `visualizer` subagent + `ml-visualization` skill — **next**
 
 - **What:** turns `spec.md`, `<concept>.md`, and `code_map.md` into visual artifacts — diagrams, flowcharts, slide decks — to support visual learning.
 - **Primary outputs:** Mermaid diagrams (inline in markdown) and Marp slide decks (`<slug>/slides.md`). Both render natively in Obsidian (Marp Slides plugin) and GitHub.
@@ -91,26 +91,16 @@ Build order is top-to-bottom. Each unit lists the primitive(s) it requires.
   - TikZ for publication-quality math diagrams.
   - tldraw canvases (`.tldr` files written directly into the vault, opens natively in Obsidian's tldraw plugin) for architectural sketches.
 - **Why subagent + skill:** choosing *what* to visualize needs judgment (subagent); diagram conventions and format-selection rules are reusable reference (skill).
-- **First test case:** a freshly-acquired paper (not Memento — we'll exercise the full pipeline end-to-end).
+- **First test case:** `WorldModel` (already acquired + dissected + mapped).
 - **Acceptance:** produces at least one Mermaid diagram + a Marp deck with diagrams (not just rephrased bullets).
 
-### 2. Obsidian integration — primarily a layout + config concern
-
-Most of the integration is the file layout contract above plus `paperlab.config.yaml`. Remaining work:
-
-- Update every existing subagent (`acquirer`, `dissector`, `implementer`, `explainer`, `critic`) and skill to:
-  - Read `paperlab.config.yaml` to resolve `vault_paperlab_path` and `repo_root`.
-  - Write all markdown to `<vault_paperlab_path>/<slug>/` instead of `papers/<slug>/`.
-  - Reference PDFs/upstream via absolute paths under `repo_root`.
-- Add a rule (`paperlab-regenerate-prompt.mdc`) so regeneration never silently overwrites.
-
-### 3. `prerequisite` subagent + `ml-prerequisites` skill
+### 2. `prerequisite` subagent + `ml-prerequisites` skill
 
 - **What:** scans `spec.md`, identifies assumed background concepts, cross-references existing `<vault_paperlab_path>/*/` and the curated `obsidian_vault_root` for coverage, produces a prerequisite graph + on-demand primers for gaps.
 - **Interaction model:** detect → check → ask. Presents the unknown list as a checklist; the user picks what to learn. Generated primers delegate to `explainer`.
 - **Why subagent + skill:** detecting assumed knowledge needs judgment; the prereq-graph schema is reference.
 
-### 4. `experimenter` subagent + `ml-sandbox` skill
+### 3. `experimenter` subagent + `ml-sandbox` skill
 
 - **What:** scaffolds a minimal toy implementation in `sandbox/<slug>/` with a small synthetic or standard dataset, enabling A/B comparison of methods.
 - **Interactive data-design phase:** before generating code, the agent dialogues with the user about:
@@ -120,7 +110,7 @@ Most of the integration is the file layout contract above plus `paperlab.config.
   - Minimum viable comparison (metrics, baselines, seeds).
 - **Pairs with:** future `comparator`.
 
-### 5. External-data access
+### 4. External-data access
 
 - **MCP:** reuse `firecrawl` (already configured). Add a thin `arxiv` MCP only if structured metadata becomes a recurring need.
 - **Rule:** `external-fetch-budget.mdc` — max ~5 external fetches per concept; prefer arXiv abstract + 1 blog + author page; never crawl whole sites. Threshold to be tuned.
@@ -169,8 +159,28 @@ Small refinements to existing schemas that aren't urgent but are worth rememberi
 
 - _(none yet — fill in as we use the system)_
 
+## Recently completed (2026-05-18)
+
+- **File layout contract** — repo holds source material (`papers/<slug>/<slug>.pdf`, `supplementals/`, `upstream/<slug>/`); vault holds all agent-generated markdown flat under `<vault>/<slug>/`.
+- **Per-machine config** — `paperlab.config.yaml` (git-ignored) + `paperlab.config.example.yaml` (committed). Keys: `repo_root`, `vault_paperlab_path`, `obsidian_vault_root`.
+- **Path-resolution helper** — `tools/paths.py` exposes `vault_path`, `vault_slug_dir`, `repo_pdf_path`, `repo_paper_dir`, `repo_supplementals_dir`, `repo_upstream_dir`, `repo_sandbox_dir`, plus a `python -m tools.paths` CLI. UTF-8 stdout enforced (vault path contains 🎓).
+- **Always-on rules:**
+  - `paperlab-config-bootstrap.mdc` — every agent resolves paths through `tools/paths.py`; documents read/write conventions; defines slug rule (verbatim user input).
+  - `paperlab-regenerate-prompt.mdc` — never silently overwrite existing files in the vault; ask **replace / append / abort**.
+- **Sweep of all 5 agents + 6 skills** — every `papers/<slug>/...` write target replaced with `vault_path(...)`; source-material reads now go through `repo_*` helpers.
+- **Acquirer** — now creates both repo folder and vault folder; writes `paper-info.md` to the vault with absolute links to repo-side material.
+- **Dependencies** — `requirements.txt` with `PyYAML>=6.0`.
+- **Bug fix** — slug-mangling: agents were lowercasing/hyphenating user-provided slugs. Bootstrap rule and acquirer agent now both enforce verbatim slug.
+
+### Validation runs
+
+- **`WorldModel`** (acquired from scratch end-to-end): acquirer, dissector, implementer all produced files in the correct repo/vault locations. Critic and explainer not yet exercised.
+- **`Memento`** (pre-migration, in repo): left untouched per agreed plan; remains at `papers/Memento/`.
+
 ## Reference: what's currently working
 
-- **Subagents:** `acquirer`, `dissector`, `implementer`, `explainer`, `critic`.
+- **Subagents:** `acquirer`, `dissector`, `implementer`, `explainer`, `critic` (last two functional but not yet exercised end-to-end under the new layout).
 - **Skills:** `ml-acquisition`, `ml-paper-spec`, `ml-code-map` (+ `DEEP_DIVE`), `ml-explanation`, `ml-synthesis`, `ml-critique`.
-- **Papers acquired:** `Memento` (with `spec.md`, `mdp.md`) — currently in repo at `papers/Memento/`; will be left in place (no migration) per the agreed plan; new papers go to the vault.
+- **Rules:** `paperlab-config-bootstrap`, `paperlab-regenerate-prompt`.
+- **Helpers:** `tools/paths.py`.
+- **Papers:** `Memento` (legacy, in repo), `WorldModel` (new layout, vault + repo).
