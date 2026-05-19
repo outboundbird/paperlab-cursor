@@ -1,6 +1,6 @@
 # PaperLab Roadmap
 
-Status as of 2026-05-18 (end of day). Living document — items move between sections as their status changes.
+Status as of 2026-05-19 (end of day). Living document — items move between sections as their status changes.
 
 ## File layout contract
 
@@ -82,25 +82,13 @@ Anti-pattern: building a subagent for a deterministic transformation. Use a hook
 
 Build order is top-to-bottom. Each unit lists the primitive(s) it requires.
 
-### 1. `visualizer` subagent + `ml-visualization` skill — **next**
-
-- **What:** turns `spec.md`, `<concept>.md`, and `code_map.md` into visual artifacts — diagrams, flowcharts, slide decks — to support visual learning.
-- **Primary outputs:** Mermaid diagrams (inline in markdown) and Marp slide decks (`<slug>/slides.md`). Both render natively in Obsidian (Marp Slides plugin) and GitHub.
-- **Fallback outputs when Mermaid/Marp are inadequate:**
-  - matplotlib / PIL figures saved as PNG/SVG for numerical plots or precise geometry.
-  - TikZ for publication-quality math diagrams.
-  - tldraw canvases (`.tldr` files written directly into the vault, opens natively in Obsidian's tldraw plugin) for architectural sketches.
-- **Why subagent + skill:** choosing *what* to visualize needs judgment (subagent); diagram conventions and format-selection rules are reusable reference (skill).
-- **First test case:** `WorldModel` (already acquired + dissected + mapped).
-- **Acceptance:** produces at least one Mermaid diagram + a Marp deck with diagrams (not just rephrased bullets).
-
-### 2. `prerequisite` subagent + `ml-prerequisites` skill
+### 1. `prerequisite` subagent + `ml-prerequisites` skill
 
 - **What:** scans `spec.md`, identifies assumed background concepts, cross-references existing `<vault_paperlab_path>/*/` and the curated `obsidian_vault_root` for coverage, produces a prerequisite graph + on-demand primers for gaps.
 - **Interaction model:** detect → check → ask. Presents the unknown list as a checklist; the user picks what to learn. Generated primers delegate to `explainer`.
 - **Why subagent + skill:** detecting assumed knowledge needs judgment; the prereq-graph schema is reference.
 
-### 3. `experimenter` subagent + `ml-sandbox` skill
+### 2. `experimenter` subagent + `ml-sandbox` skill
 
 - **What:** scaffolds a minimal toy implementation in `sandbox/<slug>/` with a small synthetic or standard dataset, enabling A/B comparison of methods.
 - **Interactive data-design phase:** before generating code, the agent dialogues with the user about:
@@ -110,7 +98,7 @@ Build order is top-to-bottom. Each unit lists the primitive(s) it requires.
   - Minimum viable comparison (metrics, baselines, seeds).
 - **Pairs with:** future `comparator`.
 
-### 4. External-data access
+### 3. External-data access
 
 - **MCP:** reuse `firecrawl` (already configured). Add a thin `arxiv` MCP only if structured metadata becomes a recurring need.
 - **Rule:** `external-fetch-budget.mdc` — max ~5 external fetches per concept; prefer arXiv abstract + 1 blog + author page; never crawl whole sites. Threshold to be tuned.
@@ -153,11 +141,48 @@ Things the system can't do, with workarounds where they exist.
 - **Workaround:** regenerate `paper-info.md` on each machine (cheap), or treat broken links as expected on the other machine.
 - **Possible fix:** make `paper-info.md` use a placeholder like `{repo_root}/papers/<slug>/<slug>.pdf` that an Obsidian plugin or hook resolves at view time. Medium effort, low priority.
 
+### Figure extraction occasionally crops imperfectly
+
+- **What:** for some PDF layouts the caption-block-width heuristic still over- or under-crops (observed on GIB-DS and one inset figure in Memento).
+- **Workaround:** add a manual bbox entry in `papers/<slug>/.cache/figures/manual_crops.json`, or use `--whole-page` to render the full page and let the slide layout class handle scaling.
+- **Trigger to revisit:** if a paper of interest has more than ~1 unusable crop.
+
+### LaTeX inside Mermaid node labels does not render
+
+- **What:** Mermaid renders node labels as plain text/HTML, not LaTeX. `$...$` or `\theta` inside a Mermaid box appears literally instead of as math. Affects every diagram that tries to label a node with a paper symbol.
+- **Workaround (current):** spell symbols out in ASCII inside Mermaid (`z_t`, `theta`) and put the real LaTeX in the adjacent prose / equation block.
+- **Possible fixes to evaluate:** (a) Unicode math characters (violates AGENTS.md "no Unicode math" rule, but only inside a rendered diagram — may be acceptable scoped); (b) inline SVG labels with KaTeX/MathJax pre-rendering and use Mermaid `img` nodes; (c) escalate any math-heavy diagram to TikZ per the extract-first waterfall; (d) overlay equations in the right column and keep Mermaid label-free.
+- **Decision needed:** pick one of (a)–(d) and codify in `ml-visualization/SKILL.md` "Mermaid label rules".
+
 ## Schema improvement candidates
 
 Small refinements to existing schemas that aren't urgent but are worth remembering. These tend to surface during use.
 
-- _(none yet — fill in as we use the system)_
+- **Reconsider slide-deck structure** — the current schema (title / headline / one-per-component / results / limitations) is generic. Tweak it to track paper content more faithfully: e.g., split "method" into problem-setup vs. solution slides, surface the loss/objective as its own slide when central, and let `spec.md` §6 grouping drive section count rather than a fixed 8–12 budget. May require enriching `spec.md` fields the dissector currently extracts (e.g., explicit "core contribution" vs. "supporting machinery" tags on §6.1 entries).
+
+## Recently completed (2026-05-19)
+
+- **`visualizer` subagent + `ml-visualization` skill** — produces Marp slide decks (`slides.md`) and per-concept visualizations (`<concept>__viz.md`) from `spec.md` / `code_map.md` / `<concept>.md`.
+- **Extract-first waterfall** — visualizer prefers extracted paper figures over generated diagrams; Mermaid/TikZ/matplotlib/tldraw are documented fallbacks.
+- **PDF figure extraction (`tools/figures.py`)** —
+  - `list_figures` — caption parser; supports `Figure N` / `Table N`, single- and double-column PDFs.
+  - `extract_figure` — caption-block-width crop heuristic: text-block complement on both axes, paragraph-shape filter to exclude table rows / figure-internal labels, table-caption-above-or-below fallback, manual-crop escape hatch via `papers/<slug>/.cache/figures/manual_crops.json`.
+  - `extract_figure_to_vault` — copies the cached PNG into `<vault>/<slug>/figures/` and returns a **vault-relative** path so embeds work across drives / OneDrive.
+  - `captions_by_component` — looks up figures by prose context.
+  - CLI: `list`, `extract`, `extract-to-vault`, `by-component`.
+- **Semantic figure tagging in `spec.md` §4.5** — dissector classifies each figure as `headline` / `result` / `qualitative` / `thumbnail` via a two-pass keyword + prose cross-check.
+- **YAML front-matter `paper: <slug>`** — added to all agent-generated notes and slides for vault-side queries.
+- **Slide layout routing by figure aspect ratio + source** — three Marp classes:
+  - `split` — square/portrait figure (W/H < 1.4) or Mermaid/TikZ diagrams; two-column figure-left / prose-right.
+  - `figure-top` — landscape figure (1.4 ≤ W/H < 2.5); figure spans full width above a short prose strip.
+  - `figure-full` — panorama / large tables (W/H ≥ 2.5); figure fills the slide, italic caption only.
+  - Mermaid/TikZ stay forced to `split` so they don't blow up the slide; only extracted figures get the wider classes. CSS lives in the external `paperlab.css` Marp theme.
+- **Visualizer overwrite contract (no AskQuestion privilege)** — when `slides.md` / `<concept>__viz.md` already exists, visualizer emits a text prompt with path / size / mtime and asks **replace / append / abort?**, then ends the turn until the user replies.
+
+### Validation runs
+
+- **`WorldModel`**, **`VAE`** — visualizer end-to-end: content generation OK, vault-relative figure embeds OK, overwrite prompt OK.
+- **`Memento`**, **`GIB-DS`** — figure extraction spot-checked; most figures and tables crop cleanly. A few imperfect crops remain (see Known limitations).
 
 ## Recently completed (2026-05-18)
 
@@ -179,8 +204,9 @@ Small refinements to existing schemas that aren't urgent but are worth rememberi
 
 ## Reference: what's currently working
 
-- **Subagents:** `acquirer`, `dissector`, `implementer`, `explainer`, `critic` (last two functional but not yet exercised end-to-end under the new layout).
-- **Skills:** `ml-acquisition`, `ml-paper-spec`, `ml-code-map` (+ `DEEP_DIVE`), `ml-explanation`, `ml-synthesis`, `ml-critique`.
+- **Subagents:** `acquirer`, `dissector`, `implementer`, `explainer`, `critic`, `visualizer`.
+- **Skills:** `ml-acquisition`, `ml-paper-spec`, `ml-code-map` (+ `DEEP_DIVE`), `ml-explanation`, `ml-synthesis`, `ml-critique`, `ml-visualization`.
 - **Rules:** `paperlab-config-bootstrap`, `paperlab-regenerate-prompt`.
-- **Helpers:** `tools/paths.py`.
-- **Papers:** `Memento` (legacy, in repo), `WorldModel` (new layout, vault + repo).
+- **Helpers:** `tools/paths.py`, `tools/figures.py` (requires `pymupdf`).
+- **External Marp theme:** `marp_theme_path` in `paperlab.config.yaml` → `paperlab.css` (defines `split` / `figure-top` / `figure-full`).
+- **Papers:** `Memento` (legacy, in repo), `WorldModel`, `VAE`, `GIB-DS` (new layout, vault + repo).
