@@ -3,6 +3,7 @@ papers/
 
 # Per-machine config
 paperlab.config.yaml
+.marprc.yml
 
 # Sandbox experiment outputs
 sandbox/**/outputs/

@@ -18,3 +18,10 @@ vault_paperlab_path: "C:/Users/<your-user>/path/to/Obsidian/Vault/.../PaperLab"
 # `prerequisite` and `explainer` agents may read from here to check whether you
 # have prior notes on assumed concepts. Read-only.
 obsidian_vault_root: "C:/Users/<your-user>/path/to/Obsidian/Vault"
+
+# (Optional) Absolute path to the external Marp theme CSS file. The visualizer
+# subagent writes `theme: paperlab` in every slides.md and assumes this CSS is
+# registered with whatever Marp renderer you use (Marp CLI via .marprc.yml,
+# Marp for VS Code via `markdown.marp.themes`, or the Obsidian Marp plugin).
+# The `@theme` name in the CSS header must match the value used in slides.md.
+marp_theme_path: "C:/Users/<your-user>/path/to/marp-themes/paperlab.css"

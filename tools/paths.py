@@ -106,6 +106,17 @@ def obsidian_vault_root() -> Path | None:
     return Path(val).resolve() if val else None
 
 
+def marp_theme_path() -> Path | None:
+    """Absolute path to the external Marp theme CSS, if configured.
+
+    Used by the ``visualizer`` agent and any Marp renderer (CLI, VS Code,
+    Obsidian plugin) to load a single shared theme rather than inlining CSS
+    into every ``slides.md``. Returns ``None`` if not configured.
+    """
+    val = load_config().get("marp_theme_path")
+    return Path(val).resolve() if val else None
+
+
 # ---------------------------------------------------------------------------
 # Vault paths (agent-generated markdown lives here).
 # ---------------------------------------------------------------------------
@@ -169,6 +180,7 @@ def _cli() -> None:
     - ``supplementals`` : prints ``repo_supplementals_dir(slug)``
     - ``upstream`` : prints ``repo_upstream_dir(slug)``
     - ``sandbox`` : prints ``repo_sandbox_dir(slug)``
+    - ``marp-theme`` : prints ``marp_theme_path()`` (slug ignored)
     """
     import sys
 
@@ -205,6 +217,11 @@ def _cli() -> None:
         print(repo_upstream_dir(slug))
     elif kind == "sandbox":
         print(repo_sandbox_dir(slug))
+    elif kind == "marp-theme":
+        path = marp_theme_path()
+        if path is None:
+            raise SystemExit("marp_theme_path is not set in paperlab.config.yaml")
+        print(path)
     else:
         raise SystemExit(f"Unknown kind: {kind!r}. Run with --help.")
 
