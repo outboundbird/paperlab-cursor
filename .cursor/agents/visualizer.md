@@ -72,21 +72,24 @@ If `vault_path(slug, "slides.md")` (deck mode) or `vault_path(slug, "<concept>__
 # Process
 
 1. **Load schema.** Read `.cursor/skills/ml-visualization/SKILL.md`. Do not skip.
-2. **Load inputs.** Always: `spec.md`. Optionally if present: `code_map.md`, relevant `<concept>.md` files. For deck mode, read all of them. For concept mode, focus on the spec.md section and the concept's `.md` file.
-3. **Derive structure (deck mode).** Apply the major-content derivation rules from the skill: map spec.md sections to slides. Identify §6.1 components — each gets a slide. Decide which (if any) need grouping.
-4. **Choose formats per visual.** Default to Mermaid for flow/architecture, TikZ for math/geometric structure. Escalate to SVG (matplotlib) or `.tldr` (tldraw) only with a stated reason.
-5. **Pre-write checks** (mandatory, before any file write):
-   - **Layout check.** Every content slide uses `<!-- _class: split -->` (or `split tall` for figures with ≥ 5 vertically-chained nodes) with exactly one figure block after the `## heading` (left), followed by one or more prose/equation/citation blocks (all stack right). No single-column content slides. No `<div class="left/right">` wrappers.
+2. **Load inputs.** Always: `spec.md` (including §4.5 Figures & Tables — if absent, stop and tell the user to re-run the dissector). Optionally if present: `code_map.md`, relevant `<concept>.md` files. For deck mode, read all of them. For concept mode, focus on the spec.md section and the concept's `.md` file.
+3. **Derive structure (deck mode).** Apply the major-content derivation rules + the **extract-first waterfall** from the skill. Identify the `headline` figure from §4.5. Plan slide 2 as the extracted headline. For each §6.1 component, decide: extract paper figure / generate Mermaid / drop. No diagram-for-diagram's-sake.
+4. **Extract figures.** For every slide whose source is a paper figure, call `tools.figures.extract_figure(slug, "Figure", N)` (or `"Table"`). Use the returned absolute path in a `![](...)` embed. If `pymupdf` is missing, emit a placeholder slide per the skill's "When extraction tooling is unavailable" section.
+5. **Choose formats per generated visual.** Mermaid for flow/architecture, TikZ for math/geometric structure. Escalate to SVG (matplotlib) or `.tldr` (tldraw) only with a stated reason. These are fallbacks — extracted paper figures take priority.
+6. **Pre-write checks** (mandatory, before any file write):
+   - **Layout check.** Every content slide uses `<!-- _class: split -->` (or `split tall` for figures with ≥ 5 vertically-chained nodes) with exactly one figure block (extracted image OR Mermaid) after the `## heading` (left), followed by one or more prose/equation/citation blocks (all stack right). No single-column content slides. No `<div class="left/right">` wrappers.
    - **Right-column cap check.** Every right-column block ≤ 3 sentences, ≤ 80 words, ≤ 1 display equation (or ≤ 2 inline). If a slide exceeds, split into two slides — do not shrink fonts.
    - **Mermaid check.** Walk every ```` ```mermaid ```` block and verify the rules in the skill's "Mermaid label rules" section: no LaTeX, no unquoted `{}`/`()`/`<`/`>`/`|`, balanced brackets, no dangling edges, labels ≤ 24 chars or quoted. Rewrite any failing block until it passes.
-6. **Write the file** in one session to `vault_path(slug, "slides.md")` or `vault_path(slug, "<concept>__viz.md")`. Do not print the file content as a substitute for writing it.
-7. **Self-check** per the schema's checklist (every non-structural slide has a visual; no bullet walls; cited equations match spec.md notation; required sections present).
-8. **Report back** per the schema's reporting-back rules — including an explicit "N Mermaid blocks passed pre-write check" line.
+   - **Equation check.** Walk every `$$ ... $$` block. No citations inside math. Equations quoted verbatim from spec.md — no re-derivation, no merging definition with deployment form.
+   - **Label-consistency check.** Per-component slides use the same labels, abbreviations, and arrow conventions as the headline figure on slide 2.
+7. **Write the file** in one session to `vault_path(slug, "slides.md")` or `vault_path(slug, "<concept>__viz.md")`. Do not print the file content as a substitute for writing it.
+8. **Self-check** per the schema's checklist (every non-structural slide has a visual; no bullet walls; cited equations match spec.md notation; required sections present).
+9. **Report back** per the schema's reporting-back rules — including "N Mermaid blocks passed pre-write check" and "K paper figures extracted, M Mermaid fallbacks generated."
 
 # Scope boundaries
 
 - No modification of `spec.md`, `code_map.md`, or `<concept>.md`.
-- No PDF image extraction. Diagrams are generated (Mermaid / TikZ / matplotlib) or hand-drawable canvases (tldraw).
+- Paper figure extraction is performed via `tools.figures.extract_figure` (caches under `papers/<slug>/.cache/figures/`). Mermaid / TikZ / matplotlib / tldraw are fallbacks per the extract-first waterfall.
 - No new runnable code; the experimenter handles that.
 - No invented content. If a slide would require asserting something not in `spec.md` or `code_map.md`, drop the slide or flag `⚠️ UNCERTAIN:`.
 

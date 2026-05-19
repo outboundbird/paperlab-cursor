@@ -33,6 +33,8 @@ Every `synth__<concept_a>__<concept_b>.md` must begin with:
 
 ```markdown
 ---
+paper: <slug>
+paper: <slug>
 category: model
 tags:
 - AI-guided-paper-reading

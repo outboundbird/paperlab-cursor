@@ -33,6 +33,24 @@ python -m tools.pdf extract <slug> --refresh  # force re-extract
 For supplements, pass an explicit `pdf_path=` and a unique `source=` name
 so the cache files don't collide.
 
+## Listing figures and tables
+
+To populate §4.5 (Figures & Tables), call `tools.figures.list_figures`:
+
+```python
+from tools.figures import list_figures
+for c in list_figures(slug):
+    print(c.kind, c.number, c.page, c.caption)
+```
+
+Shell:
+
+```bash
+python -m tools.figures list <slug>
+```
+
+This walks every page of the PDF and parses caption lines matching `Figure N: ...` and `Table N: ...`. The Dissector then assigns each entry a `Role` per the controlled vocabulary in §4.5.
+
 ## Conventions
 
 Global rules that apply to all sections:
@@ -47,6 +65,7 @@ Every `spec.md` must begin with:
 
 ```markdown
 ---
+paper: <slug>
 category: model
 tags:
 - AI-guided-paper-reading
@@ -103,6 +122,40 @@ For example:
   perturbations.
 - (If no assumptions found: "No explicit assumptions stated in the paper.")
 
+### 4.5 Figures & Tables
+
+Catalog every figure and table the paper contains. Downstream subagents (especially the Visualizer) rely on this section to know *what the paper itself shows* — without it they can only synthesize new diagrams from the prose and routinely miss the canonical architecture figure (which may appear late in the paper, not as Figure 1).
+
+Populate the two tables below by calling `tools.figures.list_figures(slug)` (which parses captions from the cached PDF text). The Dissector adds the `Role` and `Components shown` columns by reading each caption and matching it against the paper's prose.
+
+**Role vocabulary** (controlled, one of):
+
+- `headline` — the figure that shows the entire architecture / mechanism end-to-end. **At most one** per paper. If no single figure captures the whole architecture, leave Role blank for every figure and add a `⚠️ UNCERTAIN: no single architecture figure` note above the table.
+- `thumbnail` — a smaller / partial version of the headline figure (often used in the intro).
+- `headline-results` — the table or figure showing the paper's main quantitative claim.
+- `ablation` — ablation study.
+- `qualitative` — qualitative examples / rollouts / samples.
+- `baseline-comparison` — head-to-head comparison plot/table against prior methods.
+- `training-detail` — loss curves, training-dynamics plots, learning-rate schedules.
+- `other` — anything else.
+
+**Heuristics for `headline` identification.** Look for captions containing *overview, architecture, system, framework, pipeline, end-to-end, full model, schematic, flow diagram*. Cross-reference: the headline figure is typically the one the abstract or §2 Contribution paragraph cites first. If two figures jointly cover the architecture (e.g., one for training, one for inference), tag the one referenced earlier as `headline` and the other as `thumbnail`.
+
+#### Figures
+
+| # | Page | Caption (first sentence, verbatim) | Role | Components shown |
+|---|------|------------------------------------|------|------------------|
+| 1 | 1 | A World Models agent receives observations from the environment... | thumbnail | V, M, C |
+| 4 | 5 | Flow diagram of V → M → C interaction during one timestep. | **headline** | V, M, C |
+| 7 | 8 | Car Racing rollout examples at τ=1.15. | qualitative | env, agent |
+
+#### Tables
+
+| # | Page | Caption (first sentence, verbatim) | Role |
+|---|------|------------------------------------|------|
+| 1 | 7 | Car Racing scores across baselines. | headline-results |
+| 2 | 9 | Doom survival times by temperature τ. | ablation |
+
 ### 5. Notation
 
 Produce a two-column markdown table with columns `Symbol | Meaning`.
@@ -133,6 +186,23 @@ view for quick reference, then a detailed nested-bullet view for pedagogy.
 
 If the paper describes multiple distinct procedures (training and inference,
 for instance), repeat both views for each procedure under its own subsection.
+
+**Equation fidelity (hard rule).** Quote equations *exactly* as the paper presents them. Do NOT silently merge implementation details from algorithm boxes (clipping, squashing, scaling, normalization, gradient stops, weight decay) into the formal definition equation. The definition and the deployment form are different objects:
+
+- The **definition** is the equation in the methods section (e.g., `a_t = W_c [z_t h_t] + b_c`).
+- The **deployment form** is what the algorithm box / training pseudo-code actually computes (e.g., `a_t_clipped = tanh(W_c [z_t h_t] + b_c)`).
+
+If the two differ, record both under the component, with explicit labels:
+
+```markdown
+- **Controller (C):**
+  - Purpose: maps latent + recurrent state to action.
+  - Definition (Eq. 1): $a_t = W_c [z_t\;h_t] + b_c$
+  - Deployment form (§6.2 algorithm): a `tanh` squashing is applied so
+    actions fit the environment's allowed range.
+```
+
+Never combine them into a single equation like `a_t = tanh(W_c[z_t h_t] + b_c)` — that misrepresents the paper's formalism. When in doubt, the definition wins; flag the deployment difference with `⚠️ UNCERTAIN: deployment form may diverge` if the paper is vague.
 
 **Pseudo-code view** — a fenced code block:
 

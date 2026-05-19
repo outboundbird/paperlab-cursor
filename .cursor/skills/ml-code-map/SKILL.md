@@ -48,6 +48,8 @@ Every code_map.md must begins with a document header in this format:
 
 ```markdown
 ---
+paper: <slug>
+paper: <slug>
 category: model
 tags:
 - AI-guided-paper-reading
@@ -71,6 +73,8 @@ Example (filled in for GEARS):
 
 ```markdown
 ---
+paper: GEARS
+paper: GEARS
 category: model
 tags:
 - AI-guided-paper-reading

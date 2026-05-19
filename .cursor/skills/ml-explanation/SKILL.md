@@ -49,6 +49,8 @@ Every `<concept>.md` must begin with a header in this format:
 
 ```markdown
 ---
+paper: <slug>
+paper: <slug>
 category: model
 tags:
 - AI-guided-paper-reading

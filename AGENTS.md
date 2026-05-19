@@ -2,6 +2,10 @@
 
 PaperLab helps the user understand mathematics in machine learning and deep learning papers.
 
+## YAML front-matter
+
+Every agent-generated markdown file under `<vault>/<slug>/` carries a YAML front-matter with a `paper: <slug>` key (in addition to `category:` and `tags:`). The slug is **verbatim user input** — never normalize, capitalize, or pluralize. If the slug contains any of `:`, `#`, `[`, `]`, `{`, `}`, `,`, `&`, `*`, `!`, `|`, `>`, `'`, `"`, `%`, `@`, `` ` ``, or starts with whitespace or `-`, wrap it in double quotes: `paper: "weird:slug"`. This single key lets Obsidian Dataview / property search group every file (spec.md, code_map.md, slides.md, concept files, ...) for one paper.
+
 ## Project Conventions
 
 - Python code uses type hints, follows PEP 8, and has NumPy-style docstrings.

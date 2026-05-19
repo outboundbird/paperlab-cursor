@@ -8,3 +8,6 @@ PyYAML>=6.0
 
 # Used by tools/pdf.py to extract text from paper PDFs.
 pypdf>=4.0
+
+# Used by tools/figures.py to render PDF pages as PNGs for slide embedding.
+pymupdf>=1.24

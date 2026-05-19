@@ -73,6 +73,7 @@ Before writing `slides.md`, walk through every `$$ ... $$` block and verify:
 
 1. No citation strings (e.g., `(spec.md §X)`, `\tag{...}`) appear inside the math block. Citations live on their own markdown line after the equation, in italics.
 2. Long equations (~6+ multiplicative terms, or any equation with multi-line bounds) use `\begin{aligned} ... \end{aligned}` to break across lines.
+3. **Equations are quoted verbatim from `spec.md`.** The Visualizer NEVER re-derives, simplifies, or "improves" an equation. If `spec.md` distinguishes a definition from a deployment form (per `ml-paper-spec` equation-fidelity rule), the deck must preserve that distinction — typically the definition goes on the architecture slide and the deployment form is mentioned as prose on the algorithm-walkthrough slide. If a `spec.md` equation looks wrong relative to the source PDF, do NOT silently fix it — surface a `⚠️ UNCERTAIN: spec.md §X equation may have merged implementation into definition — verify against paper` and proceed with the spec.md text as-is.
 
 If any block fails any check, **rewrite that block** until it passes. Do not write a `slides.md` containing blocks the agent itself flagged as failing. The reporting-back step must explicitly confirm "all N Mermaid blocks passed the pre-write check."
 
@@ -156,20 +157,77 @@ The Visualizer does not invent the deck's structure. It derives it from the diss
 1. **Read `vault_path(slug, "spec.md")`.** Mandatory.
 2. **Read `vault_path(slug, "code_map.md")` if it exists.** Validates components and provides data-flow detail.
 3. **Read `vault_path(slug, "<concept>__viz.md")` and concept files** for any concept the deck will reference — to avoid duplicating effort and to keep cross-links consistent.
-4. Map spec.md sections to deck slides as follows:
+4. **Read `spec.md` §4.5 Figures & Tables.** This drives the extract-first waterfall below. If §4.5 is absent (older spec.md predates this schema), surface "spec.md has no Figures section — re-run the dissector before generating the deck" and stop.
+5. Map spec.md sections to deck slides as follows:
 
 | spec.md section | Slide(s) |
 |---|---|
-| §1 Context + §2 Contribution | 1 headline slide |
+| §1 Context + §2 Contribution | 1 title-area slide (text only) |
+| §4.5 Figures — `headline` entry | 1 **headline-figure slide** (slide 2; see below) |
 | §3 Problem setup | 1 slide (informal + formal) |
-| §6 Algorithm — pseudo-code | 1 "overview" slide with a block diagram |
-| §6.1 Detailed components | **One slide per component.** If more than 6 components, group conceptually related ones. |
+| §6 Algorithm — pseudo-code | 1 "overview" slide. **If a paper figure shows the architecture** (likely the same `headline` figure), reuse it here as a *zoom* with arrows highlighting the data flow. Generate a Mermaid block ONLY if no such figure exists. |
+| §6.1 Detailed components | **One slide per component IF the component is visible in `headline` and warrants zooming.** Components with no figure and no pseudo-code worth visualizing are folded as bullets under the relevant flow — no slide. |
 | §6 pseudo-code revisited | 1–2 walkthrough slides showing data flow step-by-step |
 | §7 Hyperparameters | 1 slide *only if* a hyperparameter is conceptually load-bearing (e.g., the bottleneck dimension). Otherwise skip. |
-| §9 Results | 1 slide with the headline number or comparison |
+| §4.5 Tables — `headline-results` entry, or §9 Results | 1 slide with the headline number or comparison |
 | §10 Limitations | 1 slide |
 
 Target total: **8–12 slides** for a typical paper. Compress or expand by adjusting §6.1 grouping. If §6 has fewer than 3 detailed components, the paper may not be worth a full deck — surface this to the user.
+
+## Extract-first waterfall — the canonical figure rule
+
+The Visualizer's most common failure mode is **mechanically generating one Mermaid diagram per spec.md component** while missing the single figure that captures the paper's whole idea. To prevent this, every figure-bearing slide follows this priority order:
+
+1. **If `spec.md` §4.5 has a relevant `headline` / `thumbnail` / `qualitative` / `baseline-comparison` entry** → call `tools.figures.extract_figure(slug, "Figure", N)` and embed the resulting PNG as `![](abs/path/to/figureN.png)`. This is the paper's own diagram, drawn by the authors, and is always preferred over a synthesized recreation. Caption row from §4.5 becomes the slide's right-column prose.
+2. **If no relevant paper figure exists** but the paper has pseudo-code or algorithm-box description of this flow → generate a Mermaid diagram from `spec.md` §6 / §6.1. This is the only case where the Visualizer invents a diagram.
+3. **If neither figure nor pseudo-code exists** → drop the slide entirely. Diagrams-for-diagrams'-sake are forbidden; fold the content into a sibling slide as a bullet or skip it.
+
+The same waterfall applies per-slide:
+
+| Slide type | Priority 1 (extract) | Priority 2 (Mermaid) | Priority 3 (drop) |
+|---|---|---|---|
+| Headline figure (slide 2) | §4.5 `headline` | reconstruct from §6 pseudo-code | flag deck unbuildable |
+| Architecture overview | reuse headline | Mermaid block diagram | — |
+| Component zoom | §4.5 figure showing this component | Mermaid from §6.1 | drop component |
+| Algorithm walkthrough | §4.5 sequence/swimlane figure | Mermaid TB pipeline | drop slide |
+| Results | §4.5 `headline-results` table image | render table from §9 | — |
+| Qualitative examples | §4.5 `qualitative` figure | — (cannot fake) | drop slide |
+
+### Embedding an extracted figure
+
+Extracted figures render as the **first block in the `split` layout** (left column), just like a Mermaid block:
+
+```markdown
+<!-- _class: split -->
+
+## V → M → C interaction (Figure 4)
+
+![](C:/.../papers/<slug>/.cache/figures/figure4.png)
+
+The world model factors into three modules: ConvVAE (V) compresses each frame
+to $z_t$, MDN-RNN (M) predicts $z_{t+1}$ conditioned on $a_t$, and the linear
+controller (C) maps $[z_t\;h_t]$ to $a_t$. Training is staged: V then M then C.
+
+*(spec.md §4.5 Figure 4)*
+```
+
+Use the absolute path returned by `tools.figures.extract_figure`. If the extracted PNG is wider than the column or the caption is illegible at slide size, prefer extracting at a higher DPI (`extract_figure(..., dpi=200)`) before falling back to Mermaid.
+
+### When extraction tooling is unavailable
+
+If `tools.figures` raises (e.g., `pymupdf` not installed), embed a placeholder slide and surface the gap rather than silently substituting Mermaid:
+
+```markdown
+<!-- _class: split -->
+
+## Headline figure (Figure 4) — extraction pending
+
+> ⚠️ pymupdf not installed. Run `pip install pymupdf` and re-run
+> the visualizer to embed the paper's Figure 4 here.
+
+The headline figure (caption: "Flow diagram of V → M → C interaction
+during one timestep") shows the canonical world-models architecture...
+```
 
 ## Required outputs
 
@@ -187,8 +245,11 @@ marp: true
 theme: paperlab
 paginate: true
 math: katex
+paper: <slug>
 ---
 ```
+
+The `paper:` key is non-standard for Marp but ignored by the renderer; it lets Obsidian's Dataview / property search treat `slides.md` like every other PaperLab artifact (`spec.md`, `code_map.md`, ...) and group all files for one paper.
 
 All presentation (font, padding, palette, page header/footer, `lead` / `invert` / `section` / `split` class variants, Mermaid sizing) is owned by the external `paperlab.css` theme. The visualizer never inlines CSS into `slides.md`.
 
@@ -220,6 +281,7 @@ marp: true
 theme: paperlab
 paginate: true
 math: katex
+paper: <slug>
 ---
 
 <!-- _class: lead -->
@@ -312,16 +374,19 @@ Every `---` separator must be on its own line with blank lines around it (Marp r
 
 #### Required slides (in order)
 
-1. **Title.**
-2. **Context & contribution** — from spec.md §1 + §2.
-3. **Problem setup** — from spec.md §3.
-4. **Architecture overview** — from spec.md §6 (pseudo-code summarized as a block diagram).
-5. **One slide per major component** — from spec.md §6.1.
-6. **Algorithm walkthrough** — 1 or 2 slides showing data flow step-by-step (use the same diagram pattern across slides, with elements highlighted as the data moves).
-7. **Objective / loss** — the central equation(s) with annotation.
-8. **Results** — from spec.md §9. Compact: one headline metric, one comparison.
-9. **Limitations** — from spec.md §10.
-10. **References** — paper PDF (absolute path from `repo_pdf_path(slug)`), `spec.md`, `code_map.md`, any `<concept>.md` files, and the upstream repo URL. Structural slide; visual not required. **This is the only place file locations belong** — keep them off the title slide.
+1. **Title.** (`lead` class, text only.)
+2. **Headline figure** — the paper's canonical architecture diagram, extracted via `tools.figures.extract_figure` using the `headline` entry from `spec.md` §4.5. **Mandatory.** This is the slide a reader spends 90 seconds on and walks away understanding the whole paper. If no `headline` figure exists in §4.5 (rare, paper has no architecture diagram), reconstruct from §6 pseudo-code as Mermaid and note the reconstruction in the right column.
+3. **Context & contribution** — from spec.md §1 + §2. The visual can be a small Mermaid framing the open-problem → method → outcome arc, OR (preferred when available) the `thumbnail` figure from §4.5.
+4. **Problem setup** — from spec.md §3.
+5. **Architecture overview** — typically a zoom into the headline figure with arrows highlighting the training/inference pass, OR a Mermaid block diagram if no §4.5 figure decomposes the architecture.
+6. **One slide per major component** — from spec.md §6.1. **Only components visible in the headline figure get their own slide.** Use a §4.5 component-specific figure if one exists; otherwise Mermaid from §6.1. Components with neither a figure nor pseudo-code worth visualizing are folded into bullets on a sibling slide.
+7. **Algorithm walkthrough** — 1 or 2 slides showing data flow step-by-step. Prefer reusing the headline figure with elements highlighted across slides; Mermaid only if the paper has no sequence diagram.
+8. **Objective / loss** — the central equation(s) with annotation. Equations quoted verbatim from spec.md (no re-derivation; see pre-write equation check #3).
+9. **Results** — from spec.md §4.5 `headline-results` (extract the table image) or §9 (render the comparison). Compact: one headline metric, one comparison.
+10. **Limitations** — from spec.md §10.
+11. **References** — paper PDF (absolute path from `repo_pdf_path(slug)`), `spec.md`, `code_map.md`, any `<concept>.md` files, and the upstream repo URL. Structural slide; visual not required. **This is the only place file locations belong** — keep them off the title slide.
+
+Label-consistency rule across slides 2, 5, 6, 7: per-component slides MUST reuse the same labels, abbreviations, and arrow conventions as the headline figure. If the headline calls it "V" don't switch to "ConvVAE" on the zoom; if the headline shows `z_t` don't switch to `z` on the loss slide.
 
 ### Concept mode (`<concept>__viz.md`)
 
@@ -331,6 +396,8 @@ Standalone visualization of a single algorithmic component or concept. Lives at 
 
 ```markdown
 ---
+paper: <slug>
+paper: <slug>
 category: model
 tags:
 - AI-guided-paper-reading
@@ -376,7 +443,7 @@ The Visualizer:
 
 - Does not modify `spec.md`, `code_map.md`, or `<concept>.md`.
 - Does not produce runnable code (that's the experimenter's territory).
-- Does not extract images from the PDF — it generates new diagrams in code (Mermaid/TikZ/matplotlib) or hand-drawable canvases (tldraw).
+- **Extracts figures from the PDF via `tools.figures.extract_figure`** (renders the page containing the figure as PNG, cached under `papers/<slug>/.cache/figures/`). Generated diagrams (Mermaid/TikZ/matplotlib/tldraw) are the *fallback* path per the extract-first waterfall above — they exist for cases where the paper has no usable figure for the slide.
 - Does not invent paper content. If a slide would require asserting something not in `spec.md` or `code_map.md`, the slide is dropped or flagged with `⚠️ UNCERTAIN:`.
 
 ## Self-check
