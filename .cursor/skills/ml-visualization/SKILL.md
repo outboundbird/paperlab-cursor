@@ -79,9 +79,33 @@ If any block fails any check, **rewrite that block** until it passes. Do not wri
 
 We currently rely on this rules-based check; a real `mmdc` validator is deferred until needed.
 
-### Two-column layout — the only allowed content layout
+### Content-slide layout — routed by figure source and aspect ratio
 
-**Hard layout rule.** Every content slide MUST use `<!-- _class: split -->`. The body MUST contain, in order:
+**Hard layout rule.** Every content slide MUST use one of three layout classes — `split`, `figure-top`, or `figure-full` — chosen by the table below. Single-column free-flow layouts are forbidden; the only unclassed slides are the title (`lead`) and the final references slide.
+
+| Figure source | Aspect (W/H) | Layout class | Rationale |
+|---|---|---|---|
+| Mermaid / TikZ | any | `split` | Diagram size is the agent's choice — force discipline. |
+| Extracted PNG (paper figure) | < 1.4 (square / portrait) | `split` | Fits naturally in the left half-column. |
+| Extracted PNG | 1.4 ≤ W/H < 2.5 (landscape) | **`figure-top`** | Half-column would shrink labels past legibility. |
+| Extracted PNG | W/H ≥ 2.5, OR a result-table screenshot of any aspect | **`figure-full`** | Panorama / dense table — fills the slide; caption-only prose. |
+
+**Decision rule the agent runs after `extract_figure` returns a path:**
+
+```text
+from PIL import Image
+w, h = Image.open(path).size
+ar = w / h
+
+if slide_source == "mermaid":            cls = "split"
+elif slide_is_result_table or ar >= 2.5: cls = "figure-full"
+elif ar >= 1.4:                          cls = "figure-top"
+else:                                    cls = "split"
+```
+
+#### `split` (two-column) — body contract
+
+The body MUST contain, in order:
 
 1. `<!-- _class: split -->` directive.
 2. `## <heading>` — spans both columns.
@@ -117,15 +141,39 @@ Rule of thumb (count nodes in the longest top-to-bottom chain of the diagram):
 | ≥ 6 nodes | **forbidden** | split across two slides |
 | Horizontal (LR) diagrams | `split` | render at natural size |
 
-No single-column content slides. No exceptions. The only slides without `split` are *structural* slides: the title (`lead` class) and the final references slide (no class, pure text). Limitations should use `split` with a small Mermaid showing the limitation domain (e.g., "in-distribution" vs. "OOD") on the left.
+No single-column free-flow slides. The only unclassed slides are *structural*: the title (`lead`) and the final references slide.
 
-**Right-column content cap** (hard cap; if exceeded, split into two slides):
+#### `figure-top` — body contract
 
-- ≤ 3 sentences of prose (≤ 80 words total).
-- At most 1 display equation, OR up to 2 inline equations.
-- 1 short citation line (e.g., `(spec.md §6.1, Eq. 2)`).
+For landscape extracted figures (1.4 ≤ W/H < 2.5). The body MUST contain, in order:
 
-If the natural content for one slide overflows the cap, divide it into two slides instead — e.g., "MDN-RNN — architecture" + "MDN-RNN — loss". Do NOT shrink the font, do NOT extend the right column off the slide. Splitting the slide is the only allowed remediation.
+1. `<!-- _class: figure-top -->` directive.
+2. `## <heading>` — full width.
+3. **Exactly one** image block — the extracted PNG; spans full slide width, capped at 480 px tall by the theme.
+4. **One or more** further blocks — short prose strip below the figure.
+
+Right-column cap does not apply (no right column). Use the `figure-top` cap below.
+
+#### `figure-full` — body contract
+
+For panorama figures (W/H ≥ 2.5) and result-table screenshots. The body MUST contain, in order:
+
+1. `<!-- _class: figure-full -->` directive.
+2. `## <heading>` — small, top-left.
+3. **Exactly one** image block — fills the slide.
+4. **At most one** caption line below — the §4.5 caption verbatim, in italic.
+
+No prose paragraphs, no equations on `figure-full` slides. If the slide needs commentary, add a follow-up `split` slide titled "<headline> — interpretation".
+
+#### Per-class content caps (hard caps; if exceeded, split into two slides)
+
+| Class | Prose | Equations | Citation line |
+|---|---|---|---|
+| `split` | ≤ 3 sentences, ≤ 80 words | 1 display OR 2 inline | yes |
+| `figure-top` | ≤ 2 sentences, ≤ 50 words | 1 inline only | yes |
+| `figure-full` | caption verbatim only | none | none |
+
+If the natural content for one slide overflows the cap, divide it into two slides instead — e.g., "MDN-RNN — architecture" + "MDN-RNN — loss". Do NOT shrink the font, do NOT extend content past the slide bounds. Splitting the slide is the only allowed remediation.
 
 **Equation placement (hard rule).** Never place citation strings, `\tag{...}`, or any non-math text inside `$$ ... $$`. KaTeX parses everything inside as math and will both garble the citation and break line wrapping. Instead:
 
@@ -169,7 +217,7 @@ The Visualizer does not invent the deck's structure. It derives it from the diss
 | §6.1 Detailed components | **One slide per component IF the component is visible in `headline` and warrants zooming.** Components with no figure and no pseudo-code worth visualizing are folded as bullets under the relevant flow — no slide. |
 | §6 pseudo-code revisited | 1–2 walkthrough slides showing data flow step-by-step |
 | §7 Hyperparameters | 1 slide *only if* a hyperparameter is conceptually load-bearing (e.g., the bottleneck dimension). Otherwise skip. |
-| §4.5 Tables — `headline-results` entry, or §9 Results | 1 slide with the headline number or comparison |
+| §4.5 — pick the `result` entry that best answers "did this method beat alternatives?" (usually a cross-method comparison table); fall back to §9 Results prose if no comparison `result` exists | 1 slide with the headline number or comparison |
 | §10 Limitations | 1 slide |
 
 Target total: **8–12 slides** for a typical paper. Compress or expand by adjusting §6.1 grouping. If §6 has fewer than 3 detailed components, the paper may not be worth a full deck — surface this to the user.
@@ -178,7 +226,7 @@ Target total: **8–12 slides** for a typical paper. Compress or expand by adjus
 
 The Visualizer's most common failure mode is **mechanically generating one Mermaid diagram per spec.md component** while missing the single figure that captures the paper's whole idea. To prevent this, every figure-bearing slide follows this priority order:
 
-1. **If `spec.md` §4.5 has a relevant `headline` / `thumbnail` / `qualitative` / `baseline-comparison` entry** → call `tools.figures.extract_figure(slug, "Figure", N)` and embed the resulting PNG as `![](abs/path/to/figureN.png)`. This is the paper's own diagram, drawn by the authors, and is always preferred over a synthesized recreation. Caption row from §4.5 becomes the slide's right-column prose.
+1. **If `spec.md` §4.5 has a relevant `headline` / `thumbnail` / `qualitative` / `baseline-comparison` entry** → call `tools.figures.extract_figure_to_vault(slug, "Figure", N)` (CLI: `python -m tools.figures extract-to-vault <slug> Figure <N>`), which copies the cached PNG into `<vault>/<slug>/figures/` and returns a **vault-relative** path (e.g. `figures/figure4.png`). Read the PNG's dimensions, pick the layout class per the routing table, and embed as `![](figures/figureN.png)`. The §4.5 caption row becomes the slide's prose (right column for `split`, below-figure strip for `figure-top`, italic caption for `figure-full`). **Never embed the absolute repo path**; the deck is rendered from the vault and absolute paths break cross-drive / OneDrive setups.
 2. **If no relevant paper figure exists** but the paper has pseudo-code or algorithm-box description of this flow → generate a Mermaid diagram from `spec.md` §6 / §6.1. This is the only case where the Visualizer invents a diagram.
 3. **If neither figure nor pseudo-code exists** → drop the slide entirely. Diagrams-for-diagrams'-sake are forbidden; fold the content into a sibling slide as a bullet or skip it.
 
@@ -190,19 +238,21 @@ The same waterfall applies per-slide:
 | Architecture overview | reuse headline | Mermaid block diagram | — |
 | Component zoom | §4.5 figure showing this component | Mermaid from §6.1 | drop component |
 | Algorithm walkthrough | §4.5 sequence/swimlane figure | Mermaid TB pipeline | drop slide |
-| Results | §4.5 `headline-results` table image | render table from §9 | — |
+| Results | §4.5 `result` entry — pick the cross-method comparison table | render table from §9 | — |
 | Qualitative examples | §4.5 `qualitative` figure | — (cannot fake) | drop slide |
 
 ### Embedding an extracted figure
 
-Extracted figures render as the **first block in the `split` layout** (left column), just like a Mermaid block:
+After `extract_figure_to_vault` returns the vault-relative path, **read the PNG's dimensions (from the cached file under `papers/<slug>/.cache/figures/`) and pick the layout class** per the routing table. The image block is always the first block after `## <heading>`, and the embed uses the **vault-relative** path.
+
+**Square / portrait figure (W/H < 1.4) → `split`** — figure occupies the left column:
 
 ```markdown
 <!-- _class: split -->
 
 ## V → M → C interaction (Figure 4)
 
-![](C:/.../papers/<slug>/.cache/figures/figure4.png)
+![](figures/figure4.png)
 
 The world model factors into three modules: ConvVAE (V) compresses each frame
 to $z_t$, MDN-RNN (M) predicts $z_{t+1}$ conditioned on $a_t$, and the linear
@@ -211,7 +261,34 @@ controller (C) maps $[z_t\;h_t]$ to $a_t$. Training is staged: V then M then C.
 *(spec.md §4.5 Figure 4)*
 ```
 
-Use the absolute path returned by `tools.figures.extract_figure`. If the extracted PNG is wider than the column or the caption is illegible at slide size, prefer extracting at a higher DPI (`extract_figure(..., dpi=200)`) before falling back to Mermaid.
+**Landscape figure (1.4 ≤ W/H < 2.5) → `figure-top`** — figure spans full slide width above a short prose strip:
+
+```markdown
+<!-- _class: figure-top -->
+
+## Memento architecture (Figure 3)
+
+![](figures/figure3.png)
+
+Planner LLM and executor LLM share a parametric memory bank; the executor
+retrieves the top-k past traces before each step.
+
+*(spec.md §4.5 Figure 3)*
+```
+
+**Panorama / result-table (W/H ≥ 2.5, or any aspect for tables) → `figure-full`** — figure fills the slide; caption-only prose:
+
+```markdown
+<!-- _class: figure-full -->
+
+## Performance comparison (Table 1)
+
+![](figures/table1.png)
+
+*Performance comparison of prompt-based, training-based, and our approach on seven open-domain QA benchmarks. (spec.md §4.5 Table 1)*
+```
+
+Use the vault-relative path returned by `tools.figures.extract_figure_to_vault`. If labels are illegible at slide size, prefer `extract_figure_to_vault(..., dpi=200, refresh=True)` (higher DPI, same aspect ratio — class choice doesn't change) before falling back to Mermaid.
 
 ### When extraction tooling is unavailable
 
@@ -382,7 +459,7 @@ Every `---` separator must be on its own line with blank lines around it (Marp r
 6. **One slide per major component** — from spec.md §6.1. **Only components visible in the headline figure get their own slide.** Use a §4.5 component-specific figure if one exists; otherwise Mermaid from §6.1. Components with neither a figure nor pseudo-code worth visualizing are folded into bullets on a sibling slide.
 7. **Algorithm walkthrough** — 1 or 2 slides showing data flow step-by-step. Prefer reusing the headline figure with elements highlighted across slides; Mermaid only if the paper has no sequence diagram.
 8. **Objective / loss** — the central equation(s) with annotation. Equations quoted verbatim from spec.md (no re-derivation; see pre-write equation check #3).
-9. **Results** — from spec.md §4.5 `headline-results` (extract the table image) or §9 (render the comparison). Compact: one headline metric, one comparison.
+9. **Results** — from spec.md §4.5 `result` entries (pick the one that best answers "did this method beat alternatives?" — typically a cross-method comparison table) or §9 prose. Compact: one headline metric, one comparison. The visualizer makes the "which result matters most" call at slide-generation time; the dissector does NOT rank results.
 10. **Limitations** — from spec.md §10.
 11. **References** — paper PDF (absolute path from `repo_pdf_path(slug)`), `spec.md`, `code_map.md`, any `<concept>.md` files, and the upstream repo URL. Structural slide; visual not required. **This is the only place file locations belong** — keep them off the title slide.
 

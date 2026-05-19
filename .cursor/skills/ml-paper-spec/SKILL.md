@@ -128,18 +128,90 @@ Catalog every figure and table the paper contains. Downstream subagents (especia
 
 Populate the two tables below by calling `tools.figures.list_figures(slug)` (which parses captions from the cached PDF text). The Dissector adds the `Role` and `Components shown` columns by reading each caption and matching it against the paper's prose.
 
+**Column rules (apply when populating the tables below):**
+
+- **Caption column: verbatim from the paper, first sentence only, trimmed to ≤ 200 chars. No edits, no paraphrasing, no clean-ups.** This column is the user's anchor to the original document — corruption here destroys trust in the whole spec.
+- **Role column: derived by the dissector** via the two-pass procedure below.
+- **Components shown column: derived from the prose paragraphs that reference the figure**, not from the caption. The caption frequently omits component names that the surrounding prose makes explicit (e.g., Figure 8's caption is "Flow diagram of our Agent model" but the §2.4 prose around it names V, M, C, env explicitly). List components using the paper's own short names (V, M, C, $\theta_g$, etc.).
+
 **Role vocabulary** (controlled, one of):
 
-- `headline` — the figure that shows the entire architecture / mechanism end-to-end. **At most one** per paper. If no single figure captures the whole architecture, leave Role blank for every figure and add a `⚠️ UNCERTAIN: no single architecture figure` note above the table.
-- `thumbnail` — a smaller / partial version of the headline figure (often used in the intro).
-- `headline-results` — the table or figure showing the paper's main quantitative claim.
-- `ablation` — ablation study.
-- `qualitative` — qualitative examples / rollouts / samples.
-- `baseline-comparison` — head-to-head comparison plot/table against prior methods.
-- `training-detail` — loss curves, training-dynamics plots, learning-rate schedules.
-- `other` — anything else.
+- `headline` — the figure that shows the paper's full **data-flow / computation graph** end-to-end (arrows, intermediate quantities, all components wired up). **At most one** per paper. If no single figure shows the full flow, leave Role blank for every figure and add `⚠️ UNCERTAIN: no single architecture figure`.
+- `thumbnail` — a high-level "three boxes" overview that names the components but does NOT show the actual data flow. Often appears in §1 or §2 *before* the headline. Tag as `thumbnail`, not `headline`, even if it's earlier in the paper.
+- `result` — any figure or table reporting numerical or empirical results (cross-method comparison tables, score histograms, transfer-back evaluations, training curves of the final method, ...). The dissector does **not** rank `result` entries; downstream agents pick whichever fits their slide. There is no `headline-results` tag — "is this *the* result" is a question for downstream agents, not the dissector.
+- `ablation` — ablation study (this paper's method with one component disabled or replaced).
+- `qualitative` — qualitative examples / rollouts / samples that are not numerical results (dream rollouts, sketches, attention maps, generated samples).
+- `training-detail` — tensor-shape tables, layer specifications, optimizer schedules, anything documenting *how* the method was trained that isn't itself a result.
+- `other` — related-work diagrams, historical context, illustrative analogies, anything else.
 
-**Heuristics for `headline` identification.** Look for captions containing *overview, architecture, system, framework, pipeline, end-to-end, full model, schematic, flow diagram*. Cross-reference: the headline figure is typically the one the abstract or §2 Contribution paragraph cites first. If two figures jointly cover the architecture (e.g., one for training, one for inference), tag the one referenced earlier as `headline` and the other as `thumbnail`.
+## Two-pass role assignment
+
+The dissector assigns roles in two passes. Pass 1 is a cheap mechanical filter; Pass 2 is a semantic check against the prose the dissector just read.
+
+### Pass 1 — caption-keyword pre-filter (for `headline` only)
+
+Score each candidate caption with the following signals; the top scorer is the `headline` *candidate*:
+
+| Signal in caption | Score |
+|---|---:|
+| Contains *flow diagram*, *flow chart*, *data flow*, *computation graph*, *schematic*, *pipeline* | +3 |
+| Contains *full model*, *complete architecture*, *end-to-end*, *training procedure*, *inference procedure* | +2 |
+| Contains *architecture*, *framework*, *system* | +1 |
+| Contains *consists of*, *components*, *modules*, *parts*, *building blocks* | 0 |
+| Caption ≤ 12 words AND contains *our agent*, *our model*, *our method* with no flow keywords | −1 |
+| Single component named in caption (e.g., "Flow diagram of a Variational Autoencoder") | −2 |
+| Caption ≤ 8 words AND no flow keywords | −1 |
+
+Ties → prefer lower figure number.
+
+### Pass 2 — prose cross-check (mandatory)
+
+Pass 1 narrows; Pass 2 confirms. The dissector has already read the full PDF — it must use that semantic context, not rely on captions alone.
+
+**`headline` cross-check.**
+
+1. Locate the prose passage(s) in §2 (Agent Model / Method / Contribution) or §6 (Algorithm) that introduce the architecture end-to-end. These are the passages naming **more than one component in a single sentence describing how data flows between them** (e.g., "the encoder $V$ produces $z_t$, which the predictor $M$ uses to forecast $z_{t+1}$, fed to the controller $C$").
+2. List every figure number cited from those passages.
+3. **Reconcile:**
+   - If the Pass 1 top scorer appears in those passages → confirm as `headline`. Done.
+   - If a *lower*-scoring candidate appears in those passages and the Pass 1 winner does not → the prose wins; use the prose-confirmed figure as `headline`. Demote the Pass 1 winner to `thumbnail` if it shows components without flow, else `other`.
+   - If multiple candidates appear in those passages, tag the one cited in the *flow-describing* sentence as `headline` and the one cited in the *enumeration* sentence as `thumbnail` (e.g., for WorldModel, Fig 4 is cited as "three components: V, M, C" → thumbnail; Fig 8 is cited as "the flow between V, M, C" → headline).
+   - If no figure is cited from those passages → flag `⚠️ UNCERTAIN: no figure cited in architecture description; headline left blank`.
+
+**`result` cross-check.**
+
+Every figure/table the dissector wants to tag `result` must be referenced in §9 Results (or the equivalent evaluation section). If a figure is *only* referenced in §6 / methods / appendix and never in Results, it is **not** a `result` — it's a `training-detail` or `other`.
+
+**`Components shown` cross-check.**
+
+For each figure, the dissector locates every prose paragraph that references the figure's number (e.g., "as shown in Figure 8", "(Fig. 8)"). The components named in those paragraphs populate the `Components shown` column. Do NOT use only the caption — captions often omit component names.
+
+### Worked example — WorldModel
+
+**Pass 1 scores (top candidates):**
+
+- Fig 8: "Flow diagram of our Agent model." → +3 (*flow diagram*) +2 (*full model* implied) = **+5**.
+- Fig 5: "Flow diagram of a Variational Autoencoder (VAE)." → +3 (*flow diagram*) −2 (single component) = **+1**.
+- Fig 4: "Our agent consists of three components..." → 0 (*consists of*, *components*) −1 (*our agent* no flow keyword) = **−1**.
+
+Pass 1 winner: Fig 8.
+
+**Pass 2 prose cross-check (headline):**
+
+- §2 Agent Model prose: "Our agent has three components: V, M, C (see Figure 4) ... A full flow of how these three components interact is shown in Figure 8 ..."
+- Cited figures: Fig 4 (enumeration sentence), Fig 8 (flow-describing sentence).
+- Reconciliation: Pass 1 winner (Fig 8) is cited in the flow sentence → **`headline` confirmed**. Fig 4 is cited in the enumeration sentence → **`thumbnail`**.
+
+**Pass 2 prose cross-check (result):**
+
+- §9 Results prose references: Table 1 (CarRacing scores vs methods), Fig 25 (cumulative-reward histogram of this paper's method), Fig 29 (Doom survival histogram). All three appear in Results → all three tagged `result`.
+- Fig 22 ("Description of tensor shapes at each layer of ConvVAE") is referenced only in Appendix A.2, never in §9 → **`training-detail`**, not `result`.
+
+**Pass 2 prose cross-check (Components shown for Fig 8):**
+
+- Caption says only "Flow diagram of our Agent model."
+- §2.4 prose around the citation says "the world model V encodes $x_t$ to $z_t$; the MDN-RNN M predicts $z_{t+1}$ from $(z_t, a_t, h_t)$; the controller C maps $[z_t; h_t]$ to $a_t$, which the environment env consumes."
+- → `Components shown: V, M, C, env`.
 
 #### Figures
 
