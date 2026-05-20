@@ -11,8 +11,9 @@ Every agent-generated markdown file under `<vault>/<slug>/` carries a YAML front
 - Python code uses type hints, follows PEP 8, and has NumPy-style docstrings.
 - Code examples and reference-code reading assume PyTorch and PyTorch Geometric conventions.
 - Math notation: use LaTeX between `$ ... $` for inline math and `$$ ... $$` for display math.
-  Never use Unicode math characters (e.g., write `$\theta$` not `θ`).
+  Never use Unicode math characters in prose, equation blocks, captions, or any free-form markdown (e.g., write `$\theta$` not `θ`).
   Never use `\( ... \)` or `\[ ... \]` — these don't render in GitHub markdown preview.
+  **Exception — Mermaid diagrams.** Mermaid renders node and edge labels as plain text/HTML, not LaTeX; `$\theta$` shows up literally. Inside ```` ```mermaid ```` blocks, Unicode math characters (`θ`, `μ`, `Σ`, `ℝ`, `zₜ`, `∇L`, `∑`, `∫`) are *required* for atomic symbols, and compound expressions (fractions, `\mathbb{E}_{...}[\cdot]`, integrals with limits, plate notation) must be referenced from the label as `(eq. N)` and rendered in the adjacent prose/equation block. When a diagram's labels need full LaTeX (commutative diagrams, `\mathbb`, `\mathcal`, sub/superscripts beyond Unicode), escalate to a ```` ```tikz ```` block instead — TikZ labels render LaTeX natively. The "no Unicode math" rule still applies everywhere outside Mermaid labels (TikZ, prose, equations, captions).
 
 ## Where things live
 
@@ -59,7 +60,7 @@ PaperLab uses Cursor project subagents in `.cursor/agents/`.
 - `implementer` maps paper concepts to official code and writes `code_map.md` to the vault; deep-dive mode writes `code_map__<slug>__<component>.md`.
 - `explainer` writes single-concept explanation files or synthesis files to the vault.
 - `critic` audits claims, reproducibility, and paper-code alignment, then writes `critic_reviews.md` to the vault.
-- `visualizer` produces a Marp slide deck (`slides.md`) summarizing the paper, or a standalone per-concept visualization (`<concept>__viz.md`). Defaults to Mermaid + Marp (theme `gaia`); escalates to TikZ / matplotlib SVG / tldraw `.tldr` only with stated justification.
+- `visualizer` produces a Marp slide deck (`slides.md`) summarizing the paper, or a standalone per-concept visualization (`<concept>__viz.md`). Defaults to **TikZ + Marp** (theme `paperlab`, registered via `marp_theme_path` in `paperlab.config.yaml`); Mermaid is a narrow fallback for strict no-math pipelines; escalates to extracted PNG / matplotlib SVG / tldraw `.tldr` per the extract-first waterfall.
 
 ## Agent-To-Skill Mapping
 
