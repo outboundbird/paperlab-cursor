@@ -43,29 +43,100 @@ Marp slides are wider than they are tall, but not infinitely wide. Mermaid diagr
 - **Avoid newlines inside node labels** (`\n` or literal line breaks) unless rendering has been verified — they often look broken in Marp.
 - **For wide computation graphs** that genuinely need a left-to-right view, use a TikZ diagram (renders at a fixed scaled size via Marp TikZ Plus) instead of forcing Mermaid.
 
-### Mermaid label rules — avoid parse errors
+### Mermaid label rules — avoid parse errors and unrendered math
 
-Mermaid's parser is strict and silently fails when labels contain reserved characters. Every node label and edge label in a Mermaid block MUST follow these rules:
+Mermaid renders node and edge labels as plain text/HTML, not LaTeX. The parser is also strict about reserved characters. Every label in a Mermaid block MUST follow these rules:
 
-- **No LaTeX inside Mermaid.** `z_{t+1}`, `\frac{a}{b}`, `\mathbb{R}` and friends do NOT render — Mermaid is not a math engine. Use plain ASCII: `z_t+1`, `a/b`, `R`. Put real LaTeX in the prose column, not the diagram.
-- **No curly braces `{}`** in node labels — Mermaid reserves `{...}` for the rhombus shape syntax. So `[z_{t+1} dist]` triggers a parse error. Rewrite as `[z next dist]` or quote the whole label: `["z_{t+1} dist"]`.
-- **No unquoted parentheses `(...)`** in labels. If unavoidable, quote: `Node["f(x) = 1"]`.
+- **No LaTeX inside Mermaid.** `$z_t$`, `\frac{a}{b}`, `\mathbb{R}`, `\theta` render literally — Mermaid is not a math engine. Use the three escape hatches below, in order of preference.
+- **Escape hatch 1 — Unicode math characters (carved out by AGENTS.md for Mermaid labels only).** For atomic symbols use the Unicode glyph directly:
+  - Greek: `α β γ δ ε θ λ μ π σ τ φ ψ ω` and capital `Γ Δ Θ Λ Ξ Π Σ Φ Ψ Ω`.
+  - Operators / sets: `∇ ∑ ∏ ∫ ∂ ∞ ± × ÷ ≤ ≥ ≠ ≈ ∈ ∉ ⊂ ⊆ ∪ ∩ ℝ ℕ ℤ ℚ ℂ`.
+  - Sub/superscripts (cover most ML usage): subscripts `₀₁₂₃₄₅₆₇₈₉ ₐ ₑ ᵢ ⱼ ₖ ₗ ₘ ₙ ₒ ₚ ₛ ₜ ₓ`; superscripts `⁰¹²³⁴⁵⁶⁷⁸⁹ ⁿ ⁱ ʲ ᵏ ᵀ`.
+  - Examples: `zₜ`, `z_{t+1}` → `zₜ₊₁`, `xᵢ`, `∇θ L`, `KL(q ‖ p)`, `μ ± σ`, `ℝⁿ`.
+- **Escape hatch 2 — `(eq. N)` cross-reference.** When a label needs compound math Unicode can't carry (`\mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x|z)]`, fractions, integrals with limits, matrix expressions, plate notation), put a short ASCII tag in the label and render the real math in the right-column prose or equation block:
+  - Node label: `["ELBO (eq. 3)"]`. Right column: `$$\mathcal{L}(\phi,\theta) = \mathbb{E}_{q_\phi(z|x)}\!\left[\log p_\theta(x|z)\right] - D_{\mathrm{KL}}(q_\phi(z|x)\,\|\,p(z))$$ *(spec.md §6, Eq. 3)*`.
+- **Escape hatch 3 — escalate to TikZ.** When the diagram *is* the math (commutative diagrams, plate notation drawn with shapes, equations laid out spatially, anything requiring `\mathbb`/`\mathcal`/`\mathfrak` inside multiple nodes), don't fight Mermaid — switch the slide's diagram source to a ```` ```tikz ```` block. See **TikZ author rules** below.
+- **No curly braces `{}`** in node labels — Mermaid reserves `{...}` for the rhombus shape syntax. Rewrite or quote: `["z_{t+1} dist"]`.
+- **No unquoted parentheses `(...)`** in labels. Quote: `Node["f(x) = 1"]`.
 - **No unquoted `<`, `>`, `|`** in labels — these are edge syntax. Quote the label if needed.
 - **Edge labels** (`A -- text --> B`) must NOT contain `--`, `>`, or `<`.
-- **Quote any label** that contains math symbols, punctuation other than `_` and digits, or spaces with special chars: `Sample["~ N(mu, sigma)"]`.
-- **Keep labels ≤ 24 characters** where possible. Longer labels should be quoted and pushed to the prose anyway.
+- **Quote any label** that contains math symbols, punctuation other than `_` and digits, or spaces with special chars: `Sample["~ N(μ, σ)"]`.
+- **Keep labels ≤ 24 characters** where possible. Longer labels should be quoted and pushed to the prose.
 - **No literal newlines or `\n`** inside node labels.
 - **Balance brackets.** Every `[` has a matching `]`, every `(` a matching `)`, every `"` paired. Every `flowchart`/`graph` block has every arrow terminated.
+
+### TikZ author rules — when to use, how to write
+
+TikZ via the `marp-tikz-plus` plugin renders LaTeX natively inside node labels: `$\mathbb{E}$`, `$\mathcal{L}$`, `$p_\theta(x\mid z)$`, `\mathrm`, `\mathfrak`, fractions, sub/superscripts of arbitrary depth, plate notation, commutative diagrams. Use TikZ for any slide whose diagram source qualifies as **escape hatch 3** above.
+
+**Trigger to use TikZ instead of Mermaid:**
+
+- Two or more node labels need math beyond Unicode's reach (`\mathbb`, `\mathcal`, nested sub/superscripts, fractions, expectations with subscripted distributions).
+- The diagram is canonically a commutative diagram, plate diagram, factor graph, or geometric figure.
+- The paper's own figure uses LaTeX-style labels and we want our reconstruction to match.
+
+If only one label needs heavy math, prefer Mermaid + `(eq. N)` cross-reference (escape hatch 2). TikZ has higher author cost.
+
+**Block shape (verified against the [marp-tikz-plus engine](https://github.com/kevinyuan/marp-tikz-plus)):**
+
+````markdown
+```tikz
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usetikzlibrary{positioning, fit, backgrounds}
+\begin{document}
+\begin{tikzpicture}[scale=2,
+  every node/.style={font=\small},
+  latent/.style={circle, draw, minimum size=0.9cm}]
+  \node[latent] (z) {$z$};
+  \node[latent, below=1.1cm of z] (x) {$x$};
+  \draw[->] (z) -- node[right] {$p_\theta(x\mid z)$} (x);
+\end{tikzpicture}
+\end{document}
+```
+````
+
+**Hard rules — violations cause silent compilation failure:**
+
+1. **Never include `\documentclass{...}`.** The engine is plain TeX with TikZ preloaded, not LaTeX.
+2. **Never include `\usepackage{tikz}`.** TikZ is preloaded; re-loading triggers "Undefined control sequence" or "Unknown package."
+3. **`\usepackage{...}` is only legal for these preloaded packages:** `amsmath`, `amssymb`, `amsfonts`, `array`, `tikz-cd`, `pgfplots`, `circuitikz`, `chemfig`, `tikz-3dplot`. Anything else fails. Use only what you need (most ML diagrams only need `amsmath` + `amssymb`).
+4. **`\usetikzlibrary{...}` goes in the preamble** (before `\begin{document}`). Common libraries the agent will need:
+   - `positioning` — `[right=of foo]`, `[below=1cm of bar]` syntax.
+   - `fit`, `backgrounds` — bounding boxes around node sets (plate notation).
+   - `arrows.meta` — modern arrow tips (`-Stealth`, `-Latex`).
+   - `calc` — coordinate arithmetic `($(a)+(b)$)`.
+   - `shapes.geometric` — `[diamond]`, `[ellipse]`, `[trapezium]`.
+   - `matrix` — grid layouts.
+   - `decorations.pathmorphing` — wavy / coiled arrows.
+5. **`\begin{document}…\end{document}` is optional** (the plugin's preprocessor auto-wraps if missing), but include it explicitly for clarity.
+6. **Always pass `[scale=2]`** (or larger) to `tikzpicture` for Marp slides. Marp renders at 1280×720; default TikZ scale looks tiny.
+7. **Math inside node labels uses standard LaTeX** — `$\mathcal{L}$`, `$p_\theta(x|z)$`, `$\mathbb{R}^n$`. No `(eq. N)` cross-reference needed — it renders in the label directly. (The AGENTS.md "no Unicode math" rule applies in full inside TikZ — use `$\theta$`, not `θ`.)
+8. **TikZ blocks render in Obsidian preview AND in Marp/PPTX export**, both via `marp-tikz-plus`. Rendered SVG is cached; reruns are instant.
 
 ### Pre-write Mermaid check (mandatory)
 
 Before writing `slides.md`, the agent MUST walk through every Mermaid block in the deck and verify:
 
 1. Every label complies with the **Mermaid label rules** above.
-2. No LaTeX syntax (`\frac`, `_{...}`, `^{...}`, `\mathbb{...}`, etc.) appears anywhere inside a ```` ```mermaid ```` block.
+2. No LaTeX syntax (`$...$`, `\frac`, `_{...}`, `^{...}`, `\mathbb`, `\mathcal`, `\theta`, `\sum`, any `\`-prefixed math command) appears anywhere inside a ```` ```mermaid ```` block. If any does, rewrite the offending label using escape hatch 1 (Unicode), escape hatch 2 (`(eq. N)` cross-reference), or escalate the whole diagram to TikZ (escape hatch 3).
 3. Brackets balance: count of `[`, `(`, `"` equals count of `]`, `)`, `"`.
 4. Every edge has both endpoints (no `A -->` dangling).
 5. The longest top-to-bottom node chain is ≤ 5 (with `split tall`) or ≤ 4 (with plain `split`). Diagrams with 6+ nodes in one chain MUST be split across two slides — not crammed in via `split tall`.
+
+### Pre-write TikZ check (mandatory)
+
+Before writing `slides.md`, the agent MUST walk through every ```` ```tikz ```` block and verify:
+
+1. No `\documentclass{...}` line anywhere.
+2. No `\usepackage{tikz}` line. (TikZ is preloaded.)
+3. Every `\usepackage{...}` names a member of the allowed set: `amsmath`, `amssymb`, `amsfonts`, `array`, `tikz-cd`, `pgfplots`, `circuitikz`, `chemfig`, `tikz-3dplot`.
+4. Every `\usetikzlibrary{...}` appears **before** `\begin{document}` (or before the implicit auto-wrap if `\begin{document}` is omitted).
+5. The block contains exactly one `\begin{tikzpicture}` and one matching `\end{tikzpicture}`.
+6. For Marp slides, `tikzpicture` carries `[scale=2]` (or larger) — otherwise the diagram will render too small on the 1280×720 canvas.
+7. Brackets balance: every `{`, `[`, `(`, `$` has its match.
+
+If any block fails any check, rewrite it until it passes.
 
 ### Pre-write equation check (mandatory)
 
@@ -83,12 +154,14 @@ We currently rely on this rules-based check; a real `mmdc` validator is deferred
 
 **Hard layout rule.** Every content slide MUST use one of three layout classes — `split`, `figure-top`, or `figure-full` — chosen by the table below. Single-column free-flow layouts are forbidden; the only unclassed slides are the title (`lead`) and the final references slide.
 
-| Figure source | Aspect (W/H) | Layout class | Rationale |
-|---|---|---|---|
-| Mermaid / TikZ | any | `split` | Diagram size is the agent's choice — force discipline. |
-| Extracted PNG (paper figure) | < 1.4 (square / portrait) | `split` | Fits naturally in the left half-column. |
-| Extracted PNG | 1.4 ≤ W/H < 2.5 (landscape) | **`figure-top`** | Half-column would shrink labels past legibility. |
-| Extracted PNG | W/H ≥ 2.5, OR a result-table screenshot of any aspect | **`figure-full`** | Panorama / dense table — fills the slide; caption-only prose. |
+| Slide role | Figure source | Aspect (W/H) | Layout class | Rationale |
+|---|---|---|---|---|
+| **Headline (slide 2)** — any extracted PNG | Extracted PNG | < 2.5 | **`figure-top`** (forced) | Slide 2 is the one slide the reader must grok in 90 s. Half-column is never acceptable here, even for near-square figures. |
+| Headline (slide 2) | Extracted PNG | ≥ 2.5 | **`figure-full`** (forced) | Panorama headline fills the slide. |
+| Any other slide | Mermaid / TikZ | any | `split` | Diagram size is the agent's choice — force discipline. |
+| Any other slide | Extracted PNG | < 1.4 (square / portrait) | `split` | Fits naturally in the left half-column. |
+| Any other slide | Extracted PNG | 1.4 ≤ W/H < 2.5 (landscape) | **`figure-top`** | Half-column would shrink labels past legibility. |
+| Any other slide | Extracted PNG | W/H ≥ 2.5, OR a result-table screenshot of any aspect | **`figure-full`** | Panorama / dense table — fills the slide; caption-only prose. |
 
 **Decision rule the agent runs after `extract_figure` returns a path:**
 
@@ -97,11 +170,20 @@ from PIL import Image
 w, h = Image.open(path).size
 ar = w / h
 
-if slide_source == "mermaid":            cls = "split"
-elif slide_is_result_table or ar >= 2.5: cls = "figure-full"
-elif ar >= 1.4:                          cls = "figure-top"
-else:                                    cls = "split"
+# Headline override — slide 2 is never half-column.
+if slide_index == 2 and slide_source == "extracted":
+    cls = "figure-full" if ar >= 2.5 else "figure-top"
+elif slide_source in ("mermaid", "tikz"):
+    cls = "split"
+elif slide_is_result_table or ar >= 2.5:
+    cls = "figure-full"
+elif ar >= 1.4:
+    cls = "figure-top"
+else:
+    cls = "split"
 ```
+
+The agent MUST log each slide's chosen class and `(w, h, ar)` tuple in the report-back step so misroutes can be spotted at a glance.
 
 #### `split` (two-column) — body contract
 
@@ -226,20 +308,25 @@ Target total: **8–12 slides** for a typical paper. Compress or expand by adjus
 
 The Visualizer's most common failure mode is **mechanically generating one Mermaid diagram per spec.md component** while missing the single figure that captures the paper's whole idea. To prevent this, every figure-bearing slide follows this priority order:
 
-1. **If `spec.md` §4.5 has a relevant `headline` / `thumbnail` / `qualitative` / `baseline-comparison` entry** → call `tools.figures.extract_figure_to_vault(slug, "Figure", N)` (CLI: `python -m tools.figures extract-to-vault <slug> Figure <N>`), which copies the cached PNG into `<vault>/<slug>/figures/` and returns a **vault-relative** path (e.g. `figures/figure4.png`). Read the PNG's dimensions, pick the layout class per the routing table, and embed as `![](figures/figureN.png)`. The §4.5 caption row becomes the slide's prose (right column for `split`, below-figure strip for `figure-top`, italic caption for `figure-full`). **Never embed the absolute repo path**; the deck is rendered from the vault and absolute paths break cross-drive / OneDrive setups.
-2. **If no relevant paper figure exists** but the paper has pseudo-code or algorithm-box description of this flow → generate a Mermaid diagram from `spec.md` §6 / §6.1. This is the only case where the Visualizer invents a diagram.
-3. **If neither figure nor pseudo-code exists** → drop the slide entirely. Diagrams-for-diagrams'-sake are forbidden; fold the content into a sibling slide as a bullet or skip it.
+**TikZ is the default for generated diagrams.** Mermaid is reserved for diagrams that are *purely* a linear/branched pipeline (sequence of boxes connected by arrows) — anything else (architecture, plate notation, math, comparisons, anatomical zooms) goes to TikZ. Rationale: TikZ renders LaTeX natively in labels, looks polished in slides and printed material, and is the user's explicit preference. Mermaid is kept only for the narrow case where it is *strictly faster to author* and the diagram has no math.
+
+1. **If `spec.md` §4.5 has a relevant `headline` / `thumbnail` / `qualitative` / `baseline-comparison` entry** → call `tools.figures.extract_figure_to_vault(slug, "Figure", N)` (CLI: `python -m tools.figures extract-to-vault <slug> Figure <N>`), which copies the cached PNG into `<vault>/<slug>/figures/` and returns a **vault-relative** path (e.g. `figures/figure4.png`). Read the PNG's dimensions, pick the layout class per the routing table, and embed as `![](figures/figureN.png)`. The §4.5 caption row becomes the slide's prose. **Never embed the absolute repo path**; the deck is rendered from the vault and absolute paths break cross-drive / OneDrive setups.
+2. **If no relevant paper figure exists** → generate a **TikZ** block per the TikZ author rules above. This is now the default for *every* generated diagram — architecture, component zooms, plate notation, loss/objective diagrams, anything visual that isn't a strict pipeline. TikZ labels render `$\mathcal{L}$`, `$p_\theta(x\mid z)$`, `\mathbb{R}^n` natively.
+3. **Mermaid is allowed only when** the diagram is a strict sequence/branched pipeline (e.g., `Input → Encoder → Latent → Decoder → Output`, a swimlane, a decision tree), labels need no math beyond Unicode atomics, and TikZ would be slower to author for no visual gain. If in doubt, prefer TikZ — the Mermaid carve-out is narrow.
+4. **If neither figure nor pseudo-code exists** → drop the slide entirely. Diagrams-for-diagrams'-sake are forbidden.
 
 The same waterfall applies per-slide:
 
-| Slide type | Priority 1 (extract) | Priority 2 (Mermaid) | Priority 3 (drop) |
-|---|---|---|---|
-| Headline figure (slide 2) | §4.5 `headline` | reconstruct from §6 pseudo-code | flag deck unbuildable |
-| Architecture overview | reuse headline | Mermaid block diagram | — |
-| Component zoom | §4.5 figure showing this component | Mermaid from §6.1 | drop component |
-| Algorithm walkthrough | §4.5 sequence/swimlane figure | Mermaid TB pipeline | drop slide |
-| Results | §4.5 `result` entry — pick the cross-method comparison table | render table from §9 | — |
-| Qualitative examples | §4.5 `qualitative` figure | — (cannot fake) | drop slide |
+| Slide type | P1 (extract) | P2 (TikZ — default) | P3 (Mermaid — pipelines only) | P4 (drop) |
+|---|---|---|---|---|
+| Headline figure (slide 2) | §4.5 `headline` | reconstruct as TikZ from §6 | — | flag deck unbuildable |
+| Architecture overview | reuse headline | **TikZ** block diagram | — | — |
+| Component zoom | §4.5 figure showing this component | **TikZ** with math-bearing labels | — | drop component |
+| Loss / objective / generative-model diagram | §4.5 figure | **TikZ** (plate, expectation, KL) | — | flag |
+| Algorithm walkthrough — strict pipeline | §4.5 sequence/swimlane figure | TikZ if labels need math | Mermaid TB pipeline (no math) | drop slide |
+| Algorithm walkthrough — branching / state machine | §4.5 figure | **TikZ** | — | drop slide |
+| Results | §4.5 `result` entry — pick the cross-method comparison table | render table as TikZ if reconstructing | — | — |
+| Qualitative examples | §4.5 `qualitative` figure | — | — (cannot fake) | drop slide |
 
 ### Embedding an extracted figure
 
@@ -327,6 +414,8 @@ paper: <slug>
 ```
 
 The `paper:` key is non-standard for Marp but ignored by the renderer; it lets Obsidian's Dataview / property search treat `slides.md` like every other PaperLab artifact (`spec.md`, `code_map.md`, ...) and group all files for one paper.
+
+**Theme is always `paperlab`** for both deck mode and concept mode. The actual CSS lives outside the repo at `marp_theme_path` in `paperlab.config.yaml`; just emit `theme: paperlab` in front-matter and Marp resolves it. Never substitute `gaia`, `default`, or any other built-in Marp theme — those won't carry the `split` / `figure-top` / `figure-full` layout classes the schema relies on.
 
 All presentation (font, padding, palette, page header/footer, `lead` / `invert` / `section` / `split` class variants, Mermaid sizing) is owned by the external `paperlab.css` theme. The visualizer never inlines CSS into `slides.md`.
 
@@ -469,47 +558,83 @@ Label-consistency rule across slides 2, 5, 6, 7: per-component slides MUST reuse
 
 Standalone visualization of a single algorithmic component or concept. Lives at `vault_path(slug, "<concept>__viz.md")`. The `<concept>` segment matches the filename of the corresponding `<concept>.md` (lowercase, hyphenated — *this is the explainer's filename convention, not a slug normalization*).
 
+**Format:** Marp slide deck (3–6 slides), not a single long note. Concept mode and deck mode use the same Marp layout classes (`split`, `figure-top`, `figure-full`), the same per-class content caps, the same Mermaid/TikZ rules, and the same headline override (slide 2 of the concept deck is never `split`).
+
 #### Schema
 
 ```markdown
 ---
 paper: <slug>
-paper: <slug>
-category: model
+category: concept
 tags:
 - AI-guided-paper-reading
 - visualization
+marp: true
+theme: paperlab
+paginate: true
 ---
 
-# <concept> — visual
+<!-- _class: lead -->
 
-**Paper context:** one sentence (same as in `<concept>.md`).
-**See also:** [<concept>.md](<concept>.md), [spec.md §<N>](spec.md#<anchor>)
+# <concept>
 
-## Diagram
+<one-sentence paper context — same as in <concept>.md>
 
-<Mermaid block, OR TikZ block, OR ![](<name>.svg), OR link to <name>.tldr>
+*See also: [<concept>.md](<concept>.md), [spec.md §<N>](spec.md#<anchor>)*
 
-## What this shows
+---
 
-2–4 sentences. Name each element of the diagram and tie it back to the
-paper's notation. Make explicit what *changes* when key parameters or
-inputs vary — what is the dynamic story the diagram tells?
+<!-- _class: figure-top -->
+
+## The diagram
+
+<TikZ block (default), OR extracted paper figure, OR Mermaid (pipelines only)>
+
+<≤ 2 sentences naming each element of the diagram and tying it back to the
+paper's notation.>
+
+---
+
+<!-- _class: split -->
 
 ## Key equation
 
-$$ ... \tag{Eq. N} $$
+<TikZ block, Mermaid block, OR a smaller annotated re-rendering of the diagram>
 
-One equation, cited with the paper's number if available.
+$$ ... $$
 
-## Why this visualization
+*(spec.md §X, Eq. N)*
 
-1–2 sentences. Why is this the right view? What would a different
-diagram type miss?
+---
+
+<!-- _class: split -->
+
+## What changes when …
+
+<diagram OR equation>
+
+<≤ 3 sentences describing the dynamic story — what varies when key
+parameters or inputs change.>
+
+---
+
+<!-- _class: split -->
+
+## Why this view (and what it omits)
+
+<diagram OR comparison sketch>
+
+<≤ 3 sentences. Why this is the right visualization; what an alternative
+view (e.g., loss surface vs. computation graph) would expose or hide.>
 ```
 
 #### Concept-mode rules
 
+- **Always Marp.** `marp: true` in front-matter, every content slide uses one of the three layout classes. No single-page free-flow concept notes — that's what the explainer's `<concept>.md` is for.
+- **Target 3–6 slides.** Title + diagram + equation are mandatory. "What changes when …" and "Why this view" are optional but recommended — drop only if the concept doesn't warrant them. Never cram all four sections into one slide.
+- **Per-class caps apply** (≤ 3 sentences / ≤ 80 words for `split`, ≤ 2 sentences for `figure-top`, caption-only for `figure-full`). If the concept genuinely needs more prose, split into another slide — never extend past the cap, never shrink the font, never let content run off the bottom.
+- **Headline override applies.** The first content slide (slide 2 of the concept deck, after the lead) is never `split` if the figure is extracted. Use `figure-top` or `figure-full` per the routing table.
+- **Format priority is the same waterfall as deck mode:** extracted paper figure → TikZ (default) → Mermaid (pipelines only) → drop.
 - One concept per file. Do not bundle.
 - The file must cross-link to the existing `<concept>.md` (if it exists). If `<concept>.md` does not exist yet, suggest the user run the `explainer` first; do not invent its content.
 - If `<concept>__viz.md` already exists, the regenerate-prompt rule applies (ask replace / append / abort).

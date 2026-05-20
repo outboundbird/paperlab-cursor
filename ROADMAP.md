@@ -1,6 +1,6 @@
 # PaperLab Roadmap
 
-Status as of 2026-05-19 (end of day). Living document — items move between sections as their status changes.
+Status as of 2026-05-20 (end of day). Living document — items move between sections as their status changes.
 
 ## File layout contract
 
@@ -147,18 +147,20 @@ Things the system can't do, with workarounds where they exist.
 - **Workaround:** add a manual bbox entry in `papers/<slug>/.cache/figures/manual_crops.json`, or use `--whole-page` to render the full page and let the slide layout class handle scaling.
 - **Trigger to revisit:** if a paper of interest has more than ~1 unusable crop.
 
-### LaTeX inside Mermaid node labels does not render
-
-- **What:** Mermaid renders node labels as plain text/HTML, not LaTeX. `$...$` or `\theta` inside a Mermaid box appears literally instead of as math. Affects every diagram that tries to label a node with a paper symbol.
-- **Workaround (current):** spell symbols out in ASCII inside Mermaid (`z_t`, `theta`) and put the real LaTeX in the adjacent prose / equation block.
-- **Possible fixes to evaluate:** (a) Unicode math characters (violates AGENTS.md "no Unicode math" rule, but only inside a rendered diagram — may be acceptable scoped); (b) inline SVG labels with KaTeX/MathJax pre-rendering and use Mermaid `img` nodes; (c) escalate any math-heavy diagram to TikZ per the extract-first waterfall; (d) overlay equations in the right column and keep Mermaid label-free.
-- **Decision needed:** pick one of (a)–(d) and codify in `ml-visualization/SKILL.md` "Mermaid label rules".
-
 ## Schema improvement candidates
 
 Small refinements to existing schemas that aren't urgent but are worth remembering. These tend to surface during use.
 
 - **Reconsider slide-deck structure** — the current schema (title / headline / one-per-component / results / limitations) is generic. Tweak it to track paper content more faithfully: e.g., split "method" into problem-setup vs. solution slides, surface the loss/objective as its own slide when central, and let `spec.md` §6 grouping drive section count rather than a fixed 8–12 budget. May require enriching `spec.md` fields the dissector currently extracts (e.g., explicit "core contribution" vs. "supporting machinery" tags on §6.1 entries).
+
+## Recently completed (2026-05-20)
+
+- **LaTeX-in-charts policy resolved** — layered approach codified in `ml-visualization/SKILL.md`:
+  - **Mermaid (default for structural diagrams):** atomic symbols use Unicode (`θ`, `μ`, `Σ`, `ℝ`, `zₜ`, `∇L`); compound expressions go in the right column and labels reference them as `(eq. N)`. Carved out as an exception in `AGENTS.md` to the "no Unicode math" rule — Mermaid labels only.
+  - **TikZ via `marp-tikz-plus` (escalation for math-heavy diagrams):** verified end-to-end in Obsidian preview against the [kevinyuan/marp-tikz-plus engine](https://github.com/kevinyuan/marp-tikz-plus). Plate notation, commutative diagrams, expectations with subscripted distributions, `\mathbb` / `\mathcal` / fractions all render natively in node labels. Authoring rules captured: no `\documentclass`, no `\usepackage{tikz}`, allowed `\usepackage` set limited to the engine's supported list (`amsmath`, `amssymb`, `amsfonts`, `array`, `tikz-cd`, `pgfplots`, `circuitikz`, `chemfig`, `tikz-3dplot`), `\usetikzlibrary{...}` must precede `\begin{document}`, `[scale=2]` for Marp slides.
+  - **Extract-first waterfall extended** to four priorities: extracted paper figure → TikZ (math-heavy) → Mermaid (structural flow) → drop.
+  - **Pre-write check added for TikZ blocks** alongside the existing Mermaid check; the visualizer agent now reports both counts on completion.
+  - **KaTeX/MathJax preprocessing rejected** as overkill given that TikZ handles the math-heavy case natively.
 
 ## Recently completed (2026-05-19)
 

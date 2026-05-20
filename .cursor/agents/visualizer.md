@@ -43,7 +43,7 @@ Two modes:
    - "Visualize the V-M-C controller loop in WorldModel."
    - "Make a diagram for the MDP in Memento."
 
-   Output: `vault_path(slug, "<concept>__viz.md")` where `<concept>` matches the existing `<concept>.md` filename convention (lowercase, hyphenated).
+   Output: `vault_path(slug, "<concept>__viz.md")` where `<concept>` matches the existing `<concept>.md` filename convention (lowercase, hyphenated). **Concept mode produces a Marp slide deck of 3–6 slides** (title + diagram + equation, plus optional "what changes when …" and "why this view" slides), not a single-page note. Same layout classes, same per-class content caps, and same headline-override rule as deck mode.
 
 If the slug is missing, ask the user. **Do not normalize the slug** — it is verbatim user input (see `.cursor/rules/paperlab-config-bootstrap.mdc`).
 
@@ -72,19 +72,20 @@ If `vault_path(slug, "slides.md")` (deck mode) or `vault_path(slug, "<concept>__
 # Process
 
 1. **Load schema.** Read `.cursor/skills/ml-visualization/SKILL.md`. Do not skip.
-2. **Load inputs.** Always: `spec.md` (including §4.5 Figures & Tables — if absent, stop and tell the user to re-run the dissector). Optionally if present: `code_map.md`, relevant `<concept>.md` files. For deck mode, read all of them. For concept mode, focus on the spec.md section and the concept's `.md` file.
+2. **Load inputs.** Always: `spec.md` (including §4.5 Figures & Tables — if absent, stop and tell the user to re-run the dissector). Optionally if present: `code_map.md`, relevant `<concept>.md` files. For deck mode, read all of them. For concept mode, focus on the spec.md section and the concept's `.md` file. Concept mode now produces a multi-slide Marp deck — the same pre-write checks (layout class, content caps, headline override, Mermaid/TikZ pre-write checks) apply.
 3. **Derive structure (deck mode).** Apply the major-content derivation rules + the **extract-first waterfall** from the skill. Identify the `headline` figure from §4.5. Plan slide 2 as the extracted headline. For each §6.1 component, decide: extract paper figure / generate Mermaid / drop. No diagram-for-diagram's-sake.
 4. **Extract figures.** For every slide whose source is a paper figure, call `tools.figures.extract_figure_to_vault(slug, "Figure", N)` (or `"Table"`). This copies the cached PNG into `<vault>/<slug>/figures/` and returns a **vault-relative** path like `figures/figure3.png`. Embed that relative path in `![](...)` — never the absolute repo path, since the slide deck is rendered from the vault and absolute repo paths break cross-drive / OneDrive setups. CLI equivalent: `python -m tools.figures extract-to-vault <slug> Figure <N>`. If `pymupdf` is missing, emit a placeholder slide per the skill's "When extraction tooling is unavailable" section.
-5. **Choose formats per generated visual.** Mermaid for flow/architecture, TikZ for math/geometric structure. Escalate to SVG (matplotlib) or `.tldr` (tldraw) only with a stated reason. These are fallbacks — extracted paper figures take priority.
+5. **Choose formats per generated visual** using the extract-first waterfall: extracted paper figure → **TikZ (default for any generated diagram)** → Mermaid (strict sequence/branched pipelines only, no math) → drop. TikZ is the default because labels render LaTeX natively and the user prefers it; Mermaid is the narrow exception, not the fallback. Escalate to SVG (matplotlib) or `.tldr` (tldraw) only with a stated reason.
 6. **Pre-write checks** (mandatory, before any file write):
-   - **Layout check.** Every content slide uses `<!-- _class: split -->` (or `split tall` for figures with ≥ 5 vertically-chained nodes) with exactly one figure block (extracted image OR Mermaid) after the `## heading` (left), followed by one or more prose/equation/citation blocks (all stack right). No single-column content slides. No `<div class="left/right">` wrappers.
+   - **Layout check.** Every content slide uses `<!-- _class: split -->` (or `split tall` for figures with ≥ 5 vertically-chained nodes) with exactly one figure block (extracted image, Mermaid, or TikZ) after the `## heading` (left), followed by one or more prose/equation/citation blocks (all stack right). No single-column content slides. No `<div class="left/right">` wrappers.
    - **Right-column cap check.** Every right-column block ≤ 3 sentences, ≤ 80 words, ≤ 1 display equation (or ≤ 2 inline). If a slide exceeds, split into two slides — do not shrink fonts.
-   - **Mermaid check.** Walk every ```` ```mermaid ```` block and verify the rules in the skill's "Mermaid label rules" section: no LaTeX, no unquoted `{}`/`()`/`<`/`>`/`|`, balanced brackets, no dangling edges, labels ≤ 24 chars or quoted. Rewrite any failing block until it passes.
+   - **Mermaid check.** Walk every ```` ```mermaid ```` block per the skill's "Pre-write Mermaid check": no `$...$` / `\frac` / `\mathbb` / any `\`-prefixed math command in labels (use Unicode atomics or `(eq. N)` cross-references; escalate to TikZ if compound math needed); no unquoted `{}`/`()`/`<`/`>`/`|`; balanced brackets; no dangling edges; labels ≤ 24 chars or quoted.
+   - **TikZ check.** Walk every ```` ```tikz ```` block per the skill's "Pre-write TikZ check": no `\documentclass`; no `\usepackage{tikz}`; every `\usepackage{...}` is in the allowed set (`amsmath`, `amssymb`, `amsfonts`, `array`, `tikz-cd`, `pgfplots`, `circuitikz`, `chemfig`, `tikz-3dplot`); every `\usetikzlibrary{...}` is before `\begin{document}`; `tikzpicture` carries `[scale=2]` for Marp; brackets balance.
    - **Equation check.** Walk every `$$ ... $$` block. No citations inside math. Equations quoted verbatim from spec.md — no re-derivation, no merging definition with deployment form.
    - **Label-consistency check.** Per-component slides use the same labels, abbreviations, and arrow conventions as the headline figure on slide 2.
 7. **Write the file** in one session to `vault_path(slug, "slides.md")` or `vault_path(slug, "<concept>__viz.md")`. Do not print the file content as a substitute for writing it.
 8. **Self-check** per the schema's checklist (every non-structural slide has a visual; no bullet walls; cited equations match spec.md notation; required sections present).
-9. **Report back** per the schema's reporting-back rules — including "N Mermaid blocks passed pre-write check" and "K paper figures extracted, M Mermaid fallbacks generated."
+9. **Report back** per the schema's reporting-back rules — including "N Mermaid blocks and M TikZ blocks passed pre-write check", "K paper figures extracted, J TikZ diagrams generated, M Mermaid fallbacks generated", and a **per-slide routing table** listing for each slide: index, heading, source (`extracted`/`tikz`/`mermaid`), `(w, h, ar)` if extracted, and chosen layout class. The headline-override rule (slide 2 never `split` for extracted figures) MUST be visible in this table.
 
 # Scope boundaries
 
