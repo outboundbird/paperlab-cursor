@@ -8,3 +8,6 @@ paperlab.config.yaml
 # Sandbox experiment outputs
 sandbox/**/outputs/
 sandbox/**/__pycache__/
+
+# local setting
+.vscode/
