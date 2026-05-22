@@ -11,3 +11,9 @@ sandbox/**/__pycache__/
 
 # local setting
 .vscode/
+sandbox/
+
+# Portable binaries (per-machine, downloaded by setup);
+# README documents how to populate the folder, so keep it tracked.
+tools/graphviz/*
+!tools/graphviz/README.md
