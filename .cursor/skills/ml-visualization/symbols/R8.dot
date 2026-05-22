@@ -1,0 +1,16 @@
+digraph "R8" {
+    rankdir = LR;
+    bgcolor = "white";
+    pad = "0.15";
+    margin = "0.05";
+    fontname = "Segoe UI,DejaVu Sans,sans-serif";
+    fontsize = 10;
+    label = "";
+    node [fontname="Segoe UI,DejaVu Sans,sans-serif", fontsize=10, style="filled", penwidth=1.0];
+    edge [fontname="Segoe UI,DejaVu Sans,sans-serif", fontsize=9, color="#444", penwidth=1.0];
+
+    a [label="forward", shape=box, fillcolor="#cfe2ff", color="#0d6efd"];
+    b [label="target",  shape=box, fillcolor="#e9ecef", color="#495057"];
+    a -> b [label="R8: stop-grad", color="#888", arrowtail=tee, dir=both];
+    
+}

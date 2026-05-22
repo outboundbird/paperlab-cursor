@@ -1,0 +1,15 @@
+digraph "E22" {
+    rankdir = LR;
+    bgcolor = "white";
+    pad = "0.15";
+    margin = "0.05";
+    fontname = "Segoe UI,DejaVu Sans,sans-serif";
+    fontsize = 10;
+    label = "";
+    node [fontname="Segoe UI,DejaVu Sans,sans-serif", fontsize=10, style="filled", penwidth=1.0];
+    edge [fontname="Segoe UI,DejaVu Sans,sans-serif", fontsize=9, color="#444", penwidth=1.0];
+
+    n [label=<π(a | s)<BR/><FONT POINT-SIZE="8">E22 policy</FONT>>,
+       shape=trapezium, fillcolor="#fff3cd", color="#a07a00"];
+    
+}

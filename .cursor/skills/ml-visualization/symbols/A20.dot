@@ -1,0 +1,15 @@
+digraph "A20" {
+    rankdir = LR;
+    bgcolor = "white";
+    pad = "0.15";
+    margin = "0.05";
+    fontname = "Segoe UI,DejaVu Sans,sans-serif";
+    fontsize = 10;
+    label = "";
+    node [fontname="Segoe UI,DejaVu Sans,sans-serif", fontsize=10, style="filled", penwidth=1.0];
+    edge [fontname="Segoe UI,DejaVu Sans,sans-serif", fontsize=9, color="#444", penwidth=1.0];
+
+    n [label=<θ ❄<BR/><FONT POINT-SIZE="8">A20 freeze</FONT>>,
+       shape=box, fillcolor="#e9ecef", color="#495057", style="filled,dashed"];
+    
+}

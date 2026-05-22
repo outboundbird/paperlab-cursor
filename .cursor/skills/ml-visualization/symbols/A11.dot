@@ -1,0 +1,20 @@
+digraph "A11" {
+    rankdir = LR;
+    bgcolor = "white";
+    pad = "0.15";
+    margin = "0.05";
+    fontname = "Segoe UI,DejaVu Sans,sans-serif";
+    fontsize = 10;
+    label = "";
+    node [fontname="Segoe UI,DejaVu Sans,sans-serif", fontsize=10, style="filled", penwidth=1.0];
+    edge [fontname="Segoe UI,DejaVu Sans,sans-serif", fontsize=9, color="#444", penwidth=1.0];
+
+    s1 [label="s₁", shape=box, fillcolor="#cfe2ff", color="#0d6efd"];
+    s2 [label="s₂", shape=box, fillcolor="#cfe2ff", color="#0d6efd"];
+    s3 [label="s₃", shape=box, fillcolor="#cfe2ff", color="#0d6efd"];
+    s4 [label="...", shape=plain];
+    s1 -> s2 [label="A11"];
+    s2 -> s3 [label="(roll fwd)"];
+    s3 -> s4;
+    
+}

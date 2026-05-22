@@ -7,9 +7,30 @@ description: Defines the schema for visual artifacts produced from an ML paper �
 
 ## Purpose
 
-This file defines the schema for visual artifacts produced by the Visualizer subagent: a full slide-deck summary of a paper (`slides.md`) and standalone per-concept visualizations (`<concept>__viz.md`). The point is **visual instruction**, not decoration: every diagram is paired with the prose and the equation it makes concrete.
+This file defines the schema for visual artifacts produced by the Visualizer subagent: a full slide-deck summary of a paper (`slides.md`), standalone per-concept visualizations (`<concept>__viz.md`), and standalone per-concept PNG pictures (`figures/<concept>.png`). The point is **visual instruction**, not decoration: every diagram is paired with the prose and the equation it makes concrete.
 
 The Visualizer never modifies `spec.md`, `code_map.md`, or `<concept>.md`. It produces its own files and cross-links into the others.
+
+## Concept-picture workflow (dictionary-driven)
+
+When the Visualizer is asked to draw **one picture for one concept** (as opposed to a full slide deck), it follows this fixed cascade:
+
+1. **Read the concept text.** Either `<vault>/<slug>/<concept>.md` (from the `explainer`) or a passage from `<vault>/<slug>/spec.md` (e.g., a pseudocode block from §6).
+2. **State the thesis.** One sentence: what is the picture *for*? The thesis is the unifying claim the picture argues. Do not skip this; everything below references it.
+3. **Inventory against `DICTIONARY.md`.** For each named thing in the text, find its dictionary entry. Build a table with three columns: *concept in the text → dictionary entry (E/R/A id) → notes*. The dictionary lives at `.cursor/skills/ml-visualization/DICTIONARY.md`; the visual reference card (one tile per entry) lives at `.cursor/skills/ml-visualization/symbols/atlas.png`.
+4. **Apply the gap rule** for any concept that doesn't fit an entry. The cascade is in `DICTIONARY.md` under "The gap rule"; in order: (1) compose from primitives, (2) draw the closest entry with a label, (3) text-arrow fallback `— [verb objective] →`, (4) stop and report. Never invent a new symbol silently.
+5. **Honor the atomicity rule.** Each dictionary action (A1, A5, A7, …) is **one arrow** in the rendered picture. Sub-operations that exist only to feed the action belong as annotations on the action's arrow, not as separate arrows or nodes. See `DICTIONARY.md` → "Drawing discipline — one action, one arrow".
+6. **Emit the picture spec** as a structured intermediate: a list of nodes (with dictionary tag) + a list of edges (with dictionary tag + label). This is the source of truth.
+7. **Render the picture spec** to a backend. Choose per the format selection table below.
+8. **Verify against the thesis.** Re-read step 2. If the picture doesn't argue the thesis sentence, the spec is wrong; do not paper over with backend tweaks.
+
+### Why the dictionary
+
+A controlled vocabulary keeps the same visual idiom (a vector chip, a Σ aggregator, a reparameterize triangle, a snowflake on a frozen parameter) across pictures and across papers. Without it, every concept invites the agent to reinvent the wheel, and the reader has to relearn the visual language for every figure. `DICTIONARY.md` is the source of truth; SKILL.md routes around it.
+
+### Dictionary-tag discipline
+
+During development, every glyph in a rendered picture carries its dictionary tag (e.g. `[A7]`, `[E5]`) as a small italic annotation. Tags retire to a legend/key only once each entry has a stable visual recipe. Tags are **on by default** in v0.1.
 
 ## Conventions
 
@@ -25,13 +46,26 @@ The Visualizer picks one diagram format per visual. In order, try the first that
 
 | Need | Format | Lives where |
 |---|---|---|
-| Flow, block diagram, sequence, simple architecture | **Mermaid** | inline in markdown / slide |
+| **Concept picture** (one PNG per concept, dictionary-driven, atomicity rule, auto-layout) | **graphviz → PNG + SVG** | `vault_path(slug, f"figures/{concept}.png")`, embedded via `![](figures/<concept>.png)` |
+| Flow, block diagram, sequence, simple architecture (in a slide) | **Mermaid** | inline in markdown / slide |
 | Math diagram, commutative diagram, precise geometry | **TikZ** | inline in markdown / slide (renders via Obsidian Marp TikZ Plus plugin) |
 | Numerical plot, learned distribution, loss curve | **matplotlib → SVG** | `vault_path(slug, "<name>.svg")`, embedded via `![](<name>.svg)` |
 | Hand-drawn editable architectural sketch | **tldraw `.tldr`** | `vault_path(slug, "<name>.tldr")`, opens natively in Obsidian tldraw plugin |
 | Slide container (deck mode only) | **Marp** with external `paperlab` theme (see Header below) | `vault_path(slug, "slides.md")` |
 
-**Default = Mermaid or TikZ.** Any escalation to SVG or tldraw must be justified in the reporting-back step (e.g., "Used SVG because the loss landscape is a 3D surface that Mermaid can't represent").
+**Default for concept-picture mode = graphviz** (see the "Concept-picture workflow" section above). Graphviz handles auto-layout (no manual coordinates, no label collisions), emits PNG/SVG/.dot directly, and is the only backend the dictionary's symbol sheet is built against. Use Mermaid/TikZ inside slide decks; use graphviz for standalone concept pictures.
+
+**Default for slide-deck mode = Mermaid or TikZ.** Any escalation to SVG or tldraw must be justified in the reporting-back step (e.g., "Used SVG because the loss landscape is a 3D surface that Mermaid can't represent").
+
+### Graphviz authoring (concept-picture mode)
+
+When the picture spec is rendered through graphviz:
+
+- **Resolve the binary via `tools.paths.graphviz_dot()`** — returns the portable Windows binary (`tools/graphviz/Graphviz-*/bin/dot.exe`) if present, else falls back to system `dot` on PATH (Linux / macOS).
+- **Font:** specify `fontname="Segoe UI,DejaVu Sans,sans-serif"` on the graph and on `node`/`edge` defaults. This covers Greek, sub/superscripts, and the snowflake glyph used by A20.
+- **No LaTeX.** Use Unicode math characters (`Σ`, `μ`, `σ`, `θ`, `ε`, `zₜ`, `Z⁽ˡ⁾`, `≤`, `≥`, `∑`) per the Mermaid label rules below — graphviz has the same constraint. Compound math (fractions, expectations with subscripted distributions) goes in the prose around the picture, not in node labels.
+- **One arrow per action.** Honor the atomicity rule from `DICTIONARY.md`. If you find yourself drawing two arrows for a single dictionary verb (e.g., a separate transform node feeding an aggregate node), collapse the transform into the aggregate arrow's label.
+- **Output two formats per picture:** `<name>.png` (the deliverable) and `<name>.svg` (resolution-independent backup). The `.dot` source can also be written alongside if the picture is likely to be regenerated.
 
 ### Mermaid layout rules (prevent slide overflow)
 

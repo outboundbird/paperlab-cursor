@@ -1,0 +1,16 @@
+digraph "A14" {
+    rankdir = LR;
+    bgcolor = "white";
+    pad = "0.15";
+    margin = "0.05";
+    fontname = "Segoe UI,DejaVu Sans,sans-serif";
+    fontsize = 10;
+    label = "";
+    node [fontname="Segoe UI,DejaVu Sans,sans-serif", fontsize=10, style="filled", penwidth=1.0];
+    edge [fontname="Segoe UI,DejaVu Sans,sans-serif", fontsize=9, color="#444", penwidth=1.0];
+
+    a [label="A", shape=plain];
+    b [label="B", shape=plain];
+    a -> b [label="A14: bound\n(A ≤ B)", arrowhead=none];
+    
+}
