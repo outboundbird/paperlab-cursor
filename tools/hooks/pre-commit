@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# PaperLab pre-commit hook: keep DICTIONARY.pdf in sync with DICTIONARY.md.
+#
+# If DICTIONARY.md is in the staged changes, regenerate DICTIONARY.pdf and
+# the per-entry PNG tiles, then re-stage them so they go into the same
+# commit. If regeneration fails, abort the commit so the user fixes it.
+#
+# Install by either:
+#   git config core.hooksPath tools/hooks
+# or
+#   cp tools/hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+set -euo pipefail
+
+DICT_PATH=".cursor/skills/ml-visualization/DICTIONARY.md"
+
+if git diff --cached --name-only | grep -qx "$DICT_PATH"; then
+    echo "[pre-commit] DICTIONARY.md changed -> rebuilding DICTIONARY.pdf and tiles..."
+    if ! python -m tools.build_dictionary_pdf; then
+        echo "[pre-commit] build_dictionary_pdf failed. Aborting commit." >&2
+        exit 1
+    fi
+    git add \
+        .cursor/skills/ml-visualization/DICTIONARY.pdf \
+        ".cursor/skills/ml-visualization/symbols/" || true
+    echo "[pre-commit] re-staged DICTIONARY.pdf and symbols/"
+fi
+
+exit 0

@@ -1,10 +1,12 @@
-"""Build the visualizer symbol-sheet atlas.
+"""Build per-entry visualizer symbol tiles.
 
 For each entry in ``DICTIONARY.md`` that has a registered renderer below,
 emit one PNG tile + one SVG tile under
 ``.cursor/skills/ml-visualization/symbols/`` showing the canonical drawing.
-Also emit a single composite ``atlas.png`` arranged in three rows
-(Entities, Relations, Actions).
+
+The composite reference card now lives in ``DICTIONARY.pdf`` and is built
+by ``tools/build_dictionary_pdf.py``, which embeds these per-entry PNGs
+into the dictionary table.
 
 Run:
 
@@ -15,7 +17,6 @@ Outputs:
     .cursor/skills/ml-visualization/symbols/E1.png
     .cursor/skills/ml-visualization/symbols/E1.svg
     .cursor/skills/ml-visualization/symbols/...
-    .cursor/skills/ml-visualization/symbols/atlas.png
 
 Design notes
 ------------
@@ -498,66 +499,6 @@ def _check_sync() -> None:
         )
 
 
-# ---------------------------------------------------------------------------
-# Composite atlas: 3 rows (Entities, Relations, Actions), each row a grid of
-# tile PNGs. Done as one big graphviz graph that uses HTML-like table
-# cells with image references.
-# ---------------------------------------------------------------------------
-
-
-def _build_atlas() -> None:
-    by_cat: dict[str, list[str]] = {"Entity": [], "Relation": [], "Action": []}
-    for entry_id, (cat, _) in sorted(RENDERERS.items(),
-                                     key=lambda kv: (kv[1][0], _id_sort_key(kv[0]))):
-        by_cat[cat].append(entry_id)
-
-    cols = 6  # tiles per row
-    rows_html = []
-    for cat in ("Entity", "Relation", "Action"):
-        ids = by_cat[cat]
-        rows_html.append(
-            f'<TR><TD COLSPAN="{cols}" BGCOLOR="#f0f0f0" ALIGN="LEFT">'
-            f'<B>{cat}s</B>  ({len(ids)} of total)</TD></TR>'
-        )
-        for i in range(0, len(ids), cols):
-            chunk = ids[i:i + cols]
-            cells = []
-            for entry_id in chunk:
-                # Embed the per-tile PNG via HTML IMG.
-                img = (SYMBOLS_DIR / f"{entry_id}.png").as_posix()
-                cells.append(
-                    f'<TD VALIGN="TOP" CELLPADDING="4">'
-                    f'<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0">'
-                    f'<TR><TD><IMG SRC="{img}"/></TD></TR>'
-                    f'<TR><TD><FONT POINT-SIZE="9">{entry_id}</FONT></TD></TR>'
-                    f'</TABLE></TD>'
-                )
-            # Pad short rows to keep the grid aligned.
-            while len(cells) < cols:
-                cells.append('<TD></TD>')
-            rows_html.append('<TR>' + ''.join(cells) + '</TR>')
-
-    table = (
-        '<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="6">'
-        + ''.join(rows_html)
-        + '</TABLE>'
-    )
-
-    src = f"""
-    digraph atlas {{
-        bgcolor = "white";
-        node [shape=plain];
-        atlas [label=<{table}>];
-    }}
-    """
-    atlas_dot = SYMBOLS_DIR / "atlas.dot"
-    atlas_png = SYMBOLS_DIR / "atlas.png"
-    atlas_dot.write_text(src, encoding="utf-8")
-    dot_exe = str(graphviz_dot())
-    subprocess.run([dot_exe, "-Tpng", "-Gdpi=120", str(atlas_dot), "-o", str(atlas_png)], check=True)
-    print(f"wrote {atlas_png}")
-
-
 def _id_sort_key(entry_id: str) -> tuple[str, int]:
     """Sort 'E1', 'E10' as ('E', 1) and ('E', 10)."""
     m = re.match(r"([EAR])(\d+)", entry_id)
@@ -573,8 +514,6 @@ def main() -> None:
         body = render()
         _emit(entry_id, body)
         print(f"wrote {SYMBOLS_DIR / (entry_id + '.png')}")
-
-    _build_atlas()
 
 
 if __name__ == "__main__":
