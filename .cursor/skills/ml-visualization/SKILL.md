@@ -15,22 +15,89 @@ The Visualizer never modifies `spec.md`, `code_map.md`, or `<concept>.md`. It pr
 
 When the Visualizer is asked to draw **one picture for one concept** (as opposed to a full slide deck), it follows this fixed cascade:
 
-1. **Read the concept text.** Either `<vault>/<slug>/<concept>.md` (from the `explainer`) or a passage from `<vault>/<slug>/spec.md` (e.g., a pseudocode block from §6).
-2. **State the thesis.** One sentence: what is the picture *for*? The thesis is the unifying claim the picture argues. Do not skip this; everything below references it.
-3. **Inventory against `DICTIONARY.md`.** For each named thing in the text, find its dictionary entry. Build a table with three columns: *concept in the text → dictionary entry (E/R/A id) → notes*. The dictionary lives at `.cursor/skills/ml-visualization/DICTIONARY.md`; the visual reference card (one tile per entry) lives at `.cursor/skills/ml-visualization/symbols/atlas.png`.
+1. **Read the source text.** Context-dependent: `<vault>/<slug>/<concept>.md` (from the `explainer`) when asked for a specific concept; a passage from `<vault>/<slug>/spec.md` (e.g., a pseudocode block from §6) when asked for a workflow or algorithm picture. Read all of it, including any worked example — the text is the picture's source material, not a prompt to be vaguely paraphrased.
+2. **State the thesis.** One sentence: what is the picture *for*? The thesis is the unifying claim the picture argues, expressed in the paper's own vocabulary. Do not skip this; everything below references it. Test: a reader who walks away with only the picture and the thesis should be able to restate the claim.
+3. **Inventory against `DICTIONARY.md`.** For each *named thing in the text*, find its dictionary entry. Build a table with three columns: *concept in the text → dictionary entry (E/R/A id) → notes*. **The inventory is driven by the text, not by the dictionary.** Walk the source text top to bottom; for each noun, verb, or relation that appears, look up its dictionary entry. Never reverse the direction (do not scan the dictionary asking "could I use this entry here?" — that produces clip-art, not pictures).
 4. **Apply the gap rule** for any concept that doesn't fit an entry. The cascade is in `DICTIONARY.md` under "The gap rule"; in order: (1) compose from primitives, (2) draw the closest entry with a label, (3) text-arrow fallback `— [verb objective] →`, (4) stop and report. Never invent a new symbol silently.
 5. **Honor the atomicity rule.** Each dictionary action (A1, A5, A7, …) is **one arrow** in the rendered picture. Sub-operations that exist only to feed the action belong as annotations on the action's arrow, not as separate arrows or nodes. See `DICTIONARY.md` → "Drawing discipline — one action, one arrow".
-6. **Emit the picture spec** as a structured intermediate: a list of nodes (with dictionary tag) + a list of edges (with dictionary tag + label). This is the source of truth.
-7. **Render the picture spec** to a backend. Choose per the format selection table below.
-8. **Verify against the thesis.** Re-read step 2. If the picture doesn't argue the thesis sentence, the spec is wrong; do not paper over with backend tweaks.
+6. **Emit the picture spec** as a structured intermediate: a list of nodes (with dictionary tag and the role-specific label that goes inside the node) + a list of edges (with dictionary tag + label) + optional clusters for loop frames. The spec is what the renderer consumes; it is also the audit trail for steps 2–5.
+7. **Render the picture spec** to a backend. Choose per the format selection table below. Default for concept-picture mode is **graphviz**.
+8. **Verify against the thesis.** Re-read step 2. If the picture doesn't argue the thesis sentence, the spec is wrong; do not paper over with backend tweaks. Common spec errors caught here:
+   - The thesis claims a *layered cascade* but the spec collapsed two stages into one node.
+   - The thesis claims a *factorization* but the spec drew it as a single arrow.
+   - The thesis describes *what changes per iteration* but the spec drew only one iteration with no loop frame.
+9. **Hand off to the `figure-verifier` agent.** The verifier reads the source text and the rendered PNG independently (it does NOT trust the visualizer's spec or the visualizer's self-verification in step 8). It reports pass/fail per layer (lint, checklist, vision) to the console. On any fail, the visualizer revises the spec and re-renders; bounded retries (3 attempts), then escalate to the user. See `.cursor/skills/ml-figure-verify/SKILL.md` for the verifier's contract.
 
-### Why the dictionary
+### What the dictionary is (and what it is not)
 
-A controlled vocabulary keeps the same visual idiom (a vector chip, a Σ aggregator, a reparameterize triangle, a snowflake on a frozen parameter) across pictures and across papers. Without it, every concept invites the agent to reinvent the wheel, and the reader has to relearn the visual language for every figure. `DICTIONARY.md` is the source of truth; SKILL.md routes around it.
+**The dictionary is a style guide, not a clip-art library.** Each entry tells the agent *how to draw an instance of that concept in this project's visual language* — a vector chip is a small box with these proportions and these colors; a conditional distribution is an ellipse with incoming conditioning arrows; a frozen parameter is a dashed box with a snowflake glyph. The entry does **not** supply a finished picture-tile to paste into concept pictures.
 
-### Dictionary-tag discipline
+Concretely, when the renderer encounters a node tagged `E1 vector` with label `Z_X^(l-1)`:
 
-During development, every glyph in a rendered picture carries its dictionary tag (e.g. `[A7]`, `[E5]`) as a small italic annotation. Tags retire to a legend/key only once each entry has a stable visual recipe. Tags are **on by default** in v0.1.
+- ✅ **Correct:** the renderer draws a vector-shaped node — small box, the project's vector-color palette — sized to the picture's scale, with `Z_X^(l-1)` as the node's label *inside* the shape.
+- ❌ **Wrong:** the renderer pastes `symbols/E1.png` (the dictionary's *example* drawing of E1) into the concept picture as the node body, with `Z_X^(l-1)` as caption text below it. This produces a Frankenstein collage where every node is at a different scale, in a different drawing style, and the labels float untethered.
+
+The user-drawn `symbols/<id>.png` files (and the auto-rendered `symbols/auto/<id>.png` fallbacks) are the *visual definitions* of the dictionary atoms. They live inside `DICTIONARY.pdf` as the reference card. **They are not assets the concept-picture renderer pastes into its output.** A concept picture redraws each atom inline, in the picture's own visual scale, integrating the role-specific label into the shape.
+
+Mental model: the dictionary is to a concept picture what a typography style guide is to a printed page. The style guide says "headings are 14pt Helvetica bold, dark blue" — it does *not* supply pre-rendered PNG screenshots of every heading you might want to set. The page setter reads the style guide and types the actual heading at the right place on the page, in the right font.
+
+### Why the dictionary at all
+
+A controlled vocabulary keeps the same visual idiom (a vector chip, a Σ aggregator, a reparameterize-style arrow, a snowflake on a frozen parameter) across pictures and across papers. Without it, every concept invites the agent to reinvent the wheel, and the reader has to relearn the visual language for every figure. `DICTIONARY.md` is the source of truth for the *style*; SKILL.md routes around it.
+
+### Canvas aspect ratio
+
+Concept pictures are rendered on a **4:3 canvas envelope** (landscape, 9.6 × 7.2 inches at 160 DPI). This is the fixed slide-friendly target — wider aspect ratios encourage agents to lay everything out left-to-right in a single chain and lose the vertical structure (loop frames, side-incoming reparameterise arrows, parameter annotations). 4:3 forces the spec to use the vertical dimension productively. The renderer enforces this via graphviz `size="9.6,7.2!"`.
+
+The 4:3 envelope is the **outer canvas**, not the main graph's bounding box. Inside that envelope, the canvas is split into a main-graph region (left) and a legend region (right) — see "Canvas layout" below.
+
+### Dictionary-tag discipline — legend, not inline tags
+
+Each node carries **only** its role-specific label (e.g., `Z_X^(l-1)`, `P(Z_A^(l) | A, Z_X^(l-1))`, `θ ❄ (frozen)`). Edges carry their semantic label only (`condition`, `sample`, `param-by`). Dictionary tags (`E5`, `A7`, …) are **not** drawn next to the glyphs; the visual idiom (shape, colour, line style) is the tag.
+
+Instead, every rendered concept picture carries a **legend panel** on the right edge of the canvas (see "Canvas layout" below). The legend lists each distinct dictionary entry that appears in the picture, alongside:
+
+- a **miniature instance of the glyph** in the picture's own style (swatch for entities, coloured line for relations/actions), and
+- the **canonical name from `DICTIONARY.md`, verbatim** — the wording in the dictionary's "Canonical name" column, exactly as written there (e.g., "vector", "conditional distribution", "graph edge / adjacency", "conditional dependence", "parameterized-by", "sample", "reparameterize"). The legend does **not** display the dictionary code (`E14`, `R1`, `A5`, …) — those codes are an internal implementation detail of the renderer and never appear in the rendered picture.
+
+This makes the picture self-explanatory in the same way a map legend makes a map self-explanatory: the reader doesn't need to memorise the dictionary or cross-reference IDs.
+
+Rationale: codes like `E5` are useful in the picture-spec YAML and in the renderer's style table because they're stable identifiers. But on a picture meant for a paper-reading audience, codes leak internal IDs and force the reader to look up what they mean. Using the canonical *name* keeps the controlled vocabulary discoverable while letting the picture itself read as a picture.
+
+The renderer emits the legend automatically from the set of dictionary IDs referenced in the spec, pulling the canonical-name string from `DICTIONARY.md` — no extra authoring required.
+
+### Canvas layout
+
+The 4:3 canvas is partitioned into two side-by-side regions:
+
+- **Left region (≈ 75% width):** the main concept picture, laid out left-to-right per the spec's `rankdir` (typically `LR`). All concept nodes, edges, clusters, and the title sit here.
+- **Right region (≈ 25% width):** the **legend panel**, a single vertical column of legend rows pinned to the right edge of the canvas.
+
+The two regions together fill the 4:3 envelope. The legend is constrained to the right edge by an invisible edge from a sink node in the main graph to the legend node, combined with `rank="sink"`; the renderer handles this automatically. The legend never sits above or below the main graph, and it never overlaps it.
+
+If the spec genuinely doesn't fit (rare — usually means the spec is overgrown and wants splitting into two pictures), the agent escalates to the user rather than silently switching aspect ratios or shrinking the legend.
+
+### Worked example of the workflow (for the agent to imitate)
+
+Given concept text `<vault>/GIB/markov-representation.md` and the request "draw the per-layer relay cell":
+
+1. **Read.** Whole file, especially §1 Definition, §4 Formal statement, §5 Worked example, and the Algorithm-1 mapping table.
+2. **Thesis.** "Each GIB layer factorizes into two stages: first sample a structural latent over neighbors `Z_A^(l) ~ P(· | A, Z_X^(l-1))`, then a feature latent by aggregating over those sampled neighbors `Z_X^(l) ~ P(· | Z_X^(l-1), Z_A^(l))` — the layered factorization is what makes per-layer compression bounds tractable."
+3. **Inventory** (from the text, in source order):
+   - "graph $D = (A, X)$" → E14 (adjacency) + E1 (features)
+   - "feature latent $Z_X^{(l)}$" → E1 vector
+   - "structural latent $Z_A^{(l)}$" → E14 (edge subset, stochastic variant)
+   - "conditional $P(Z_A^{(l)} \mid A, Z_X^{(l-1)})$" → E5 conditional distribution
+   - "conditional $P(Z_X^{(l)} \mid Z_X^{(l-1)}, Z_A^{(l)})$" → E5 conditional distribution (**second instance — do not merge with the first**)
+   - "sample" (appears twice: once per conditional) → A1 × 2
+   - "parameters $\theta$, frozen" → E7 + A20
+   - "for each layer $l = 1, \ldots, L$" → E12 / A10 loop frame around the whole cell
+4. **Gap rule.** "Local-dependence assumption" is a *property* of the chain, not a drawable atom — note it as a labeled annotation on the layer frame (closest-entry-with-label), don't try to draw it.
+5. **Atomicity.** Each A1 sample is one arrow. The transform $\tilde{Z}_X^{(l-1)} = \tau(\cdot)W^{(l)}$ inside the second conditional is a sub-operation that rides as an annotation on the conditioning arrow (`R1 via τ(·)W^(l)`), not as a separate node.
+6. **Spec.** Node list (8 nodes: A, Z_X^(l-1), θ, P_ZA, Z_A^(l), P_ZX, Z_X^(l)), edge list (7 edges), one cluster declaring the L-layer loop frame.
+7. **Render.** Graphviz.
+8. **Verify (self).** Does the picture show *two* conditional distributions chained `Z_X^(l-1) → P(Z_A) → Z_A^(l) → P(Z_X) → Z_X^(l)`? If only one conditional is drawn, the spec collapsed the cascade and the thesis is unmet — fix the spec.
+9. **Verify (figure-verifier).** Hand off; if the agent reports FAIL, revise.
 
 ## Conventions
 
