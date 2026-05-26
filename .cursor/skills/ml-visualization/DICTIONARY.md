@@ -63,7 +63,7 @@ follow this cascade — do not invent a new visual idiom silently:
    "evaluate accuracy", "summarize results") are drawn as a **text-arrow**:
 
    ```
-   — [verb objective] → 
+   — [verb objective] →
    ```
 
    For example: `— [compute σ²] → ` from a sample cluster to a scalar.
@@ -150,29 +150,29 @@ references, primitives per backend) if the simple shape proves insufficient.
 
 | # | Canonical name | Aliases | Symbolic representation |
 |---|---|---|---|
-| E1 | vector | latent code, embedding, hidden state, representation $z, h, s, Z_X$ | a horizontal row of small cells (cell-row chip); cell count $\sim$ dimensionality |
+| E1 | vector | latent code, embedding, hidden state, representation $z, h, s, Z_X$ | a vertical column of small cells (cell-column chip); cell count $\sim$ dimensionality ![](symbols/E1.png) |
 | E2 | scalar | reward, probability, log-likelihood, weight $\rho$, threshold, hyperparameter | a small filled disc, or a number printed inline; size $\sim$ magnitude when meaningful |
-| E3 | tensor / image | observation $o_t$, frame $x_t$, RGB image | a square or rectangle with optional grid; for images, a thumbnail; spatial axes preserved |
-| E4 | distribution | prior $p(z)$, posterior $p(z\mid x)$, likelihood $p(x\mid z)$, proposal $q(x)$, marginal $p(y)$ | a smooth density curve (continuous) or a histogram / bar set (discrete); the *shape* of the curve carries the distribution's character |
-| E5 | conditional distribution | $p_\theta(s_t\mid\ldots)$, $q_\phi(z\mid x)$, $p(z_{t+1}\mid a_t, z_t, h_t)$ | a distribution shape (as E4) sitting inside a node, with incoming arrows from the conditioning variables |
-| E6 | sufficient statistics (μ, σ) | encoder outputs, Gaussian parameters $(\mu, \sigma^2)$ | a vector chip (as E1) split into two named halves; top half labeled $\mu$, bottom half labeled $\sigma$ or $\sigma^2$ |
-| E7 | parameter set | $\theta, \phi, \psi, \rho$ (learnable) | a small square with a hat or color code; attached to the function it parameterizes via a thin line (not an arrow) |
+| E3 | tensor / image | observation $o_t$, frame $x_t$, RGB image | a square or rectangle with optional grid; for images, a thumbnail; spatial axes preserved ![](symbols/E3.png)|
+| E4 | distribution | prior $p(z)$, posterior $p(z\mid x)$, likelihood $p(x\mid z)$, proposal $q(x)$, marginal $p(y)$ | a smooth density curve (continuous) or a histogram / bar set (discrete); the *shape* of the curve carries the distribution's character ![](symbols/E4.png) |
+| E5 | conditional distribution | $p_\theta(s_t\mid\ldots)$, $q_\phi(z\mid x)$, $p(z_{t+1}\mid a_t, z_t, h_t)$ | a distribution shape (as E4) sitting inside a node, with incoming arrows from the conditioning variables ![](symbols/E5.png) |
+| E6 | sufficient statistics (μ, σ) | encoder outputs, Gaussian parameters $(\mu, \sigma^2)$ | a vector chip (as E1) split into two named halves; top half labeled $\mu$, bottom half labeled $\sigma$ or $\sigma^2$ ![](symbols/E6.png) |
+| E7 | parameter set | $\theta, \phi, \psi, \rho$ (learnable) | a small square with a hat or color code; attached to the function it parameterizes via a thin line (not an arrow) ![](symbols/E7.png)|
 | E8 | dataset | $\mathcal D$, $\mathcal X = \{x^{(i)}\}$, rollout buffer | a stack of cards or a labeled bin; size indicates "large collection" |
-| E9 | minibatch | $X_M$, $B$ sequences, $K$-sample batch | a small cluster of sample markers, drawn from the dataset bin via a sampling arrow |
-| E10 | sample (a single realization) | $x^{(i)}$, $\epsilon^{(l)}$, $z^{(i,l)}$, $x_i \sim q$ | a single marker — a dot, a tagged cell, or a highlighted node |
+| E9 | minibatch | $X_M$, $B$ sequences, $K$-sample batch | a small cluster of sample markers, drawn from the dataset bin via a sampling arrow ![](symbols/E9.png) |
+| E10 | sample (a single realization) | $x^{(i)}$, $\epsilon^{(l)}$, $z^{(i,l)}$, $x_i \sim q$ | a single marker — a dot, a tagged cell, or a highlighted node ![](symbols/E10.png) |
 | E11 | trajectory / sequence | $\{(s_\tau, a_\tau)\}_{\tau=t}^{t+H}$, $\{x_t\}_{t=1}^L$, time series | a horizontal chain of entities (one per step) connected by next-step arrows |
 | E12 | loop index / operational substrate | layer $l$, time $t$, hop $t$, epoch, generation, IS sample $i$ | a labeled frame (rectangle or band) enclosing the per-iteration content, with the loop name written on the frame |
-| E13 | graph node | $v$, $u$, vertex | a filled circle, optionally with a name inside |
-| E14 | graph edge / adjacency | $A$, $E$, edge $(u,v)$ | a line connecting two nodes; arrow if directed |
-| E15 | candidate set / neighborhood | hop pool $V_{vt}$, k-NN candidates, leave-one-out negatives | a dashed ring (or enclosure) around an anchor entity, containing the candidate nodes on its boundary |
-| E16 | learnable weight matrix | $W^{(l)}, W_c, W_{\mathrm{out}}, W_2 W_1$ | a small grid (rows × cols); attached to a function as its parameter (see E7) |
-| E17 | nonlinearity | $\tanh, \mathrm{ReLU}, \mathrm{LeakyReLU}, \sigma$ | a small operator glyph, e.g., a "kink" curve for ReLU or "S" for sigmoid; placed inline on an arrow |
-| E18 | noise variable | $\epsilon \sim \mathcal N(0, I)$, Gumbel noise | a small jittered marker or a stylized "$\epsilon$" disc; usually injected into a reparameterization step |
-| E19 | critic / energy function | $f(x, y)$ | a labeled black-box rectangle that takes two inputs and emits a scalar |
+| E13 | graph node | $v$, $u$, vertex | a filled circle, optionally with a name inside ![](symbols/E13.png) |
+| E14 | graph edge / adjacency | $A$, $E$, edge $(u,v)$ | a line connecting two nodes; arrow if directed ![](symbols/E14.png) |
+| E15 | candidate set / neighborhood | hop pool $V_{vt}$, k-NN candidates, leave-one-out negatives | a dashed ring (or enclosure) around an anchor entity, containing the candidate nodes on its boundary ![](symbols/E15.png) |
+| E16 | learnable weight matrix | $W^{(l)}, W_c, W_{\mathrm{out}}, W_2 W_1$ | a small grid (rows × cols); attached to a function as its parameter (see E7) ![](symbols/E16.png) |
+| E17 | nonlinearity | $\tanh, \mathrm{ReLU}, \mathrm{LeakyReLU}, \sigma$ | a small operator glyph, e.g., a "kink" curve for ReLU or "S" for sigmoid; placed inline on an arrow ![](symbols/E17.png) |
+| E18 | noise variable | $\epsilon \sim \mathcal N(0, I)$, Gumbel noise | a small jittered marker or a stylized "$\epsilon$" disc; usually injected into a reparameterization step ![](symbols/E18.png) |
+| E19 | critic / energy function | $f(x, y)$ | a labeled black-box rectangle that takes two inputs and emits a scalar ![](symbols/E19.png) |
 | E20 | recurrent state | $h_t$ (LSTM hidden), $c_t$ (LSTM cell) | a vector chip (as E1) with a self-loop arrow back to itself (the recurrence) |
 | E21 | reference distribution | $p_\theta(z) = \mathcal N(0, I)$, $Q(Z_A)$ uniform / Bern$(\alpha)$, $q(y)$ as variational marginal | same shape as a distribution (E4), rendered in grey or with a "ghost" outline; signals "this is what we're comparing to" |
 | E22 | controller / policy | $q_\phi(a \mid s)$, $a = W_c[z; h]$, $\pi$ | a labeled trapezoid or rectangle taking state in, emitting action out |
-| E23 | terminal event / done flag | $d_t$, episode end, $\mathit{done}_t$ | a small "stop" glyph (filled square or X) attached at the time-step where termination is decided |
+| E23 | terminal event / done flag | $d_t$, episode end, $\mathit{done}_t$ | a small "stop" glyph (filled square or X) attached at the time-step where termination is decided ![](symbols/E23.png) |
 
 ---
 
@@ -185,13 +185,13 @@ references, primitives per backend) if the simple shape proves insufficient.
 | R3 | parameterized-by | $f_\theta$, $p_\theta$, $W_c$ | parameter symbol attached to the function via a thin line (not an arrow); the function and parameter sit close together |
 | R4 | membership | $u \in S$, $x_i \in X_M$, $T \in \mathcal T$ | the member sits on (or inside) the boundary of the containing enclosure |
 | R5 | expectation scope | $\mathbb{E}_{p(x)}[\cdot]$, "average under $p$" | a containing brace or shaded background labeled with the distribution; the averaged expression sits inside |
-| R6 | bound / ordering | $A \leq B$, "upper-bounds", "lower-bounds", "tightens to" | write the math symbol (`≤`, `≥`, `=`, `≈`) directly; no further visual idiom needed (see Conventions) |
-| R7 | decomposition | $A = B_1 + B_2 + \ldots$, "$A$ splits into" | a large brace or parenthesis labeled $A$ on the outside, containing $B_1, B_2, \ldots$ inside; each part labeled |
+| R6 | bound / ordering | $A \leq B$, "upper-bounds", "lower-bounds", "tightens to" | write the math symbol (`≤`, `≥`, `=`, `≈`) directly; no further visual idiom needed (see Conventions) ![](symbols/R6.png) |
+| R7 | decomposition | $A = B_1 + B_2 + \ldots$, "$A$ splits into" | a large brace or parenthesis labeled $A$ on the outside, containing $B_1, B_2, \ldots$ inside; each part labeled ![](symbols/R7.png) |
 | R8 | stop-gradient barrier | $\mathrm{sg}(\cdot)$, "frozen during", "target network" | a perpendicular bar across an arrow (like a one-way valve); gradient cannot flow back through it |
-| R9 | transfer / reuse | "trained in $E_1$, deployed in $E_2$", "policy transfer" | the same module drawn once with two arrows pointing into two different context boxes |
-| R10 | hop / graph distance | $d(u, v) = t$ | concentric rings around an anchor node, one ring per hop $t$; candidate nodes sit on the ring matching their hop |
-| R11 | i.i.d. | "i.i.d.", "$x_i \sim p$ independently" | multiple sample markers drawn identically, with a small "i.i.d." badge or repeated arrows from the same distribution |
-| R12 | composition (chained modules) | $f = f_2 \circ f_1$, "V $\to$ M $\to$ C", "encoder $\to$ sample $\to$ decoder" | modules drawn as boxes in a horizontal or vertical chain, connected by single arrows; the chain itself is the relation |
+| R9 | transfer / reuse | "trained in $E_1$, deployed in $E_2$", "policy transfer" | the same module drawn once with two arrows pointing into two different context boxes ![](symbols/R9.png) |
+| R10 | hop / graph distance | $d(u, v) = t$ | concentric rings around an anchor node, one ring per hop $t$; candidate nodes sit on the ring matching their hop ![](symbols/R10.png) |
+| R11 | i.i.d. | "i.i.d.", "$x_i \sim p$ independently" | multiple sample markers drawn identically, with a small "i.i.d." badge or repeated arrows from the same distribution ![](symbols/R11.png) |
+| R12 | composition (chained modules) | $f = f_2 \circ f_1$, "V $\to$ M $\to$ C", "encoder $\to$ sample $\to$ decoder" | modules drawn as boxes in a horizontal or vertical chain, connected by single arrows; the chain itself is the relation ![](symbols/R12.png) |
 
 ---
 
@@ -208,18 +208,18 @@ specifies direction (e.g., "roll forward") counts as a verb.
 
 | # | Canonical name | Aliases | Symbolic representation |
 |---|---|---|---|
-| A1 | sample | "$\sim$", samples, draws, drawn iid from | arrow from a distribution shape (E4) to a sample marker (E10); optionally with a small die or dice glyph at the action point |
-| A2 | draw | "draw from", "sample $n$ from", "drawn iid from" | arrow from a dataset bin (E8) or proposal (E4) to a minibatch cluster (E9); the cluster is the action's output |
-| A3 | encode | "embed", "recognize" | arrow from a data entity (E3) into a labeled encoder module, emerging as a latent vector (E1) |
-| A4 | decode | "reconstruct", "generate" | arrow from a latent vector (E1) into a labeled decoder module, emerging as a data entity (E3) |
-| A5 | reparameterize | "Gumbel-softmax", "reparameterization trick" | one arrow from sufficient statistics (E6) into the sample (E10); the noise variable (E18) feeds the *same* arrow's head from the side (must be drawn adjacent to A5's head, not floated far away). The sample is differentiable along the $(\mu, \sigma)$ path |
-| A6 | transform | "project", "linear-map", "apply $W$" | arrow from input vector through a labeled box (the weight matrix E16) to output vector |
+| A1 | sample | "$\sim$", samples, draws, drawn iid from | arrow from a distribution shape (E4) to a sample marker (E10); optionally with a small die or dice glyph at the action point ![](symbols/A1.png) |
+| A2 | draw | "draw from", "sample $n$ from", "drawn iid from" | arrow from a dataset bin (E8) or proposal (E4) to a minibatch cluster (E9); the cluster is the action's output ![](symbols/A2.png) |
+| A3 | encode | "embed", "recognize" | arrow from a data entity (E3) into a labeled encoder module, emerging as a latent vector (E1) ![](symbols/A3.png) |
+| A4 | decode | "reconstruct", "generate" | arrow from a latent vector (E1) into a labeled decoder module, emerging as a data entity (E3) ![](symbols/A4.png) |
+| A5 | reparameterize | "Gumbel-softmax", "reparameterization trick" | one arrow from sufficient statistics (E6) into the sample (E10); the noise variable (E18) feeds the *same* arrow's head from the side (must be drawn adjacent to A5's head, not floated far away). The sample is differentiable along the $(\mu, \sigma)$ path ![](symbols/A5.png) |
+| A6 | transform | "project", "linear-map", "apply $W$" | arrow from input vector through a labeled box (the weight matrix E16) to output vector ![](symbols/A6.png) |
 | A7 | aggregate | "pool", "sum-pool", "sum over", "mean", "mixture sum" | multiple arrows converging into a single $\Sigma$ glyph (or similar aggregator), with one outgoing arrow to the aggregated result. Specializations: partition function $Z = \sum_x f(x)$ is "aggregate over all configurations of $x$" |
-| A8 | attend | "softmax over", "score each $u$", "attention" | rays from a query entity to each member of a candidate set (E15), with ray width or brightness proportional to the attention weight; emits a distribution (E4) over the set |
-| A9 | predict | "infer", "classify", "output" | arrow from a vector through a labeled prediction head into a labeled output (class label, scalar, etc.) |
+| A8 | attend | "softmax over", "score each $u$", "attention" | rays from a query entity to each member of a candidate set (E15), with ray width or brightness proportional to the attention weight; emits a distribution (E4) over the set ![](symbols/A8.png) |
+| A9 | predict | "infer", "classify", "output" | arrow from a vector through a labeled prediction head into a labeled output (class label, scalar, etc.) ![](symbols/A9.png) |
 | A10 | iterate | "loop", "for", "while" | a labeled frame around the per-iteration content (uses E12 loop-index entity); the loop variable named on the frame |
 | A11 | roll forward | "imagine", "dream", "rollout", "sample sequentially", "unroll" | a chain of repeated single-step samples (A1) drawn end-to-end as a horizontal sequence of arrows, each step's output feeding the next step's input |
-| A12 | compare | "KL", "divergence from", "distance from" | two distribution shapes (E4 and E21) side by side, with a labeled gap or double-arrow between them; the gap *is* the comparison's magnitude |
+| A12 | compare | "KL", "divergence from", "distance from" | two distribution shapes (E4 and E21) side by side, with a labeled gap or double-arrow between them; the gap *is* the comparison's magnitude ![](symbols/A12.png) |
 | A13 | measure | "mutual information", "$I(X;Y)$" — object is "dependency" | two random variables with a labeled overlap glyph (info-diagram lens) or a directed double-arrow labeled $I$; sometimes drawn as a Venn-style intersection |
 | A14 | bound | "upper-bounds", "lower-bounds", "prove $A \leq B$" | the bounded quantity drawn with a horizontal line above (upper) or below (lower) it; relation written with the math symbol `≤` / `≥` (see Conventions) |
 | A15 | sandwich | "$\hat Z^- \leq Z \leq \hat Z^+$", "combine upper and lower" | the target quantity drawn between two horizontal lines (upper bound above, lower bound below); the vertical interval is the sandwich |
