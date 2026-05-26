@@ -17,3 +17,4 @@ sandbox/
 # README documents how to populate the folder, so keep it tracked.
 tools/graphviz/*
 !tools/graphviz/README.md
+tools/__pycache__/

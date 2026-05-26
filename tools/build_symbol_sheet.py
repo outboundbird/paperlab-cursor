@@ -1,12 +1,21 @@
-"""Build per-entry visualizer symbol tiles.
+"""Build per-entry visualizer symbol tiles (graphviz auto-render).
 
 For each entry in ``DICTIONARY.md`` that has a registered renderer below,
 emit one PNG tile + one SVG tile under
-``.cursor/skills/ml-visualization/symbols/`` showing the canonical drawing.
+``.cursor/skills/ml-visualization/symbols/auto/`` showing the canonical
+drawing.
 
-The composite reference card now lives in ``DICTIONARY.pdf`` and is built
-by ``tools/build_dictionary_pdf.py``, which embeds these per-entry PNGs
-into the dictionary table.
+User-drawn replacement tiles live in the parent ``symbols/`` directory
+and are referenced from individual ``DICTIONARY.md`` rows via inline
+markdown image syntax (``![](symbols/<file>.png)``). When such a
+reference exists, the PDF builder uses the user's PNG instead of the
+auto-rendered tile in this folder. The two directories are kept separate
+so a user-drawn ``symbols/E1.png`` cannot be overwritten by an auto-render
+for the same entry ID.
+
+The composite reference card lives in ``DICTIONARY.pdf`` and is built by
+``tools/build_dictionary_pdf.py``, which selects per row between the
+user-drawn tile (preferred) and the auto-rendered tile in ``auto/``.
 
 Run:
 
@@ -14,9 +23,9 @@ Run:
 
 Outputs:
 
-    .cursor/skills/ml-visualization/symbols/E1.png
-    .cursor/skills/ml-visualization/symbols/E1.svg
-    .cursor/skills/ml-visualization/symbols/...
+    .cursor/skills/ml-visualization/symbols/auto/E1.png
+    .cursor/skills/ml-visualization/symbols/auto/E1.svg
+    .cursor/skills/ml-visualization/symbols/auto/...
 
 Design notes
 ------------
@@ -43,6 +52,7 @@ from tools.paths import graphviz_dot, repo_root
 
 
 SYMBOLS_DIR = repo_root() / ".cursor" / "skills" / "ml-visualization" / "symbols"
+AUTO_DIR = SYMBOLS_DIR / "auto"
 DICT_PATH = repo_root() / ".cursor" / "skills" / "ml-visualization" / "DICTIONARY.md"
 
 
@@ -66,11 +76,11 @@ PREAMBLE = f"""
 
 
 def _emit(tile_id: str, body: str) -> None:
-    """Compile a single tile from a graphviz body string."""
+    """Compile a single tile from a graphviz body string into ``AUTO_DIR``."""
     src = f'digraph "{tile_id}" {{{PREAMBLE}{body}\n}}\n'
-    dot_file = SYMBOLS_DIR / f"{tile_id}.dot"
-    png_file = SYMBOLS_DIR / f"{tile_id}.png"
-    svg_file = SYMBOLS_DIR / f"{tile_id}.svg"
+    dot_file = AUTO_DIR / f"{tile_id}.dot"
+    png_file = AUTO_DIR / f"{tile_id}.png"
+    svg_file = AUTO_DIR / f"{tile_id}.svg"
     dot_file.write_text(src, encoding="utf-8")
     dot_exe = str(graphviz_dot())
     subprocess.run([dot_exe, "-Tpng", "-Gdpi=140", str(dot_file), "-o", str(png_file)], check=True)
@@ -507,13 +517,14 @@ def _id_sort_key(entry_id: str) -> tuple[str, int]:
 
 def main() -> None:
     SYMBOLS_DIR.mkdir(parents=True, exist_ok=True)
+    AUTO_DIR.mkdir(parents=True, exist_ok=True)
     _check_sync()
 
     for entry_id in sorted(RENDERERS, key=_id_sort_key):
         _, render = RENDERERS[entry_id]
         body = render()
         _emit(entry_id, body)
-        print(f"wrote {SYMBOLS_DIR / (entry_id + '.png')}")
+        print(f"wrote {AUTO_DIR / (entry_id + '.png')}")
 
 
 if __name__ == "__main__":

@@ -63,6 +63,7 @@ from tools.paths import repo_root
 SKILL_DIR = repo_root() / ".cursor" / "skills" / "ml-visualization"
 DICT_PATH = SKILL_DIR / "DICTIONARY.md"
 SYMBOLS_DIR = SKILL_DIR / "symbols"
+AUTO_DIR = SYMBOLS_DIR / "auto"
 PDF_PATH = SKILL_DIR / "DICTIONARY.pdf"
 
 
@@ -74,24 +75,64 @@ PDF_PATH = SKILL_DIR / "DICTIONARY.pdf"
 SECTION_HEADER_RE = re.compile(r"^##\s+(Entities|Relations|Actions)\b", re.MULTILINE)
 TABLE_ROW_RE = re.compile(r"^\|\s*([EAR]\d+)\s*\|(.+)\|\s*$")
 
+# Inline markdown image reference, e.g. ``![alt](symbols/E1.png)``. The dictionary
+# uses this to attach a user-drawn picture to a row; the build script extracts the
+# path, strips the ``![](...)`` text from the prose, and inserts the picture into
+# the PDF's Symbol column. Captures the alt text and the relative path.
+MD_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)")
 
-def _parse_sections(text: str) -> dict[str, list[tuple[str, str, str, str]]]:
+
+def _extract_user_png(symbolic_cell: str) -> tuple[str, Path | None]:
+    """Pull the first ``![](path)`` image reference out of a symbolic-rep cell.
+
+    Returns
+    -------
+    cleaned_cell : str
+        The cell text with the matched image reference removed so the
+        markdown image syntax doesn't appear as literal text alongside the
+        rendered picture in the PDF.
+    png_path : Path or None
+        Resolved absolute path to the PNG (relative paths resolve against
+        ``DICT_PATH.parent``), or ``None`` if no image reference was present
+        or the referenced file does not exist on disk.
+    """
+    m = MD_IMAGE_RE.search(symbolic_cell)
+    if not m:
+        return symbolic_cell, None
+
+    rel = m.group(2).strip()
+    candidate = (DICT_PATH.parent / rel).resolve()
+    png = candidate if candidate.is_file() else None
+
+    # Strip the markdown image-ref token and any leftover whitespace/punctuation
+    # immediately around it (a hanging "; " or "  " left behind by the removal).
+    cleaned = MD_IMAGE_RE.sub("", symbolic_cell)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+    cleaned = re.sub(r"[;,\s]+$", "", cleaned)
+    return cleaned, png
+
+
+def _parse_sections(text: str) -> dict[str, list[tuple[str, str, str, str, Path | None]]]:
     """Extract the three category tables from ``DICTIONARY.md``.
 
     Returns
     -------
     dict
         Maps category name (``"Entities"`` / ``"Relations"`` / ``"Actions"``)
-        to a list of ``(id, canonical_name, aliases, symbolic_representation)``
-        tuples in source order.
+        to a list of ``(id, canonical_name, aliases, symbolic_representation,
+        user_png_path)`` tuples in source order. ``user_png_path`` is the
+        resolved absolute path to a user-drawn PNG embedded in the cell via
+        ``![](symbols/<id>.png)``, or ``None`` if no such reference is present.
+        When ``user_png_path`` is not None, the matching ``![](...)`` token has
+        already been stripped from ``symbolic_representation``.
     """
-    sections: dict[str, list[tuple[str, str, str, str]]] = {}
+    sections: dict[str, list[tuple[str, str, str, str, Path | None]]] = {}
 
     headers = [(m.group(1), m.start()) for m in SECTION_HEADER_RE.finditer(text)]
     for i, (name, start) in enumerate(headers):
         end = headers[i + 1][1] if i + 1 < len(headers) else len(text)
         body = text[start:end]
-        rows: list[tuple[str, str, str, str]] = []
+        rows: list[tuple[str, str, str, str, Path | None]] = []
         for line in body.splitlines():
             m = TABLE_ROW_RE.match(line)
             if not m:
@@ -101,7 +142,8 @@ def _parse_sections(text: str) -> dict[str, list[tuple[str, str, str, str]]]:
             if len(cells) < 3:
                 continue
             canonical, aliases, symbolic = cells[0], cells[1], cells[2]
-            rows.append((entry_id, canonical, aliases, symbolic))
+            symbolic, user_png = _extract_user_png(symbolic)
+            rows.append((entry_id, canonical, aliases, symbolic, user_png))
         sections[name] = rows
 
     return sections
@@ -294,24 +336,47 @@ def _styles() -> dict[str, ParagraphStyle]:
     }
 
 
-def _symbol_cell(entry_id: str, styles: dict[str, ParagraphStyle]):
-    """Return either an ``Image`` flowable for the tile, or a placeholder
-    paragraph if no tile is registered yet."""
-    png = SYMBOLS_DIR / f"{entry_id}.png"
-    if entry_id in build_symbol_sheet.RENDERERS and png.exists():
-        img = Image(str(png))
-        max_w = COL_WIDTHS_MM["symbol"] * mm - 4 * mm
-        max_h = 22 * mm
-        scale = min(max_w / img.imageWidth, max_h / img.imageHeight, 1.0)
-        img.drawWidth = img.imageWidth * scale
-        img.drawHeight = img.imageHeight * scale
-        return img
-    return Paragraph(
-        '<font color="#888"><i>\u2014 no tile \u2014</i></font>', styles["cell"]
-    )
+def _symbol_cell(
+    entry_id: str,
+    user_png: Path | None,
+    styles: dict[str, ParagraphStyle],
+):
+    """Return an ``Image`` flowable for the Symbol column.
+
+    Priority:
+
+    1. ``user_png`` — a PNG referenced from the row's symbolic-rep cell via
+       ``![](...)``. The user drew this; respect it.
+    2. ``symbols/<id>.png`` — the graphviz auto-rendered tile for entries
+       with a registered renderer in ``build_symbol_sheet.RENDERERS``.
+    3. ``— no tile —`` placeholder when neither is available.
+    """
+    png: Path | None = None
+    if user_png is not None and user_png.is_file():
+        png = user_png
+    else:
+        auto = AUTO_DIR / f"{entry_id}.png"
+        if entry_id in build_symbol_sheet.RENDERERS and auto.exists():
+            png = auto
+
+    if png is None:
+        return Paragraph(
+            '<font color="#888"><i>\u2014 no tile \u2014</i></font>', styles["cell"]
+        )
+
+    img = Image(str(png))
+    max_w = COL_WIDTHS_MM["symbol"] * mm - 4 * mm
+    max_h = 22 * mm
+    scale = min(max_w / img.imageWidth, max_h / img.imageHeight, 1.0)
+    img.drawWidth = img.imageWidth * scale
+    img.drawHeight = img.imageHeight * scale
+    return img
 
 
-def _build_table(rows: list[tuple[str, str, str, str]], styles: dict[str, ParagraphStyle]) -> Table:
+def _build_table(
+    rows: list[tuple[str, str, str, str, Path | None]],
+    styles: dict[str, ParagraphStyle],
+) -> Table:
     header = [
         Paragraph("#", styles["head"]),
         Paragraph("Canonical name", styles["head"]),
@@ -320,13 +385,13 @@ def _build_table(rows: list[tuple[str, str, str, str]], styles: dict[str, Paragr
         Paragraph("Symbol", styles["head"]),
     ]
     data = [header]
-    for entry_id, canonical, aliases, symbolic in rows:
+    for entry_id, canonical, aliases, symbolic, user_png in rows:
         data.append([
             Paragraph(f"<b>{entry_id}</b>", styles["cell"]),
             Paragraph(_md_cell_to_html(canonical), styles["cell"]),
             Paragraph(_md_cell_to_html(aliases), styles["cell"]),
             Paragraph(_md_cell_to_html(symbolic), styles["cell"]),
-            _symbol_cell(entry_id, styles),
+            _symbol_cell(entry_id, user_png, styles),
         ])
 
     col_widths = [
@@ -354,7 +419,7 @@ def _build_table(rows: list[tuple[str, str, str, str]], styles: dict[str, Paragr
     return table
 
 
-def _build_pdf(sections: dict[str, list[tuple[str, str, str, str]]]) -> None:
+def _build_pdf(sections: dict[str, list[tuple[str, str, str, str, Path | None]]]) -> None:
     styles = _styles()
     doc = SimpleDocTemplate(
         str(PDF_PATH),
@@ -373,19 +438,30 @@ def _build_pdf(sections: dict[str, list[tuple[str, str, str, str]]]) -> None:
         "Auto-generated from "
         '<font face="Courier">.cursor/skills/ml-visualization/DICTIONARY.md</font>. '
         "Do not edit this PDF by hand \u2014 edit the markdown source and "
-        'rerun <font face="Courier">python -m tools.build_dictionary_pdf</font>.',
+        'rerun <font face="Courier">python -m tools.build_dictionary_pdf</font>. '
+        "To attach a hand-drawn symbol to a row, save a PNG under "
+        '<font face="Courier">.cursor/skills/ml-visualization/symbols/</font> '
+        "and add an inline <font face=\"Courier\">![](symbols/&lt;id&gt;.png)</font> "
+        "to that row's Symbolic-representation cell.",
         styles["intro"],
     ))
 
     total = sum(len(v) for v in sections.values())
-    rendered = sum(
+    user = sum(
         1 for rows in sections.values() for r in rows
-        if r[0] in build_symbol_sheet.RENDERERS
+        if r[4] is not None
     )
+    auto = sum(
+        1 for rows in sections.values() for r in rows
+        if r[4] is None and r[0] in build_symbol_sheet.RENDERERS
+        and (AUTO_DIR / f"{r[0]}.png").exists()
+    )
+    placeholder = total - user - auto
     story.append(Paragraph(
         f"<b>{total}</b> entries total \u00b7 "
-        f"<b>{rendered}</b> with symbol tiles \u00b7 "
-        f"<b>{total - rendered}</b> awaiting a renderer.",
+        f"<b>{user}</b> with user-drawn symbol \u00b7 "
+        f"<b>{auto}</b> with graphviz auto-render \u00b7 "
+        f"<b>{placeholder}</b> placeholder.",
         styles["intro"],
     ))
     story.append(Spacer(1, 4 * mm))
