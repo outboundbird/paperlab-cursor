@@ -1,6 +1,6 @@
 ---
 name: ml-visualization
-description: Defines the schema for concept pictures produced from an ML paper — one PNG per concept, dictionary-driven, rendered via graphviz on a 4:3 canvas. Writes to `vault_path(slug, f"figures/{concept}.png")`. Use when drawing, visualizing, or picturing a specific concept, algorithm, or workflow from a paper.
+description: Defines the schema for concept pictures produced from an ML paper — one PNG per concept, dictionary-driven, rendered via graphviz with a composed side-legend layout. Writes to `vault_path(slug, f"figures/{concept}.png")`. Use when drawing, visualizing, or picturing a specific concept, algorithm, or workflow from a paper.
 ---
 
 # ML Visualization Schema
@@ -21,7 +21,7 @@ Fixed cascade. Every picture follows it.
 4. **Apply the gap rule** for any concept that doesn't fit an entry. Cascade (in `DICTIONARY.md`): (1) compose from primitives, (2) draw the closest entry with a label, (3) text-arrow fallback `— [verb objective] →`, (4) stop and report. Never invent a new symbol silently.
 5. **Honor the atomicity rule.** Each dictionary action (A1, A5, A7, …) is **one arrow**. Sub-operations that exist only to feed the action ride as annotations on the action's arrow, not as separate arrows or nodes.
 6. **Emit the picture spec** as YAML at `vault_path(slug, f"figures/{concept}.spec.yaml")`: title, optional thesis, rankdir, nodes (`id`, `dict_id`, `label`), edges (`src`, `dst`, `dict_id`, `label`), optional clusters (loop frames). The spec is the audit trail for steps 2–5.
-7. **Render** via `python -m tools.visualize_concept <spec.yaml> <out.png>` → graphviz writes `.png` + `.svg` + `.dot`. The renderer enforces the 4:3 canvas and emits the legend.
+7. **Render** via `python -m tools.visualize_concept <spec.yaml> [<out.png>]` → only the final composed PNG lands on disk; figure/legend intermediates are written to a tempdir and deleted on success. The CLI `out` argument is optional: when omitted, the renderer resolves it from the spec's `slug:` and `output:` keys (see "Output naming" below). Default mode (`--legend side`) lays the figure top-to-bottom on the left and the legend panel on the right, joined via PIL. Use `--legend inline` to fall back to the legacy single-graph 4:3 layout, or `--legend none` to render the figure only.
 8. **Self-verify against the thesis.** Re-read step 2. If the picture doesn't argue the thesis sentence, the spec is wrong; do not paper over with backend tweaks. Common spec errors:
    - Thesis claims a *layered cascade*, spec collapsed two stages into one node.
    - Thesis claims a *factorization*, spec drew it as a single arrow.
@@ -43,31 +43,108 @@ Mental model: the dictionary is to a concept picture what a typography style gui
 
 ### Canvas aspect ratio
 
-Concept pictures are rendered on a **4:3 canvas envelope** (9.6 × 7.2 inches at 160 DPI = 1536 × 1152 PNG). This is the slide-friendly target — wider aspect ratios encourage left-to-right chains that lose vertical structure (loop frames, side-incoming reparameterise arrows, parameter annotations).
+Concept pictures are rendered in **composed mode** by default: graphviz lays out the figure in TB (top-to-bottom) at the requested font scale (title 56pt, node 48pt, edge 40pt; `penwidth=2.0`, `arrowsize=1.2`), graphviz separately rasterizes the legend panel, and PIL pastes the two side by side with a 60px gutter. There is **no fixed aspect ratio**; the resulting PNG is whatever shape the content dictates (typically ~2:1 landscape — figure-dominant, legend snug on the right).
 
-The 4:3 envelope is the **outer canvas**, not the main graph's bounding box. The renderer enforces it via graphviz `size="9.6,7.2!"` plus an aspect-ratio pad (`ratio=0.75`) so the output PNG is always 4:3 regardless of the natural layout.
+Why composed instead of a single 4:3 canvas: graphviz `dot` only honors `rankdir` at the top level, so a side-legend on the same canvas forces the whole picture into LR, which crushes vertical structure (loop frames, reparameterise arrows, parameter annotations). Composing two graphs decouples figure-layout from legend-layout — both panels keep their natural shape and their natural font sizes.
+
+The legacy single-graph 4:3 layout (`--legend inline`) is preserved as a fallback for cases where a slide-friendly fixed-aspect output is required.
 
 ### Dictionary-tag discipline — legend, not inline tags
 
 Nodes carry **only** their role-specific label (e.g., `Z_X^(l-1)`, `P(Z_A^(l) | A, Z_X^(l-1))`, `θ ❄ (frozen)`). Edges carry their semantic label only (`condition`, `sample`, `param-by`). Dictionary codes (`E5`, `A7`, …) are **not** drawn next to the glyphs; the visual idiom (shape, color, line style) is the tag.
 
-Instead, every picture carries a **legend panel** on the right edge of the canvas. The legend lists each distinct dictionary entry that appears in the picture, alongside:
+Every picture carries a **legend panel** on the right edge of the canvas listing each distinct dictionary entry used in the picture.
 
-- a miniature instance of the glyph in the picture's own style (swatch for entities, coloured line for relations/actions), and
-- the **canonical name from `DICTIONARY.md`, verbatim** — the wording in the "Canonical name" column, exactly as written there. The legend does **not** display dictionary codes (`E14`, `R1`, `A5`, …) and does **not** annotate canonical names with styling qualifiers like `(dotted)` or `(dashed)`. Those are renderer-internal details.
+### Legend wording — paper notation, not dictionary canonical name
 
-The renderer emits the legend automatically from the set of dictionary IDs in the spec — no extra authoring required.
+Each legend row has the form:
+
+```
+[swatch / line]    <paper notation>  —  <context phrase>
+```
+
+Where:
+
+- **Paper notation** = the first-occurring node/edge `label` in the spec for that `dict_id`, rendered through the renderer's math translator so sub/superscripts (`Z_X^(l-1)`) come out as proper subscripts.
+- **Context phrase** = a 2–6 word noun phrase in the paper's vocabulary (`adjacency matrix`, `feature latent (previous layer)`, `structural conditional`, `Gaussian noise (reparameterise)`, …). Sourced from the first-occurring node/edge's `legend_context` field. If empty, only the paper notation is shown.
+
+**The legend does NOT show the dictionary's canonical name.** The canonical name (e.g., "graph edge / adjacency", "conditional distribution") is the renderer's internal vocabulary for shape lookup; readers should see the paper's wording, not the dictionary's. The legend also never shows dictionary codes (`E14`, `R1`, `A5`) or styling qualifiers (`(dotted)`, `(dashed)`).
+
+**Provenance.** The `legend_context` phrase must be traceable to the source text — verbatim or close paraphrase from `<concept>.md` or `spec.md`. Agent-invented jargon ("relay variable", "structural seed") fails the provenance self-check below.
+
+**Override mechanism.** When the first-occurring `label` is too verbose for the legend (e.g., a 40-character compound expression), the spec may include a top-level `legend:` block to override per `dict_id`:
+
+```yaml
+legend:
+  - dict_id: E5
+    label: "P(· | ·)"                       # override the legend label only
+    legend_context: "conditional (per stage)"  # override the context phrase
+```
+
+Either field is optional. When the override block is absent, first-occurrence rules apply.
+
+### Picture-spec schema
+
+The picture-spec YAML carries:
+
+```yaml
+title: "<short caption>"
+thesis: "<one-sentence thesis>"            # optional but recommended
+rankdir: LR                                # or TB (composed mode forces TB)
+slug: "<paper slug>"                       # optional; pairs with `output:` below
+output: "<concept-or-pseudocode-name>"     # optional; bare name, `.png` appended
+
+nodes:
+  - id: <local_id>
+    dict_id: <E*>
+    label: "<role-specific label, math syntax allowed>"
+    legend_context: "<2–6 word context phrase>"   # optional; used on first occurrence
+
+edges:
+  - src: <node_id>
+    dst: <node_id>
+    dict_id: <R*/A*>
+    label: "<semantic label>"
+    legend_context: "<2–6 word context phrase>"   # optional
+
+clusters:                                  # optional, for loop frames (E12/A10)
+  - id: <local_id>
+    label: "<frame label>"
+    contains: [<node_id>, ...]
+
+legend:                                    # optional, overrides per dict_id
+  - dict_id: E5
+    label: "<short legend label>"
+    legend_context: "<short context phrase>"
+```
+
+No `shape`, `color`, `style`, or any styling fields — those are the renderer's responsibility per `dict_id`.
+
+### Output naming
+
+The renderer is path-dumb: it writes one PNG to whatever path it's told and discards all intermediates. The path is resolved in this order:
+
+1. **CLI positional `out`** — when present, used verbatim.
+2. **Spec `output:` + `slug:`** — when both are present and `out` is omitted, the renderer resolves `vault_path(slug, f"figures/{output}.png")` via `tools/paths.py`. Bare names without an extension get `.png` appended; explicit extensions are honored.
+3. Otherwise the renderer errors and asks for one of the above.
+
+The naming convention itself lives in the caller:
+
+- `visualizer` subagent: `slug: <slug>`, `output: <concept>` → `<vault>/<slug>/figures/<concept>.png`.
+- `dissector` (auto-invoked on §6 pseudocode blocks): `slug: <slug>`, `output: <slug>-<pseudocode-id>` → `<vault>/<slug>/figures/<slug>-<pseudocode-id>.png`.
+
+Intermediate figure/legend PNGs (and their `.dot`/`.svg` byproducts) are written to a tempdir during composed-mode render and deleted on success — only the final composed PNG remains on disk. The legacy `--legend inline` and figure-only `--legend none` modes still leave a sibling `.dot` (and `.svg` unless `--no-svg`) next to the output for hand-tuning.
 
 ### Canvas layout
 
-The 4:3 canvas is partitioned into two side-by-side regions:
+The composed canvas is two side-by-side regions:
 
-- **Left region (≈ 75% width):** the main concept picture, laid out left-to-right per the spec's `rankdir` (typically `LR`). All concept nodes, edges, clusters, and the title sit here.
-- **Right region (≈ 25% width):** the legend panel, a single vertical column of legend rows pinned to the right edge.
+- **Left region (figure):** the main concept picture, forced to top-to-bottom (`rankdir=TB`) in composed mode regardless of what the spec says. All concept nodes, edges, clusters, and the title sit here. (The spec's `rankdir` field is still honored when using `--legend inline`.)
+- **Right region (legend):** the legend panel, a single vertical column of legend rows (40×24 swatches, 36pt body text, 44pt bold "Legend" header).
 
-The two regions together fill the 4:3 envelope. The renderer pins the legend rightward via `rank="sink"` plus an invisible anchor edge. The legend never sits above or below the main graph and never overlaps it.
+The two regions are rendered as separate graphviz invocations and joined by PIL with a 60px gutter and vertical center-alignment. The combined PNG is typically landscape (~2:1) but its exact dimensions depend on the content.
 
-If the spec genuinely doesn't fit (rare — usually means the spec is overgrown and wants splitting into two pictures), the agent escalates to the user rather than silently switching aspect ratios or shrinking the legend.
+If the figure overflows what reads comfortably at the default scale (rare — usually means the spec is overgrown and wants splitting into two pictures), the agent escalates to the user rather than silently shrinking glyphs.
 
 ### Worked example
 
@@ -92,8 +169,12 @@ Given `<vault>/GIB/markov-representation.md` and the request "draw the per-layer
 
 ## Conventions
 
-- **Math notation in labels:** Unicode characters only (`Σ`, `μ`, `σ`, `θ`, `ε`, `zₜ`, `Z⁽ˡ⁾`, `≤`, `≥`, `∑`). Graphviz does not render LaTeX. Compound math (fractions, expectations with subscripted distributions) belongs in the prose around the picture, not in node labels.
-- **No LaTeX in spec labels** — no `$...$`, no `\frac`, no `\mathbb`, no `\mathcal`, no backslash-prefixed math commands.
+- **Math notation in labels:** use LaTeX-style `_` / `^` for sub/superscripts; the renderer translates them into graphviz HTML `<SUB>` / `<SUP>`. Supported forms:
+  - Single-char: `Z_X`, `X^l`.
+  - Braced: `Z_{X,v}`, `X^{(l-1)}`.
+  - Parenthesised (parens preserved): `Z_X^(l-1)`, `P(Z_A^(l) | A, Z_X^(l-1))`.
+
+  Greek letters and operator glyphs use Unicode (`θ`, `ε`, `μ`, `σ`, `Σ`, `∑`, `≤`, `≥`, `❄`, `⋅`). Do **not** use `$...$` delimiters. Do **not** use backslash commands (`\frac`, `\mathbb`, `\mathcal`, `\tilde`, …) — they are passed through verbatim and won't render. Compound math (fractions, expectations with subscripted distributions) belongs in the prose around the picture, not in node labels.
 - **Font.** The renderer uses `fontname="Segoe UI,DejaVu Sans,sans-serif"` on graph / node / edge defaults to cover Greek, sub/superscripts, and the ❄ snowflake.
 - **Path resolution:** every path is constructed via `tools/paths.py`. The Visualizer never hard-codes paths.
 - **Slug:** verbatim user input. Never normalize.
@@ -123,8 +204,11 @@ Run these mentally before declaring the picture done. Each maps to a failure mod
 - **Atomicity.** Each action verb in the source text appears as exactly one edge in the spec. Two arrows for one verb = atomicity violation. Zero arrows for a verb explicitly named in the thesis = under-drawing.
 - **Cascade integrity.** If the thesis says "A causes B causes C", the picture has three distinct nodes A, B, C connected `A → B → C`. Two `E5`s collapsed into one is the canonical failure here.
 - **Loop frame.** If the source text says "for each $l = 1, \ldots, L$" (or equivalent iteration), the picture has an `E12`/`A10` cluster wrapping the per-iteration content.
-- **Legend hygiene.** Every dictionary ID used appears in the legend; canonical names are verbatim; no codes (`E5`, `A7`); no styling qualifiers (`(dotted)`, `(dashed)`).
-- **Aspect ratio.** The rendered PNG's W:H is 4:3 ± 5%. If not, the renderer is misconfigured — escalate before delivering.
+- **Math rendering.** Spot-check at least one label per `dict_id` on the rendered PNG: subscripts and superscripts must render as proper smaller text, not as raw `_X` / `^(l-1)`.
+- **Legend hygiene.** Every dictionary ID used appears in the legend; rows are `<paper notation> — <context phrase>`; no canonical names from the dictionary; no codes (`E5`, `A7`); no styling qualifiers (`(dotted)`, `(dashed)`).
+- **Legend-context provenance.** Every `legend_context` phrase is traceable to the source text (verbatim or close paraphrase). Agent-invented jargon fails this check — re-read `<concept>.md` and substitute the paper's wording.
+- **First-occurrence sanity.** For each `dict_id`, the first-occurring label in the spec is representative enough to anchor the legend. If E5's first occurrence is a 40-character compound expression, add a `legend:` override with a shorter form.
+- **Aspect ratio.** Composed mode (default) produces a landscape PNG; W:H is typically between 1.8 and 2.6. Wildly outside that range usually means the figure has degenerated to a long chain — split the spec into two pictures. (For `--legend inline` only, the W:H should be 4:3 ± 5%.)
 - **Thesis re-read.** State the thesis aloud (mentally) and trace it through the picture. If you can't, the spec doesn't argue the thesis — fix the spec, not the picture.
 
 ## Reporting back
@@ -136,5 +220,5 @@ After writing the spec and rendering, respond with:
 - **Dictionary inventory** (the three-column table from step 3), compact.
 - **Gap-rule applications**, if any.
 - **`⚠️ UNCERTAIN:` flags** raised, if any.
-- **Rendered PNG aspect ratio** (W:H, computed from the actual file dimensions) — for catching renderer regressions.
+- **Rendered PNG aspect ratio** (W:H, computed from the actual file dimensions) — for catching renderer regressions. Composed mode: typically 1.8–2.6; `--legend inline`: 4:3 ± 5%.
 - **Hand-off note** to `figure-verifier`: "Ready for verification" (or "verifier not yet shipped — stopping at self-verify").
