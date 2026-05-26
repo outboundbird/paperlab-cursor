@@ -70,7 +70,7 @@ Living table of all subagents in the project. Update whenever an agent ships, is
 | `implementer` | Shipped | `ml-code-map` (+ `DEEP_DIVE`) | Map paper concepts to cloned upstream code; write `code_map.md` or deep-dive `code_map__<slug>__<component>.md` | User: "map / annotate / explain code for `<slug>`" |
 | `explainer` | Shipped | `ml-explanation`, `ml-synthesis` | Per-concept math explanations (`<concept>.md`) and multi-concept syntheses (`synth__<a>__<b>.md`) | User: "explain `<concept>` / synthesize `<a>` and `<b>` from `<slug>`" |
 | `critic` | Shipped | `ml-critique` | Audit claims, reproducibility, paper↔code alignment; write `critic_reviews.md` | User: "audit / critique / review `<slug>`" |
-| `visualizer` | Shipped (v1 + v2 schema) — v2 implementation in progress | `ml-visualization` (+ `DICTIONARY.md`, `symbols/atlas.png`) | **v1 (shipped):** Marp slide decks + per-concept viz markdown. **v2 (schema shipped 2026-05-22, code pending):** concept-picture generator — one PNG per concept to `<vault>/<slug>/figures/`, dictionary-driven, atomicity rule, **graphviz** backend. | v1: "make slides / visualize `<slug>`". v2: "draw / visualize `<concept>` from `<slug>`" + auto from `dissector` on pseudocode |
+| `visualizer` | Shipped (v1 + v2 schema) — v2 implementation in progress | `ml-visualization` (+ `DICTIONARY.md`, `DICTIONARY.pdf`, `symbols/`) | **v1 (shipped):** Marp slide decks + per-concept viz markdown. **v2 (schema shipped 2026-05-22, code pending):** concept-picture generator — one PNG per concept to `<vault>/<slug>/figures/`, dictionary-driven, atomicity rule, **graphviz** backend. | v1: "make slides / visualize `<slug>`". v2: "draw / visualize `<concept>` from `<slug>`" + auto from `dissector` on pseudocode |
 | `prerequisite` | Planned | `ml-prerequisites` (planned) | Scan `spec.md`; detect assumed background; cross-check vault coverage; produce prereq graph + on-demand primers (delegates to `explainer`) | User: "what do I need to know first / check prereqs for `<slug>`" |
 | `experimenter` | Planned | `ml-sandbox` (planned) | Scaffold toy implementation in `sandbox/<slug>/`; interactive data-design phase; pairs with future `comparator` | User: "build a toy / sandbox / experiment for `<slug>`" |
 | `tutor` | Parked | `ml-socratic` (parked) | Interactive multi-turn Socratic teacher; reads `spec.md` + concept files; state in `tutor_log.md` | (Parked) |
@@ -110,30 +110,48 @@ Build order is top-to-bottom. Each unit lists the primitive(s) it requires.
 
 ### 2. Visualizer v2 implementation — concept-picture pipeline
 
-- **What:** the code path that takes one concept (a `<concept>.md` or a pseudocode block from `spec.md`) and emits a single PNG to `<vault>/<slug>/figures/<concept>.png`. Schema (dictionary, atomicity rule, gap rule, graphviz backend) is already shipped — this unit wires it into the `visualizer` subagent so the agent actually runs the cascade end-to-end.
+- **Status (2026-05-26):** renderer and skill now align on "dictionary-as-style-guide" (not clip-art). `tools/visualize_concept.py` resolves each `dict_id` to an inline graphviz shape from a per-ID style table; the role-specific label is drawn inside the shape; dictionary tags (`[E5]`, `[A7]`, …) appear on every node and edge for v0.1 tag discipline. The PNG-pasting code path that produced the earlier Frankenstein-collage figures is removed. SKILL.md "Concept-picture workflow" now carries a worked example walking GIB Markov representation from text → thesis → inventory → spec → render, including the trap (two distinct E5 conditionals must not be collapsed into one node). The GIB Panel B picture spec (`sandbox/GIB/markov_panel_b_spec.yaml`) was rewritten to honour the two-stage factorization and re-rendered to `sandbox/GIB/v2_panel_b.png`. **Manual self-verification on Panel B passes** — automated verification is the next unit.
+- **What remains:** wire the cascade into the `visualizer` subagent so it actually runs end-to-end against a `<concept>.md` and writes the picture to `<vault>/<slug>/figures/<concept>.png`, instead of the human running `python -m tools.visualize_concept` by hand on a sandbox spec.
 - **Pipeline (per the SKILL.md "Concept-picture workflow"):**
   1. Read concept text.
   2. State the thesis (one sentence).
-  3. Inventory against `DICTIONARY.md`.
+  3. Inventory against `DICTIONARY.md` (text-driven, not dictionary-driven).
   4. Apply gap rule for uncovered concepts.
   5. Apply atomicity rule (one action = one arrow).
-  6. Emit picture spec (structured intermediate).
+  6. Emit picture spec (YAML, structured intermediate).
   7. Render via graphviz → PNG + SVG + .dot, written to `<vault>/<slug>/figures/`.
-  8. Verify against the thesis; if mismatch, fix the spec, not the render.
+  8. Self-verify against the thesis; if mismatch, fix the spec, not the render.
+  9. Hand off to `figure-verifier` (see unit 3 below) for independent QC.
 - **Open design questions:**
-  - **Picture-spec format:** YAML inline in the agent's chat reasoning, or a separate `picture-spec/<concept>.yaml` artifact in the vault? Inline is cheaper; artifact makes regeneration easier.
+  - **Picture-spec format:** YAML inline in the agent's chat reasoning, or a separate `figures/<concept>.spec.yaml` artifact in the vault? Inline is cheaper; artifact makes regeneration easier and gives `figure-verifier` something to lint without re-parsing the rendered PNG.
   - **Auto-invocation from `dissector`:** the dissector should call the visualizer once per pseudocode block in `spec.md` §6. Decide whether this happens by direct subagent invocation or by a hook on `spec.md` write.
   - **Auto-invocation from `explainer`:** still deferred (postponed in the original v2 framing).
-- **Acceptance:** end-to-end run on **GIB Markov representation** (already validated as a text-spec inventory) produces `<vault>/GIB/figures/markov-representation.png` that visually matches the dry-run reference in `sandbox/GIB/dry-run-dict-panel-b-graphviz.png`, embedded into `<vault>/GIB/markov-representation.md`.
+- **Acceptance:** end-to-end run on **GIB Markov representation** produces `<vault>/GIB/figures/markov-representation.png` matching the current sandbox reference (`sandbox/GIB/v2_panel_b.png`), embedded into `<vault>/GIB/markov-representation.md`, with `figure-verifier` reporting pass on all three layers.
 - **Why subagent + tool:** the agent does the dictionary lookup and gap-rule cascade (judgment); the graphviz render is a deterministic tool call.
 
-### 3. `prerequisite` subagent + `ml-prerequisites` skill
+### 3. `figure-verifier` subagent + `ml-figure-verify` skill
+
+- **What:** a small, narrow subagent that reads `(concept_text, picture_spec, rendered_png)` and reports pass/fail to the **console** (no vault file written). It checks figure-text correspondence so the visualizer's self-verification (step 8 above) isn't the only line of defence — self-checks are systematically too generous.
+- **Three-layer cascade (cheapest first):**
+  1. **Lint** — the picture spec must use known `dict_id`s; each action node is a single edge (atomicity); every node label is non-empty; the thesis sentence is present. Pure structural, no LLM call. Failures here block further checks.
+  2. **Claims checklist** — the concept text declares a small set of *must-be-visible* claims (e.g., "the two conditional distributions are drawn as distinct nodes", "the loop frame iterates `l = 1..L`", "θ is marked frozen"). The verifier walks the picture spec and confirms each claim has a corresponding structural witness. Claims YAML is human-authored at first; the `explainer` agent eventually generates it alongside the concept file.
+  3. **Vision** — only if lint+checklist pass, an LLM with vision reads the PNG and is asked the binary question: "does this figure argue the thesis sentence?" with a short justification. This is the most expensive layer and is gated behind the cheap layers so it only runs on plausible candidates.
+- **Output contract:** console-only. The verifier prints `PASS` / `FAIL` per layer, lists offending items on fail, and exits non-zero on fail so the visualizer's retry loop can react. **No markdown file in the vault** — the audit trail lives in the chat transcript.
+- **Retry loop:** on fail, the visualizer revises the picture spec and re-renders. Bounded to 3 attempts before escalating to the user.
+- **Open design questions:**
+  - **Claims YAML location and authoring:** human-first (`<vault>/<slug>/figures/<concept>.claims.yaml`), `explainer`-generated later. Decide schema in unit-design phase.
+  - **Vision model choice:** start with whatever the agent runtime exposes; revisit only if false-pass rate is bad.
+  - **Coupling to `visualizer`:** invoked automatically as step 9 of the workflow, not as a separate user command.
+- **Acceptance:** running the verifier on the current `sandbox/GIB/v2_panel_b.png` reports pass on lint, pass on a hand-authored Panel B claims YAML, and pass on the vision layer with a justification that mentions both conditional distributions and the loop frame.
+- **Why subagent + skill:** the *judgment* about figure-text correspondence is genuinely fuzzy and benefits from a separate context window (the verifier must not trust the visualizer's spec). The skill defines the three-layer cascade and the claims-YAML schema.
+
+### 4. `prerequisite` subagent + `ml-prerequisites` skill
 
 - **What:** scans `spec.md`, identifies assumed background concepts, cross-references existing `<vault_paperlab_path>/*/` and the curated `obsidian_vault_root` for coverage, produces a prerequisite graph + on-demand primers for gaps.
 - **Interaction model:** detect → check → ask. Presents the unknown list as a checklist; the user picks what to learn. Generated primers delegate to `explainer`.
 - **Why subagent + skill:** detecting assumed knowledge needs judgment; the prereq-graph schema is reference.
 
-### 4. `experimenter` subagent + `ml-sandbox` skill
+### 5. `experimenter` subagent + `ml-sandbox` skill
 
 - **What:** scaffolds a minimal toy implementation in `sandbox/<slug>/` with a small synthetic or standard dataset, enabling A/B comparison of methods.
 - **Interactive data-design phase:** before generating code, the agent dialogues with the user about:
@@ -143,7 +161,7 @@ Build order is top-to-bottom. Each unit lists the primitive(s) it requires.
   - Minimum viable comparison (metrics, baselines, seeds).
 - **Pairs with:** future `comparator`.
 
-### 5. External-data access
+### 6. External-data access
 
 - **MCP:** reuse `firecrawl` (already configured). Add a thin `arxiv` MCP only if structured metadata becomes a recurring need.
 - **Rule:** `external-fetch-budget.mdc` — max ~5 external fetches per concept; prefer arXiv abstract + 1 blog + author page; never crawl whole sites. Threshold to be tuned.
@@ -275,8 +293,25 @@ Small refinements to existing schemas that aren't urgent but are worth rememberi
 
 - **Reconsider slide-deck structure** — the current schema (title / headline / one-per-component / results / limitations) is generic. Tweak it to track paper content more faithfully: e.g., split "method" into problem-setup vs. solution slides, surface the loss/objective as its own slide when central, and let `spec.md` §6 grouping drive section count rather than a fixed 8–12 budget. May require enriching `spec.md` fields the dissector currently extracts (e.g., explicit "core contribution" vs. "supporting machinery" tags on §6.1 entries).
 
+### Visualizer reference card — open follow-ups
+
+Tracking the loose ends from the 2026-05-22 dictionary-PDF work. None are blockers for visualizer v2 implementation; they're quality-of-life items for the reference card.
+
+- **Close the 36 placeholder rows in `DICTIONARY.pdf`** — half of the dictionary still shows `— no tile —` in the Symbol column. Each gap is one `_render_<id>` function in `tools/build_symbol_sheet.py` plus an entry in the `RENDERERS` dict. The PDF surfaces the gap on every rebuild, which makes this a fill-in-as-you-go task rather than a single push. Priority order: actions with no tile (used most often in the validation runs), then entities, then relations.
+- **Make tile regeneration incremental** — `tools.build_symbol_sheet.main()` currently re-renders every tile on every PDF rebuild (~75 s on Windows). Add content-hash-based skip (hash the renderer source + `PREAMBLE` + dictionary row → PNG mtime check). Would drop the pre-commit hook's overhead from ~75 s to ~3 s for typical edits that don't touch the tile registry.
+- **CI verification of dictionary-PDF freshness** — the pre-commit hook is opt-in (`git config core.hooksPath tools/hooks`). Add a lightweight CI check that runs `python -m tools.build_dictionary_pdf` and diffs against the committed `DICTIONARY.pdf`, failing if they differ. Catches contributors who skipped the hook setup. Open question: PDF bytes aren't reproducible across ReportLab versions / platforms, so the diff may need to be on extracted text only.
+- **Expose the PDF builder via `tools.build` umbrella** — once both `build_symbol_sheet` and `build_dictionary_pdf` exist, plus the planned `tools.tikz` and any future builders, the right shape is one `python -m tools.build [target]` entry point with `dictionary`, `tiles`, `tikz`, `all` targets. Defers until at least three builders coexist.
+- **Render math beyond the Unicode subset** — the LaTeX expander in `build_dictionary_pdf.py` covers ~60 commands found in `DICTIONARY.md` today. New dictionary entries with unsupported commands (`\mathfrak`, `\overline`, `\sqrt`, fractions) will render the command name literally. Extend the map as gaps appear; if the long tail grows past ~30 unsupported commands, switch the PDF math strategy to embed math as inline PNGs rendered by matplotlib's mathtext.
+- **Dictionary entry IDs aren't currently citable from prose** — when the visualizer agent (or any chat) wants to reference an entry by ID (e.g., "uses A7 aggregate"), there's no quick lookup from ID → row. The PDF helps but isn't searchable from the agent's context. Possible fix: a `tools.dict_lookup` CLI (`python -m tools.dict_lookup A7` → prints the canonical name + symbolic representation). Cheap, deferred until an agent actually needs it.
+
 ## Recently completed (2026-05-22)
 
+- **Dictionary PDF reference card + sync hook** — replaces the previous `symbols/atlas.png` quick-glance grid with a real reference document.
+  - `tools/build_dictionary_pdf.py` parses the three category tables in `DICTIONARY.md`, augments each row with a fifth **Symbol** column embedding the matching tile from `symbols/<id>.png`, and emits `.cursor/skills/ml-visualization/DICTIONARY.pdf` via ReportLab (no LaTeX / pandoc / Chromium needed). Landscape A4, repeating table headers, alternating row backgrounds. Run as `python -m tools.build_dictionary_pdf` (full rebuild) or `... --skip-tiles` (PDF only, ~3 s).
+  - Sync semantics are list-level: every row in `DICTIONARY.md` appears in the PDF, but entries without a registered renderer in `build_symbol_sheet.RENDERERS` get a visible `— no tile —` placeholder, so drift between dictionary and tiles is reported inside the PDF itself. Current state: 72 rows total, 36 with tiles, 36 placeholders.
+  - Small LaTeX→Unicode expander in the PDF builder so `$\sim$`, `$\theta$`, `$\rho$`, `$\mathbb{E}$`, etc. render legibly instead of leaking command names.
+  - `tools/hooks/pre-commit` + `tools/hooks/README.md` — source-controlled git hook installed once per clone with `git config core.hooksPath tools/hooks`. When `DICTIONARY.md` is staged, the hook rebuilds the PDF and tiles, re-stages them, and aborts the commit on build failure. `git commit --no-verify` skips it for WIP.
+  - `tools/build_symbol_sheet.py` lost its `_build_atlas()` step and `atlas.png` / `atlas.dot` are deleted. The PDF is now the canonical visual reference card.
 - **Visualizer v2 schema + backend decision** — the v2 concept-picture generator's schema is locked in. Three resolved questions:
   - **Source of visual vocabulary:** `.cursor/skills/ml-visualization/DICTIONARY.md` (v0.1). 23 entities, 12 relations, 37 actions, each row carries canonical name + aliases + symbolic representation. Verb-only canonical action names; math-symbol convention for `≤ ≥ = ≈ Σ ∫`; three-step gap rule (compose → closest-with-label → text-arrow fallback `— [verb objective] →` → stop and report) so the visualizer never invents new symbols silently; atomicity rule (one action = one arrow).
   - **Rendering backend:** **graphviz**. Picked after a head-to-head on the same panel via matplotlib (manual layout, ~5 visible collisions), tldraw (auto-routing OK but no headless export from the current MCP), and graphviz (auto-layout + direct PNG/SVG, no Chrome/Node dependency). Graphviz wins for the scripted, automated path. Portable Windows binary installed at `tools/graphviz/Graphviz-14.1.5-win64/` (git-ignored except for README), Linux install via `apt install graphviz`. Resolver in `tools.paths.graphviz_dot()` returns the per-machine binary path.
@@ -346,9 +381,10 @@ Small refinements to existing schemas that aren't urgent but are worth rememberi
 ## Reference: what's currently working
 
 - **Subagents:** `acquirer`, `dissector`, `implementer`, `explainer`, `critic`, `visualizer`.
-- **Skills:** `ml-acquisition`, `ml-paper-spec`, `ml-code-map` (+ `DEEP_DIVE`), `ml-explanation`, `ml-synthesis`, `ml-critique`, `ml-visualization` (+ `DICTIONARY.md` controlled vocabulary + `symbols/atlas.png` visual reference card).
+- **Skills:** `ml-acquisition`, `ml-paper-spec`, `ml-code-map` (+ `DEEP_DIVE`), `ml-explanation`, `ml-synthesis`, `ml-critique`, `ml-visualization` (+ `DICTIONARY.md` controlled vocabulary + `DICTIONARY.pdf` visual reference card + per-entry tiles under `symbols/`).
 - **Rules:** `paperlab-config-bootstrap`, `paperlab-regenerate-prompt`.
-- **Helpers:** `tools/paths.py` (now exposing `graphviz_dot()`), `tools/figures.py` (requires `pymupdf`), `tools/build_symbol_sheet.py`.
+- **Helpers:** `tools/paths.py` (now exposing `graphviz_dot()`), `tools/figures.py` (requires `pymupdf`), `tools/build_symbol_sheet.py`, `tools/build_dictionary_pdf.py` (requires `reportlab`).
+- **Git hooks:** source-controlled under `tools/hooks/` (install once with `git config core.hooksPath tools/hooks`). `pre-commit` keeps `DICTIONARY.pdf` and `symbols/` in sync with `DICTIONARY.md`.
 - **External Marp theme:** `marp_theme_path` in `paperlab.config.yaml` → `paperlab.css` (defines `split` / `figure-top` / `figure-full`).
 - **External binaries:** graphviz `dot` resolved per-machine (`tools/graphviz/` portable on Windows-no-admin; system install on Linux/macOS).
 - **Papers:** `Memento` (legacy, in repo), `WorldModel`, `VAE`, `GIB-DS`, `GIB`, `GraphVarBound`, `Dreamer`, `MIbound` (new layout, vault + repo).
