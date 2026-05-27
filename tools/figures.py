@@ -1,8 +1,8 @@
 """Figure & table discovery and extraction for PaperLab.
 
-The Visualizer subagent uses this module to embed the paper's *own* figures
-in slides instead of inventing substitute Mermaid diagrams. The Dissector
-uses it to populate the §4.5 Figures & Tables section of ``spec.md``.
+The Dissector uses this module to populate the §4.5 Figures & Tables section
+of ``spec.md``. (Previously also used by the Visualizer subagent, which is
+on hold as of 2026-05-27 — see ``visualizer-todo.md``.)
 
 Strategy
 --------

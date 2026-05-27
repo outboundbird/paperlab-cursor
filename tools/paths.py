@@ -106,17 +106,6 @@ def obsidian_vault_root() -> Path | None:
     return Path(val).resolve() if val else None
 
 
-def marp_theme_path() -> Path | None:
-    """Absolute path to the external Marp theme CSS, if configured.
-
-    Used by the ``visualizer`` agent and any Marp renderer (CLI, VS Code,
-    Obsidian plugin) to load a single shared theme rather than inlining CSS
-    into every ``slides.md``. Returns ``None`` if not configured.
-    """
-    val = load_config().get("marp_theme_path")
-    return Path(val).resolve() if val else None
-
-
 # ---------------------------------------------------------------------------
 # Vault paths (agent-generated markdown lives here).
 # ---------------------------------------------------------------------------
@@ -163,56 +152,6 @@ def repo_sandbox_dir(slug: str) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# External tools (per-machine binary resolvers).
-# ---------------------------------------------------------------------------
-
-
-def graphviz_dot() -> Path:
-    """Absolute path to the ``dot`` binary on this machine.
-
-    Resolution order:
-
-    1. Repo-local portable binary at ``<repo>/tools/graphviz/Graphviz-*/bin/dot[.exe]``
-       (Windows-no-admin or any machine that wants a self-contained install).
-    2. System ``dot`` on ``PATH`` (Linux / macOS package manager install).
-
-    Returns
-    -------
-    Path
-        Absolute path to a working ``dot`` executable.
-
-    Raises
-    ------
-    FileNotFoundError
-        If neither a repo-local portable binary nor a system ``dot`` is found.
-    """
-    import shutil
-
-    portable_root = repo_root() / "tools" / "graphviz"
-    if portable_root.is_dir():
-        # Match Graphviz-<version>-win64/bin/dot.exe (Windows) or .../bin/dot (Linux).
-        candidates = [
-            *portable_root.glob("Graphviz-*/bin/dot.exe"),
-            *portable_root.glob("Graphviz-*/bin/dot"),
-            *portable_root.glob("*/bin/dot.exe"),
-            *portable_root.glob("*/bin/dot"),
-        ]
-        if candidates:
-            return candidates[0].resolve()
-
-    system_dot = shutil.which("dot")
-    if system_dot:
-        return Path(system_dot).resolve()
-
-    raise FileNotFoundError(
-        "Could not find the graphviz `dot` binary. Either install graphviz "
-        "system-wide (e.g. `apt install graphviz` on Linux) or download the "
-        "portable Windows build to <repo>/tools/graphviz/ "
-        "(see tools/graphviz/README.md for the URL)."
-    )
-
-
-# ---------------------------------------------------------------------------
 # CLI for quick lookups from a shell, useful for agents that prefer subprocess
 # calls over Python imports.
 # ---------------------------------------------------------------------------
@@ -230,8 +169,6 @@ def _cli() -> None:
     - ``supplementals`` : prints ``repo_supplementals_dir(slug)``
     - ``upstream`` : prints ``repo_upstream_dir(slug)``
     - ``sandbox`` : prints ``repo_sandbox_dir(slug)``
-    - ``marp-theme`` : prints ``marp_theme_path()`` (slug ignored)
-    - ``dot`` : prints ``graphviz_dot()`` (slug ignored)
     """
     import sys
 
@@ -268,13 +205,6 @@ def _cli() -> None:
         print(repo_upstream_dir(slug))
     elif kind == "sandbox":
         print(repo_sandbox_dir(slug))
-    elif kind == "marp-theme":
-        path = marp_theme_path()
-        if path is None:
-            raise SystemExit("marp_theme_path is not set in paperlab.config.yaml")
-        print(path)
-    elif kind == "dot":
-        print(graphviz_dot())
     else:
         raise SystemExit(f"Unknown kind: {kind!r}. Run with --help.")
 

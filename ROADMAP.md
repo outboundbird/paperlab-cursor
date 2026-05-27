@@ -40,8 +40,6 @@ All agent-generated files live flat under one folder per paper:
     ├── critic_reviews.md
     ├── <concept>.md
     ├── synth__<a>__<b>.md
-    ├── slides.md                  Marp deck (later: visualizer)
-    ├── *.tldr / *.svg / *.png     diagrams (later: visualizer)
     ├── notes.md                   user notes
     └── tutor_log.md               later: tutor
 ```
@@ -66,12 +64,12 @@ Living table of all subagents in the project. Update whenever an agent ships, is
 | Agent | Status | Skill(s) | Role | Invocation cue |
 |---|---|---|---|---|
 | `acquirer` | Shipped | `ml-acquisition` | Set up per-paper repo + vault folders; download PDF / supplements; clone upstream; write `paper-info.md` | User: "acquire / add / initialize / download paper `<slug>`" |
-| `dissector` | Shipped | `ml-paper-spec` | Read `<slug>.pdf`; write `spec.md` (structured extraction). (Planned auto-invocation of `visualizer` on §6 pseudocode blocks suspended while `visualizer` is on hold.) | User: "dissect / parse / summarize / spec paper `<slug>`" |
+| `dissector` | Shipped | `ml-paper-spec` | Read `<slug>.pdf`; write `spec.md` (structured extraction). | User: "dissect / parse / summarize / spec paper `<slug>`" |
 | `implementer` | Shipped | `ml-code-map` (+ `DEEP_DIVE`) | Map paper concepts to cloned upstream code; write `code_map.md` or deep-dive `code_map__<slug>__<component>.md` | User: "map / annotate / explain code for `<slug>`" |
 | `explainer` | Shipped | `ml-explanation`, `ml-synthesis` | Per-concept math explanations (`<concept>.md`) and multi-concept syntheses (`synth__<a>__<b>.md`) | User: "explain `<concept>` / synthesize `<a>` and `<b>` from `<slug>`" |
 | `critic` | Shipped | `ml-critique` | Audit claims, reproducibility, paper↔code alignment; write `critic_reviews.md` | User: "audit / critique / review `<slug>`" |
-| `visualizer` | **On hold (2026-05-27)** | `ml-visualization`, `ml-visualization-dsl` | Concept-picture generator. Four implementation iterations (graphviz baseline → cast/headline schema → DSL with `Juxtapose`/`Decompose` → end-to-end DSL run on real concepts) did not reach the hand-drawn quality bar. Spec, skills, renderers, and dictionary retained as reusable artifacts. See `visualizer-todo.md` for the full chronicle and a research-flavored side-project spec. | (On hold — do not invoke) |
-| `figure-verifier` | **On hold (2026-05-27)** | `ml-figure-verify` (never authored) | Three-layer pass/fail check on `(concept_text, picture_spec, rendered_png)`. Coupled to the visualizer's retry loop; on hold for the same reason. | (On hold — do not invoke) |
+| `visualizer` | **On hold (2026-05-27)** | (archived) | Concept-picture generator. Four implementation iterations did not reach the hand-drawn quality bar. Code, skills, dictionary, and renderers archived on branch `visualizer` and tag `archive-visualizer-2026-05-27`; removed from `main`. See `visualizer-todo.md` for the full chronicle and a research-flavored side-project spec. | (On hold — do not invoke) |
+| `figure-verifier` | **On hold (2026-05-27)** | (never authored) | Three-layer pass/fail check on `(concept_text, picture_spec, rendered_png)`. Coupled to the visualizer's retry loop; on hold for the same reason. | (On hold — do not invoke) |
 | `prerequisite` | Planned | `ml-prerequisites` (planned) | Scan `spec.md`; detect assumed background; cross-check vault coverage; produce prereq graph + on-demand primers (delegates to `explainer`) | User: "what do I need to know first / check prereqs for `<slug>`" |
 | `experimenter` | Planned | `ml-sandbox` (planned) | Scaffold toy implementation in `sandbox/<slug>/`; interactive data-design phase; pairs with future `comparator` | User: "build a toy / sandbox / experiment for `<slug>`" |
 | `tutor` | Parked | `ml-socratic` (parked) | Interactive multi-turn Socratic teacher; reads `spec.md` + concept files; state in `tutor_log.md` | (Parked) |
@@ -138,7 +136,7 @@ Units that were started or shipped and are now paused after running into a quali
 
 - **What:** the `visualizer` subagent (Marp slide decks v1, concept-picture generator v2) and the planned `figure-verifier` subagent.
 - **Why on hold:** four implementation iterations (graphviz baseline → cast/headline schema → DSL with `Juxtapose`/`Decompose` → end-to-end DSL run on real concepts) did not reach the hand-drawn quality bar the user is targeting. Run-1 of the DSL on GIB Markov representation produced an algebraically-correct picture that did not visually resemble a Markov chain; Run-3 on GIB-Cat sampling correctly refused to force-fit the DSL but the graphviz fallback still emitted spreadsheet-style labels. The architectural ceiling is the LLM's inability to make global spatial decisions; closing that gap is a research problem (corpus + learned layout model), not a tooling problem.
-- **Artifacts retained as reusable inputs:** `tools/visualize_concept.py` (graphviz pipeline), `tools/figure_dsl.py` + `tools/render_dsl.py` (operator-tree DSL skeleton), `.cursor/skills/ml-visualization/` + `ml-visualization-dsl/`, `DICTIONARY.md` / `.pdf` / `symbols/` (~70 typed visual idioms), sandbox stress-test PNGs, `.cursor/agents/visualizer.md`.
+- **Archive location:** all code, skills, agent prompt, dictionary, and sandbox stress-test PNGs were removed from `main` (2026-05-27) and preserved on branch `visualizer` and tag `archive-visualizer-2026-05-27`. To resurrect any piece, `git checkout archive-visualizer-2026-05-27 -- <path>`.
 - **Pointer:** see [`visualizer-todo.md`](./visualizer-todo.md) at the repo root for the full chronicle of what was tried, what was learned, and a research-flavored side-project spec (corpus, model directions, evaluation, baselines, suggested first milestone).
 - **Trigger to revisit:** (a) a side-project run produces a layout policy that beats the iteration-3 DSL on a labeled corpus; or (b) PaperLab's needs shift to figure quality being a blocker rather than a nice-to-have.
 
@@ -269,17 +267,6 @@ Small refinements to existing schemas that aren't urgent but are worth rememberi
 
 - **Reconsider slide-deck structure** — the current schema (title / headline / one-per-component / results / limitations) is generic. Tweak it to track paper content more faithfully: e.g., split "method" into problem-setup vs. solution slides, surface the loss/objective as its own slide when central, and let `spec.md` §6 grouping drive section count rather than a fixed 8–12 budget. May require enriching `spec.md` fields the dissector currently extracts (e.g., explicit "core contribution" vs. "supporting machinery" tags on §6.1 entries).
 
-### Visualizer reference card — open follow-ups
-
-Tracking the loose ends from the 2026-05-22 dictionary-PDF work. None are blockers for visualizer v2 implementation; they're quality-of-life items for the reference card.
-
-- **Close the 36 placeholder rows in `DICTIONARY.pdf`** — half of the dictionary still shows `— no tile —` in the Symbol column. Each gap is one `_render_<id>` function in `tools/build_symbol_sheet.py` plus an entry in the `RENDERERS` dict. The PDF surfaces the gap on every rebuild, which makes this a fill-in-as-you-go task rather than a single push. Priority order: actions with no tile (used most often in the validation runs), then entities, then relations.
-- **Make tile regeneration incremental** — `tools.build_symbol_sheet.main()` currently re-renders every tile on every PDF rebuild (~75 s on Windows). Add content-hash-based skip (hash the renderer source + `PREAMBLE` + dictionary row → PNG mtime check). Would drop the pre-commit hook's overhead from ~75 s to ~3 s for typical edits that don't touch the tile registry.
-- **CI verification of dictionary-PDF freshness** — the pre-commit hook is opt-in (`git config core.hooksPath tools/hooks`). Add a lightweight CI check that runs `python -m tools.build_dictionary_pdf` and diffs against the committed `DICTIONARY.pdf`, failing if they differ. Catches contributors who skipped the hook setup. Open question: PDF bytes aren't reproducible across ReportLab versions / platforms, so the diff may need to be on extracted text only.
-- **Expose the PDF builder via `tools.build` umbrella** — once both `build_symbol_sheet` and `build_dictionary_pdf` exist, plus the planned `tools.tikz` and any future builders, the right shape is one `python -m tools.build [target]` entry point with `dictionary`, `tiles`, `tikz`, `all` targets. Defers until at least three builders coexist.
-- **Render math beyond the Unicode subset** — the LaTeX expander in `build_dictionary_pdf.py` covers ~60 commands found in `DICTIONARY.md` today. New dictionary entries with unsupported commands (`\mathfrak`, `\overline`, `\sqrt`, fractions) will render the command name literally. Extend the map as gaps appear; if the long tail grows past ~30 unsupported commands, switch the PDF math strategy to embed math as inline PNGs rendered by matplotlib's mathtext.
-- **Dictionary entry IDs aren't currently citable from prose** — when the visualizer agent (or any chat) wants to reference an entry by ID (e.g., "uses A7 aggregate"), there's no quick lookup from ID → row. The PDF helps but isn't searchable from the agent's context. Possible fix: a `tools.dict_lookup` CLI (`python -m tools.dict_lookup A7` → prints the canonical name + symbolic representation). Cheap, deferred until an agent actually needs it.
-
 ## Recently completed (2026-05-22)
 
 - **Dictionary PDF reference card + sync hook** — replaces the previous `symbols/atlas.png` quick-glance grid with a real reference document.
@@ -357,12 +344,8 @@ Tracking the loose ends from the 2026-05-22 dictionary-PDF work. None are blocke
 ## Reference: what's currently working
 
 - **Subagents (active):** `acquirer`, `dissector`, `implementer`, `explainer`, `critic`.
-- **Subagents (on hold, 2026-05-27):** `visualizer` (artifacts retained — see `visualizer-todo.md`).
+- **Subagents (on hold, 2026-05-27):** `visualizer` (archived to branch `visualizer` and tag `archive-visualizer-2026-05-27`; removed from `main` — see `visualizer-todo.md`).
 - **Skills (active):** `ml-acquisition`, `ml-paper-spec`, `ml-code-map` (+ `DEEP_DIVE`), `ml-explanation`, `ml-synthesis`, `ml-critique`.
-- **Skills (retained but unused while visualizer is on hold):** `ml-visualization` (+ `DICTIONARY.md` + `DICTIONARY.pdf` + `symbols/`), `ml-visualization-dsl`.
 - **Rules:** `paperlab-config-bootstrap`, `paperlab-regenerate-prompt`.
-- **Helpers:** `tools/paths.py` (now exposing `graphviz_dot()`), `tools/figures.py` (requires `pymupdf`), `tools/build_symbol_sheet.py`, `tools/build_dictionary_pdf.py` (requires `reportlab`).
-- **Git hooks:** source-controlled under `tools/hooks/` (install once with `git config core.hooksPath tools/hooks`). `pre-commit` keeps `DICTIONARY.pdf` and `symbols/` in sync with `DICTIONARY.md`.
-- **External Marp theme:** `marp_theme_path` in `paperlab.config.yaml` → `paperlab.css` (defines `split` / `figure-top` / `figure-full`).
-- **External binaries:** graphviz `dot` resolved per-machine (`tools/graphviz/` portable on Windows-no-admin; system install on Linux/macOS).
+- **Helpers:** `tools/paths.py`, `tools/figures.py` (requires `pymupdf`).
 - **Papers:** `Memento` (legacy, in repo), `WorldModel`, `VAE`, `GIB-DS`, `GIB`, `GraphVarBound`, `Dreamer`, `MIbound` (new layout, vault + repo).

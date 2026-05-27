@@ -124,7 +124,7 @@ For example:
 
 ### 4.5 Figures & Tables
 
-Catalog every figure and table the paper contains. Downstream subagents (especially the Visualizer) rely on this section to know *what the paper itself shows* — without it they can only synthesize new diagrams from the prose and routinely miss the canonical architecture figure (which may appear late in the paper, not as Figure 1).
+Catalog every figure and table the paper contains. Downstream subagents and the user rely on this section to know *what the paper itself shows* — without it, generated explanations can only synthesize new diagrams from the prose and routinely miss the canonical architecture figure (which may appear late in the paper, not as Figure 1).
 
 Populate the two tables below by calling `tools.figures.list_figures(slug)` (which parses captions from the cached PDF text). The Dissector adds the `Role` and `Components shown` columns by reading each caption and matching it against the paper's prose.
 

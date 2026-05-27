@@ -38,8 +38,9 @@ All agent-generated files live flat under one folder per paper at `<vault_paperl
 - `<concept>.md` — concept explanation from the `explainer` subagent.
 - `synth__<concept_a>__<concept_b>.md` — concept synthesis from the `explainer` subagent.
 - `notes.md` — user notes.
-- (Later) `slides.md`, `*.tldr`, `*.svg`, `*.png` from the `visualizer` subagent.
 - (Later) `tutor_log.md` from the `tutor` subagent.
+
+> The `visualizer` subagent (`slides.md`, `*.tldr`, `*.svg`, `*.png`) is **on hold** as of 2026-05-27. See [`visualizer-todo.md`](./visualizer-todo.md) and the archive branch `visualizer` for the previous implementation.
 
 ### Unified file convention
 
@@ -60,7 +61,6 @@ PaperLab uses Cursor project subagents in `.cursor/agents/`.
 - `implementer` maps paper concepts to official code and writes `code_map.md` to the vault; deep-dive mode writes `code_map__<slug>__<component>.md`.
 - `explainer` writes single-concept explanation files or synthesis files to the vault.
 - `critic` audits claims, reproducibility, and paper-code alignment, then writes `critic_reviews.md` to the vault.
-- `visualizer` produces a Marp slide deck (`slides.md`) summarizing the paper, or a standalone per-concept visualization (`<concept>__viz.md`). Defaults to **TikZ + Marp** (theme `paperlab`, registered via `marp_theme_path` in `paperlab.config.yaml`); Mermaid is a narrow fallback for strict no-math pipelines; escalates to extracted PNG / matplotlib SVG / tldraw `.tldr` per the extract-first waterfall.
 
 ## Agent-To-Skill Mapping
 
@@ -73,7 +73,6 @@ Each subagent must read its corresponding skill before task-specific work:
 - `critic` → `.cursor/skills/ml-critique/SKILL.md`
 - `explainer` single-concept mode → `.cursor/skills/ml-explanation/SKILL.md`
 - `explainer` synthesis mode → `.cursor/skills/ml-synthesis/SKILL.md`
-- `visualizer` (both modes) → `.cursor/skills/ml-visualization/SKILL.md`
 
 Treat those skills as authoritative for output structure, naming, scope boundaries, and self-checks.
 
@@ -86,7 +85,6 @@ For each paper:
 3. Use the `implementer` subagent to produce `code_map.md`, if upstream code exists.
 4. Use the `critic` subagent to produce `critic_reviews.md`.
 5. Use the `explainer` subagent on demand for concepts or syntheses.
-6. Use the `visualizer` subagent for a slide deck or per-concept diagram.
 
 ## Uncertainty Rule
 
