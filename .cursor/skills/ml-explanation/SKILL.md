@@ -7,7 +7,16 @@ description: Defines the schema for writing single-concept math explanations fro
 
 ## Purpose
 
-This file defines the schema for single-concept explanation files produced by the Explainer subagent.
+This file defines the schema for single-concept explanation files. As of 2026-05-27, two different agents write files conforming to this schema, with two different filenames and slightly different responsibilities:
+
+| Writer | Output filename | Audience | Cross-references |
+|---|---|---|---|
+| **Explainer** (backend, invoked by Tutor) | `<concept>-<slug>.md` | Tutor (intermediate artifact); user may also read | One-way Section 6 links allowed; Explainer does not maintain reciprocal links |
+| **Tutor** (user-facing) | `<concept>.md` | User (final study reference) | Must maintain **bidirectional** links per `ml-socratic/SKILL.md` rule R7 |
+
+The on-disk schema (six sections, math conventions, notation rules) is the same for both files. The only differences are the filename, the writer, and whether bidirectional cross-references are maintained.
+
+The user does not invoke the Explainer directly — all concept work flows through the Tutor (`/tutor <slug>`). See `.cursor/skills/ml-socratic/SKILL.md` for the full Tutor protocol.
 
 ## Conventions
 Global rules that apply to all sections:
@@ -26,20 +35,25 @@ Global rules that apply to all sections:
   note the alternative once in the Definition section (e.g., "$U'$ in this
   paper corresponds to what Pearl (2009) writes as $X$") but then use the
   paper's notation consistently thereafter.
-- **output file naming**: the output file should be named `<concept>.md`. Do NOT output `explanation_<concept>.md`
-- **diagram rules**: Mermaid for graphs/flows; ASCII for tensor shapes; reference paper figures when they exist. Use graphs/ flows for concept explanation as necessary.
-- **cross-reference syntax**: Plain markdown links
-- **structure**: 6 sections: Definition, Motivation, Intuition, Formal statement, Worked example, Cross-references
-- **file placement rule** : write up the file at `vault_path(slug, "<concept>.md")` where `<slug>` is the paper where Explainer is first asked to explain this concept. If the same concept appears in another paper later, do not create a duplicate file — link to the existing one from the second paper's context, and optionally add a short note describing how the second paper uses the concept differently. Paths are resolved via `tools/paths.py`.
-- **Bidirectional cross-referencing**: when Section 6 of a new concept file links to an existing concept file, Explainer subagent must also add a reciprocal link in the existing file's Section 6. Specifically:
-  - Read the existing file's Section 6 ("Related concepts" subsection).
-  - If it currently says "None", replace that entire line with a new  bulleted list containing the reciprocal link.
-  - If it already has a "Related concepts" list, append the new link as a new bullet. Do not modify, reorder, or remove existing entries.
-  - Each bullet follows the same format used throughout:
-    `[<concept>](<concept>.md) — one-sentence description of the
-    relationship`.
-  The invariant to maintain: if file A's Section 6 links to file B, then file B's Section 6 must link back to A.
-- Before writing, Explainer subagent checks all `vault_root()/*/<concept>.md` paths. If the concept already has a file anywhere in the vault, do not create a new file — instead, read the existing file, offer to update or extend it if appropriate, and/or add a cross-reference from the current paper's context.
+- **output file naming**:
+  - When written by the **Explainer** (backend), the file is named `<concept>-<slug>.md`. The `-<slug>` suffix marks it as paper-bound backend output.
+  - When written by the **Tutor** (user-facing), the file is named `<concept>.md` (no slug suffix). The Tutor composes this file from the Explainer's `<concept>-<slug>.md` plus general field framing.
+  - Either way, do NOT use an `explanation_` prefix.
+- **diagram rules**: Mermaid for graphs/flows; ASCII for tensor shapes; reference paper figures when they exist. Use graphs/flows for concept explanation as necessary.
+- **cross-reference syntax**: Plain markdown links.
+- **structure**: 6 sections: Definition, Motivation, Intuition, Formal statement, Worked example, Cross-references.
+- **file placement rule**:
+  - Explainer writes to `vault_path(slug, "<concept>-<slug>.md")`, where `<slug>` is the paper the Tutor invoked the Explainer for. Paths are resolved via `tools/paths.py`.
+  - Tutor writes to `vault_path(slug, "<concept>.md")`, where `<slug>` is the paper of the Tutor session that produced the file. If the same concept later comes up in another paper's session, the Tutor reads the existing `<concept>.md` from the originating paper's folder rather than creating a duplicate; per-paper differences may be noted in the new paper's `tutor_notes.md`.
+- **Bidirectional cross-referencing**:
+  - **Tutor (`<concept>.md` writes only)** must maintain bidirectional links: when Section 6 of a new `<concept>.md` links to another `<concept>.md` in any vault paper folder, the Tutor must add a reciprocal link to that file's Section 6. Procedure:
+    - Read the target file's Section 6 ("Related concepts" sublist).
+    - If it currently says "None.", replace that entire line with a new bulleted list containing the reciprocal link.
+    - If it already has a "Related concepts" list, append the new link as a new bullet. Do not modify, reorder, or remove existing entries.
+    - Each bullet:  `[<concept>](<concept>.md) — one-sentence description of the relationship`.
+    - The invariant: if file A's Section 6 links to file B, then file B's Section 6 must link back to A.
+  - **Explainer (`<concept>-<slug>.md` writes)** does NOT maintain bidirectional links. The Explainer may include one-way Section 6 cross-references where they help the reader; the Tutor reconciles cross-references when composing the final `<concept>.md`.
+- **Vault-wide existing-file check**: the Tutor (not the Explainer) checks `vault_root()/*/<concept>.md` paths before writing. If a concept already has a `<concept>.md` somewhere in the vault, the Tutor reuses the existing file rather than creating a duplicate. Per the rule above, this lookup is the Tutor's responsibility; the Explainer's backend file (`<concept>-<slug>.md`) is always written fresh per paper.
 
 ## Required sections (in this order)
 

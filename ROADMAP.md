@@ -35,13 +35,15 @@ All agent-generated files live flat under one folder per paper:
 └── <slug>/
     ├── paper-info.md
     ├── spec.md
-    ├── mdp.md
     ├── code_map.md
     ├── critic_reviews.md
-    ├── <concept>.md
-    ├── synth__<a>__<b>.md
-    ├── notes.md                   user notes
-    └── tutor_log.md               later: tutor
+    ├── tutor_log.md               tutor: per-turn breadcrumb log (append-only)
+    ├── tutor_notes.md             tutor: curated study notes (user-triggered)
+    ├── <concept>.md               tutor-written (final, user-facing)
+    ├── <concept>-<slug>.md        explainer-written (backend intermediate)
+    ├── synth__<a>__<b>.md         tutor-written (final, user-facing)
+    ├── synth__<a>__<b>-<slug>.md  explainer-written (backend intermediate)
+    └── notes.md                   user notes
 ```
 
 Current `vault_paperlab_path` (work machine): `C:/Users/e0482362/OneDrive - Sanofi/Workspace/Topics/public/Modeling 🎓/PaperLab`.
@@ -66,13 +68,13 @@ Living table of all subagents in the project. Update whenever an agent ships, is
 | `acquirer` | Shipped | `ml-acquisition` | Set up per-paper repo + vault folders; download PDF / supplements; clone upstream; write `paper-info.md` | User: "acquire / add / initialize / download paper `<slug>`" |
 | `dissector` | Shipped | `ml-paper-spec` | Read `<slug>.pdf`; write `spec.md` (structured extraction). | User: "dissect / parse / summarize / spec paper `<slug>`" |
 | `implementer` | Shipped | `ml-code-map` (+ `DEEP_DIVE`) | Map paper concepts to cloned upstream code; write `code_map.md` or deep-dive `code_map__<slug>__<component>.md` | User: "map / annotate / explain code for `<slug>`" |
-| `explainer` | Shipped | `ml-explanation`, `ml-synthesis` | Per-concept math explanations (`<concept>.md`) and multi-concept syntheses (`synth__<a>__<b>.md`) | User: "explain `<concept>` / synthesize `<a>` and `<b>` from `<slug>`" |
 | `critic` | Shipped | `ml-critique` | Audit claims, reproducibility, paper↔code alignment; write `critic_reviews.md` | User: "audit / critique / review `<slug>`" |
+| `tutor` | **Shipped (2026-05-27)** | `ml-socratic` (+ `ml-explanation`, `ml-synthesis` when writing concept / synthesis files) | User-facing conversational tutor. Anchored to one paper at a time; paper-grounded + field-grounded; persistent memory via `tutor_log.md`. Invokes `explainer` in the background when paper-bound content is missing. Writes `tutor_log.md` (every turn), and on explicit user request `tutor_notes.md`, `<concept>.md`, `synth__<a>__<b>.md`. | User: `/tutor <slug>` or `/tutor` to resume the most recent session |
+| `explainer` | **Backend-only (2026-05-27)** | `ml-explanation`, `ml-synthesis` | Invoked by `tutor`, not by the user. Writes paper-bound intermediates `<concept>-<slug>.md` and `synth__<a>__<b>-<slug>.md` for the tutor to consume. | (Internal — invoked by `tutor`) |
 | `visualizer` | **On hold (2026-05-27)** | (archived) | Concept-picture generator. Four implementation iterations did not reach the hand-drawn quality bar. Code, skills, dictionary, and renderers archived on branch `visualizer` and tag `archive-visualizer-2026-05-27`; removed from `main`. See `visualizer-todo.md` for the full chronicle and a research-flavored side-project spec. | (On hold — do not invoke) |
 | `figure-verifier` | **On hold (2026-05-27)** | (never authored) | Three-layer pass/fail check on `(concept_text, picture_spec, rendered_png)`. Coupled to the visualizer's retry loop; on hold for the same reason. | (On hold — do not invoke) |
-| `prerequisite` | Planned | `ml-prerequisites` (planned) | Scan `spec.md`; detect assumed background; cross-check vault coverage; produce prereq graph + on-demand primers (delegates to `explainer`) | User: "what do I need to know first / check prereqs for `<slug>`" |
+| `prerequisite` | Planned | `ml-prerequisites` (planned) | Scan `spec.md`; detect assumed background; cross-check vault coverage; produce prereq graph + on-demand primers (delegates to `tutor`) | User: "what do I need to know first / check prereqs for `<slug>`" |
 | `experimenter` | Planned | `ml-sandbox` (planned) | Scaffold toy implementation in `sandbox/<slug>/`; interactive data-design phase; pairs with future `comparator` | User: "build a toy / sandbox / experiment for `<slug>`" |
-| `tutor` | Parked | `ml-socratic` (parked) | Interactive multi-turn Socratic teacher; reads `spec.md` + concept files; state in `tutor_log.md` | (Parked) |
 | `comparator` | Parked | `ml-comparison` (parked) | Cross-paper synthesis on a comparison axis; output to `<vault>/PaperLab/comparisons/<topic>/comparison.md` | (Parked) |
 
 ## Decision framework: agent vs. skill vs. rule vs. hook vs. MCP
@@ -143,12 +145,6 @@ Units that were started or shipped and are now paused after running into a quali
 ## Parked
 
 Designed but deferred until the units above are stable.
-
-### `tutor` subagent + `ml-socratic` skill
-
-- **What:** interactive, multi-turn Socratic teacher. Reads `spec.md` + concept files, picks next concept, explains (delegating to `visualizer`), quizzes, adapts.
-- **State:** `tutor_log.md` per paper.
-- **Why parked:** log schema and overlap with explainer outputs need more thought.
 
 ### `comparator` subagent + `ml-comparison` skill
 
@@ -267,6 +263,20 @@ Small refinements to existing schemas that aren't urgent but are worth rememberi
 
 - **Reconsider slide-deck structure** — the current schema (title / headline / one-per-component / results / limitations) is generic. Tweak it to track paper content more faithfully: e.g., split "method" into problem-setup vs. solution slides, surface the loss/objective as its own slide when central, and let `spec.md` §6 grouping drive section count rather than a fixed 8–12 budget. May require enriching `spec.md` fields the dissector currently extracts (e.g., explicit "core contribution" vs. "supporting machinery" tags on §6.1 entries).
 
+## Recently completed (2026-05-27)
+
+- **`tutor` subagent shipped + `explainer` demoted to backend.** The user-facing concept-understanding interface is now the `tutor` subagent (`/tutor <slug>`). The `explainer` is no longer user-invocable; it is a backend service the tutor calls when it needs paper-bound content. New files:
+  - `.cursor/agents/tutor.md` — conversational, anchored to one paper, paper-grounded + field-grounded, persistent memory.
+  - `.cursor/skills/ml-socratic/SKILL.md` — defines interaction rules (R1–R9), `tutor_log.md` breadcrumb schema, `tutor_notes.md` study-notes schema, and the bidirectional cross-reference invariant for `<concept>.md` (moved here from `ml-explanation/SKILL.md`).
+  - Vault per-paper layout grows four entries: `tutor_log.md` (append-only, every turn), `tutor_notes.md` (user-triggered curated study notes), `<concept>-<slug>.md` and `synth__<a>__<b>-<slug>.md` (backend intermediates written by the demoted explainer).
+- **Interaction model:** user drives; tutor never quizzes; diagnostic + comprehension questions allowed; one-turn-per-exchange discipline; auto-invokes explainer when `<concept>-<slug>.md` is missing; writes only the log silently — everything else is explicit user request.
+- **Schema changes:** `ml-explanation/SKILL.md` and `ml-synthesis/SKILL.md` updated to document the two writers + two filenames (Tutor → `<concept>.md`, Explainer → `<concept>-<slug>.md`; similarly for synthesis). The bidirectional-link rule moved from Explainer to Tutor. `AGENTS.md` updated to reflect tutor as the user-facing concept entry point and explainer as backend.
+- **What we deliberately deferred:** live smoke run on a real paper (will iterate based on first-use friction), pruning logic for long `tutor_log.md`, `prerequisite` / `experimenter` / `comparator` agents.
+
+## Recently completed (2026-05-27 earlier)
+
+- **Visualizer + figure-verifier removed from `main`, archived to branch + tag.** See "On hold" section above and `visualizer-todo.md` for the chronicle.
+
 ## Recently completed (2026-05-22)
 
 - **Dictionary PDF reference card + sync hook** — replaces the previous `symbols/atlas.png` quick-glance grid with a real reference document.
@@ -338,14 +348,15 @@ Small refinements to existing schemas that aren't urgent but are worth rememberi
 
 ### Validation runs
 
-- **`WorldModel`** (acquired from scratch end-to-end): acquirer, dissector, implementer all produced files in the correct repo/vault locations. Critic and explainer not yet exercised.
+- **`WorldModel`** (acquired from scratch end-to-end): acquirer, dissector, implementer all produced files in the correct repo/vault locations. Critic and tutor not yet exercised on this paper.
 - **`Memento`** (pre-migration, in repo): left untouched per agreed plan; remains at `papers/Memento/`.
 
 ## Reference: what's currently working
 
-- **Subagents (active):** `acquirer`, `dissector`, `implementer`, `explainer`, `critic`.
+- **Subagents (user-facing):** `acquirer`, `dissector`, `implementer`, `critic`, `tutor`.
+- **Subagents (backend-only):** `explainer` (invoked by `tutor` since 2026-05-27).
 - **Subagents (on hold, 2026-05-27):** `visualizer` (archived to branch `visualizer` and tag `archive-visualizer-2026-05-27`; removed from `main` — see `visualizer-todo.md`).
-- **Skills (active):** `ml-acquisition`, `ml-paper-spec`, `ml-code-map` (+ `DEEP_DIVE`), `ml-explanation`, `ml-synthesis`, `ml-critique`.
+- **Skills (active):** `ml-acquisition`, `ml-paper-spec`, `ml-code-map` (+ `DEEP_DIVE`), `ml-critique`, `ml-socratic`, `ml-explanation`, `ml-synthesis`.
 - **Rules:** `paperlab-config-bootstrap`, `paperlab-regenerate-prompt`.
 - **Helpers:** `tools/paths.py`, `tools/figures.py` (requires `pymupdf`).
 - **Papers:** `Memento` (legacy, in repo), `WorldModel`, `VAE`, `GIB-DS`, `GIB`, `GraphVarBound`, `Dreamer`, `MIbound` (new layout, vault + repo).

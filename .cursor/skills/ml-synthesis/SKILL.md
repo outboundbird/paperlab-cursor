@@ -12,18 +12,26 @@ other in a specific paper's context. Produced when the user asks "why do X
 and Y work together," "what does X buy you given Y," or similar relational
 questions.
 
+As of 2026-05-27, two different agents write files conforming to this schema, with two different filenames:
+
+| Writer | Output filename | Audience |
+|---|---|---|
+| **Explainer** (backend, invoked by Tutor) | `synth__<a>__<b>-<slug>.md` | Tutor (intermediate artifact) |
+| **Tutor** (user-facing) | `synth__<a>__<b>.md` | User (final study reference) |
+
+The user does not invoke the Explainer directly — synthesis requests go through the Tutor (`/tutor <slug>`). See `.cursor/skills/ml-socratic/SKILL.md`.
+
 ## Conventions
 
-- **Prerequisite**: all referenced concepts must already have single-concept
-  explanation files. If any do not, Explainer subagent creates those first, then
-  writes the synthesis file.
-- **All symbols and notation** must be consistent with the concept files being
-  synthesized.
+- **Prerequisite**: all referenced concepts must already have either a `<concept>.md` (Tutor-written) or `<concept>-<slug>.md` (Explainer-written) somewhere under `vault_root()/*/`. If any are missing, the Tutor creates those first (each via its own concept-file write, possibly invoking the Explainer for backend content) before any synthesis file is written.
+- **All symbols and notation** must be consistent with the concept files being synthesized.
 - **Length target**: 1-2 pages.
 - **File placement**: `vault_path(slug, "<filename>")` (resolved via `tools/paths.py`), where `<slug>` is the paper in whose context this synthesis was first requested and `<filename>` follows the Synthesis filename rule below.
-- **Bidirectional cross-referencing**: Synthesis files do not trigger bidirectional cross-referencing. The synthesis file links to its component concept files (in Sections 2 and 7), but Explainer subagent does not modify those component files to add back-links to the synthesis.
-- **Synthesis filename**: `synth__<concept_a>__<concept_b>.md`, where `<concept_a>` and `<concept_b>` are the existing filenames of the component concept files (without the `.md` extension), alphabetized. Example: for the synthesis of `graph-mutilation.md` and `causal-markov-condition.md`, the filename is `synth__causal-markov-condition__graph-mutilation.md.` Extend to N components as `synth__a__b__c.md`
-- **Audience, notation, diagram** rules and LaTeX conventions follow those of `.cursor/skills/ml-explanation/SKILL.md`. n particular: `$ ... $` for inline math, `$$ ... $$` for display math; never `\( ... \)` or `\[ ... \]`.
+- **Bidirectional cross-referencing**: Synthesis files do not trigger bidirectional cross-referencing. A synthesis file links to its component concept files (in Sections 2 and 7), but neither the Tutor nor the Explainer modifies those component files to add back-links to the synthesis.
+- **Synthesis filename**:
+  - **Tutor-written (final)**: `synth__<concept_a>__<concept_b>.md`, where `<concept_a>` and `<concept_b>` are the component concept-file basenames (without `.md`), alphabetized. Example: for the synthesis of `graph-mutilation.md` and `causal-markov-condition.md`, the filename is `synth__causal-markov-condition__graph-mutilation.md`. Extend to N components as `synth__a__b__c.md`.
+  - **Explainer-written (backend intermediate)**: `synth__<concept_a>__<concept_b>-<slug>.md` — same as above but with the `-<slug>` suffix appended before `.md`.
+- **Audience, notation, diagram** rules and LaTeX conventions follow those of `.cursor/skills/ml-explanation/SKILL.md`. In particular: `$ ... $` for inline math, `$$ ... $$` for display math; never `\( ... \)` or `\[ ... \]`.
 
 ## Required sections
 
