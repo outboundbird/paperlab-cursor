@@ -46,7 +46,7 @@ All agent-generated files live flat under one folder per paper:
     └── notes.md                   user notes
 ```
 
-Current `vault_paperlab_path` (work machine): `C:/Users/e0482362/OneDrive - Sanofi/Workspace/Topics/public/Modeling 🎓/PaperLab`.
+Current `vault_paperlab_path` (work machine): `C:/Users/e0482362/OneDrive - Sanofi/Workspace/Topics/public/Modeling/PaperLab` (ASCII-only — see Known limitations for why).
 
 ### Cross-references
 
@@ -269,6 +269,16 @@ Not yet decided: rip-and-replace v1 in one PR, build v2 alongside, or skill-firs
 Small refinements to existing schemas that aren't urgent but are worth remembering. These tend to surface during use.
 
 - **Reconsider slide-deck structure** — the current schema (title / headline / one-per-component / results / limitations) is generic. Tweak it to track paper content more faithfully: e.g., split "method" into problem-setup vs. solution slides, surface the loss/objective as its own slide when central, and let `spec.md` §6 grouping drive section count rather than a fixed 8–12 budget. May require enriching `spec.md` fields the dissector currently extracts (e.g., explicit "core contribution" vs. "supporting machinery" tags on §6.1 entries).
+
+## Recently completed (2026-05-27 late)
+
+Follow-up hardening after the morning ship, driven by first-use friction on `/tutor GIB`:
+
+- **Tutor path-resolution made operationally explicit.** `.cursor/agents/tutor.md` now opens `# Process` with a "Path resolution" section spelling out the shell procedure: `vault_path(slug, "foo.md")` and `vault_slug_dir(slug)` are *symbolic* references that MUST be resolved via `python -m tools.paths vault[-dir] <slug> [file]`. Forbidden shortcuts (workspace-root guesses, `<repo>/papers/`, `./vault/`, hard-coded prior-session paths) are listed by name. §0 step 3 (the `spec.md` existence check) was rewritten to follow the procedure and to interpolate the resolved absolute path into the refusal message so resolution failure is visible at a glance.
+- **Tutor session-start was over-eager.** §0 originally read every `*.md` in the vault folder before greeting, causing multi-minute "Planning next moves" hangs. Replaced with lazy ingestion: file-exists check on `spec.md` and last-block read of `tutor_log.md` only, then greet and end the turn. All other reads (`spec.md` body, `code_map.md`, concept files, full log) deferred to the turn where the user's question actually needs them. `ml-socratic/SKILL.md` R4 and the session-start checklist mirror the new flow.
+- **Tutor was offering to launch the Dissector itself.** Out of scope. Added an explicit "Vault-only contract" subsection and a no-launching rule to `# Scope boundaries` in both `.cursor/agents/tutor.md` and `ml-socratic/SKILL.md`: if a prerequisite is missing, the Tutor names it and the responsible subagent, then ends the turn. Only the Explainer (backend mode) may be invoked.
+- **Windows non-BMP vault-path bug diagnosed and worked around.** Repeated `/tutor GIB` failures resolved to two compounding issues: (a) `paperlab.config.yaml` pointed at `Modeling 🎓/PaperLab`, which on the user's machine had already been migrated to the ASCII `Modeling/PaperLab`; and (b) downstream `test -f` / `ls` invocations against paths containing non-BMP characters (`🎓`) fail on Windows even when `python -m tools.paths` resolves them correctly with UTF-8 stdout. Fix: pointed config at the ASCII path; documented the Windows constraint in `AGENTS.md` ("Windows path warning for `vault_paperlab_path`"), `paperlab.config.example.yaml` (comment block above the key), `ROADMAP.md` Known limitations, and a clarifying comment in `tools/paths.py`. Migration confirmed working: `python -m tools.paths vault GIB spec.md` resolves to the ASCII path and `test -f` succeeds.
+- **First live smoke run on `/tutor GIB` passed** after the above fixes. Session opened cleanly, resolved both vault paths, ended turn on greeting.
 
 ## Recently completed (2026-05-27)
 
