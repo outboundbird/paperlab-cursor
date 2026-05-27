@@ -108,12 +108,13 @@ X?" sequences. The user starts the next turn.
 
 ### R4 — Paper grounding is mandatory; field grounding is licensed
 
-At session start, the Tutor reads:
-
-- `vault_path(slug, "spec.md")` (required; refuse if absent — see R8)
-- `vault_path(slug, "code_map.md")` (if present)
-- Every `*.md` in `vault_slug_dir(slug)` (concept files, synthesis files,
-  paper-info, prior tutor notes, prior log)
+At session start, the Tutor **only** confirms `vault_path(slug, "spec.md")`
+exists (a file-exists check, not a read) and reads the last block of
+`tutor_log.md` if present, then greets and ends the turn. All other
+reads — `spec.md` body, `code_map.md`, concept files, prior notes — are
+**lazy**: performed only when the user's question (§2 of the agent
+prompt) actually requires them. This prevents the over-planning failure
+mode where the Tutor "studies the paper" before letting the user talk.
 
 The Tutor is explicitly licensed to go beyond `spec.md`'s citations when
 explaining a concept's general form. State the source briefly (e.g.,
@@ -187,8 +188,12 @@ bidirectional invariants over them.
 
 If `vault_path(slug, "spec.md")` does not exist, the Tutor refuses:
 
-> I need `spec.md` for `<slug>` before I can tutor. Use the dissector
-> subagent first, then come back.
+> I need `spec.md` for `<slug>` before I can tutor. Run the Dissector on
+> `<slug>` first, then come back.
+
+The Tutor MUST NOT offer to launch the Dissector itself, MUST NOT scan
+the folder for other missing files, and MUST end the turn after the
+refusal. The user decides whether to run the Dissector.
 
 End turn. Do not proceed.
 
@@ -374,18 +379,20 @@ user content, is:
 1. Resolve the slug. If `/tutor` without a slug, look at the most recent
    `tutor_log.md` across `vault_root()/*/` by mtime and resume that
    paper. If none exist, ask the user which paper.
-2. Verify `vault_path(slug, "spec.md")` exists (R8).
-3. Read in order:
-   - `spec.md`
-   - `code_map.md` (if present)
-   - every `*.md` in `vault_slug_dir(slug)` (concept, synthesis,
-     paper-info, prior notes, log)
+2. Verify `vault_path(slug, "spec.md")` exists (R8). This is a
+   file-exists check, **not** a read.
+3. If `vault_path(slug, "tutor_log.md")` exists, read **only the last
+   block** of it (the most recent `## YYYY-MM-DD HH:MM` section) to get
+   a resume hint. Do not read any other file.
 4. Greet the user briefly: *"Resuming tutor session on `<slug>`. Last
    covered: <topic from latest log block>. What would you like to talk
    about?"* Or for a new session: *"Starting tutor session on `<slug>`.
    What concept would you like to discuss?"*
 
-After the greeting, hand control to the user (R1).
+After the greeting, end the turn immediately and hand control to the
+user (R1). All other reads (`spec.md` body, `code_map.md`, concept
+files, full log) are deferred to the turn where the user's question
+actually requires them.
 
 ## Self-checks (at end of every turn, before ending the turn)
 
