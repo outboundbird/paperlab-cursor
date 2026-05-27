@@ -172,6 +172,13 @@ Things the system can't do, with workarounds where they exist.
 - **What:** the PDF/upstream links inside `paper-info.md` are absolute and machine-specific.
 - **Why:** the paperlab repo path may differ between work and personal machines.
 - **Workaround:** regenerate `paper-info.md` on each machine (cheap), or treat broken links as expected on the other machine.
+
+### Windows: non-BMP characters in `vault_paperlab_path` break agents
+
+- **What:** if `vault_paperlab_path` contains emoji or other non-BMP characters (`🎓`, `🤖`, `🕸️`, etc.) up to and including the `PaperLab/` segment, agents on Windows — most visibly the Tutor — loop on file-existence checks or report files as missing when they exist.
+- **Why:** Windows shells (cmd.exe cp1252) and Cursor's tool-call serialization layer round-trip non-BMP characters unreliably. `tools/paths.py` forces UTF-8 stdout, which fixes resolution, but downstream `test -f` / `ls` invocations against the resolved path still fail.
+- **Workaround:** keep `vault_paperlab_path` ASCII (no emoji, no non-BMP characters; spaces tolerated but discouraged). Folders elsewhere in the Obsidian vault — siblings, ancestors, per-paper children — may keep emojis freely. macOS and Linux are unaffected.
+- **See:** `AGENTS.md` § "Windows path warning for `vault_paperlab_path`" and the comment block above `vault_paperlab_path` in `paperlab.config.example.yaml`.
 - **Possible fix:** make `paper-info.md` use a placeholder like `{repo_root}/papers/<slug>/<slug>.pdf` that an Obsidian plugin or hook resolves at view time. Medium effort, low priority.
 
 ### Figure extraction occasionally crops imperfectly
@@ -337,7 +344,7 @@ Small refinements to existing schemas that aren't urgent but are worth rememberi
 
 - **File layout contract** — repo holds source material (`papers/<slug>/<slug>.pdf`, `supplementals/`, `upstream/<slug>/`); vault holds all agent-generated markdown flat under `<vault>/<slug>/`.
 - **Per-machine config** — `paperlab.config.yaml` (git-ignored) + `paperlab.config.example.yaml` (committed). Keys: `repo_root`, `vault_paperlab_path`, `obsidian_vault_root`.
-- **Path-resolution helper** — `tools/paths.py` exposes `vault_path`, `vault_slug_dir`, `repo_pdf_path`, `repo_paper_dir`, `repo_supplementals_dir`, `repo_upstream_dir`, `repo_sandbox_dir`, plus a `python -m tools.paths` CLI. UTF-8 stdout enforced (vault path contains 🎓).
+- **Path-resolution helper** — `tools/paths.py` exposes `vault_path`, `vault_slug_dir`, `repo_pdf_path`, `repo_paper_dir`, `repo_supplementals_dir`, `repo_upstream_dir`, `repo_sandbox_dir`, plus a `python -m tools.paths` CLI. UTF-8 stdout enforced for resolution, but `vault_paperlab_path` must be ASCII on Windows — see Known limitations.
 - **Always-on rules:**
   - `paperlab-config-bootstrap.mdc` — every agent resolves paths through `tools/paths.py`; documents read/write conventions; defines slug rule (verbatim user input).
   - `paperlab-regenerate-prompt.mdc` — never silently overwrite existing files in the vault; ask **replace / append / abort**.

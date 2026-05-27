@@ -55,6 +55,12 @@ All agent-generated files live flat under one folder per paper at `<vault_paperl
 
 `paper-info.md` (in the vault) includes absolute paths to the repo-side PDF and upstream code, built from `repo_root` in `paperlab.config.yaml`. These links are machine-specific.
 
+### Windows path warning for `vault_paperlab_path`
+
+Keep `vault_paperlab_path` ASCII — no emoji, no other non-BMP characters — up to and including the `PaperLab/` segment. Non-BMP characters like `🎓` round-trip badly through Windows shells (cmd.exe cp1252) and Cursor's tool-call layer, causing agents (especially the Tutor) to hang on file-existence checks or report files as missing when they exist. Spaces are tolerated but discouraged. Folders elsewhere in your Obsidian vault — siblings of `PaperLab/`, ancestors above it, and children inside per-paper folders — may contain emoji freely. macOS and Linux are unaffected.
+
+If you currently have an emoji in the path, rename the parent folder (e.g., `Modeling 🎓/PaperLab` → `Modeling/PaperLab`) and update `vault_paperlab_path` to match. The Topics tree at large can keep its emoji conventions; only the segment up to `PaperLab/` matters.
+
 ## Cursor Subagents
 
 PaperLab uses Cursor project subagents in `.cursor/agents/`.

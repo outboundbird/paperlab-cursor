@@ -175,6 +175,13 @@ def _cli() -> None:
     # The configured vault path may contain non-ASCII characters (e.g. emoji
     # folder names common in Obsidian). On Windows the default console
     # encoding (cp1252) can't represent these, so force UTF-8 on stdout.
+    #
+    # NOTE: UTF-8 stdout makes resolution work, but downstream shell calls
+    # (test -f, ls) against paths containing non-BMP characters (e.g. 🎓)
+    # still fail on Windows due to cmd.exe and Cursor's tool-call layer
+    # mishandling them. Users should keep `vault_paperlab_path` ASCII up to
+    # the `PaperLab/` segment. See AGENTS.md "Windows path warning" and
+    # ROADMAP.md "Known limitations".
     try:
         sys.stdout.reconfigure(encoding="utf-8")
     except (AttributeError, OSError):

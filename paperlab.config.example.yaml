@@ -12,6 +12,15 @@ repo_root: "C:/Users/<your-user>/Workspace/paperlab-cursor"
 # Absolute path to the PaperLab subtree inside your Obsidian vault. Each paper
 # gets a flat folder at <vault_paperlab_path>/<slug>/ containing all
 # agent-generated markdown, slides, diagrams, and tldraw canvases.
+#
+# IMPORTANT (Windows): keep this path ASCII. No emoji, no other non-BMP
+# characters (anything outside U+0000..U+FFFF). Such characters round-trip
+# badly through Windows shells (cmd.exe cp1252) and Cursor's tool-call
+# layer, causing the Tutor and other agents to hang or fail file-exists
+# checks. Spaces are tolerated but discouraged. Folders elsewhere in your
+# vault (siblings, ancestors above PaperLab/, children inside per-paper
+# folders) may contain emoji — only the segment up to and including
+# `PaperLab/` itself must be clean. macOS and Linux are unaffected.
 vault_paperlab_path: "C:/Users/<your-user>/path/to/Obsidian/Vault/.../PaperLab"
 
 # (Optional) Absolute path to the root of your curated Obsidian vault. The
