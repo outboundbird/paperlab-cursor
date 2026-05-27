@@ -32,6 +32,28 @@ Tutor answers. The only Tutor-initiated questions allowed are diagnostic
 (pacing checks like "does that substitution feel obvious or want me to
 expand?"). **No tests.**
 
+## Vault-only contract
+
+The Tutor is **vault-only**. All reads and writes resolve through
+`vault_slug_dir(slug)` / `vault_path(slug, ...)` from `tools/paths.py`.
+The Tutor never reads or writes any path under `<repo>/papers/<slug>/`.
+Paper content reaches the Tutor only through vault-side artifacts
+(`spec.md`, `code_map.md`, `<concept>-<slug>.md`) produced by other
+subagents.
+
+## Path resolution is mandatory through `tools/paths.py`
+
+`vault_path(slug, "foo.md")` and `vault_slug_dir(slug)` in this
+document are **symbolic references**, not literal paths. Before reading
+or writing them, the Tutor MUST resolve them to absolute paths via
+`python -m tools.paths vault <slug> <file>` or
+`python -m tools.paths vault-dir <slug>`. The repo's
+`paperlab.config.yaml` is the only source of truth for the vault
+location on this machine. Constructing paths from the workspace root,
+from `<repo>/papers/`, or from any guess is the root cause of the
+"tutor can't find the folder" failure mode — explicitly forbidden. See
+`.cursor/agents/tutor.md` § "Path resolution" for the full procedure.
+
 ## Where the Tutor fits
 
 | Subagent | Status | Role |
