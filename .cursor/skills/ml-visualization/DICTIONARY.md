@@ -89,16 +89,18 @@ Concretely:
   output. The noise variable $\epsilon$ feeds the *same* arrow's head from
   the side; it is not a separate step.
 - **A23 split** is the *identity* of the target chip (a vector chip with a
-  visible mid-cut), not an arrow into a separate node.
+  visible mid-cut), not an arrow into a separate shape.
 - **A1 sample** is one arrow from a distribution shape to a sample marker;
-  the dice glyph (if used) rides on the arrow's midpoint, not as a node.
+  the dice glyph (if used) rides on the arrow's midpoint, not as a shape.
 
 Why: a picture with $N$ action verbs in its text should have $N$ action
-arrows, not $2N$ or $3N$. Sub-step nodes inflate the picture, fragment the
+arrows, not $2N$ or $3N$. Sub-step shapes inflate the picture, fragment the
 reader's eye, and hide which verb each arrow corresponds to.
 
-When in doubt: if removing a sub-step node would still let the picture read
-the same prose, the sub-step does not deserve its own node.
+When in doubt: if removing a sub-step shape would still let the picture
+read the same prose, the sub-step does not deserve its own shape. ("Shape"
+here means a dictionary-typed picture element; "node" in PaperLab always
+refers to a graph vertex from the paper.)
 
 ### Reading the columns
 
@@ -154,12 +156,12 @@ references, primitives per backend) if the simple shape proves insufficient.
 | E2 | scalar | reward, probability, log-likelihood, weight $\rho$, threshold, hyperparameter | a small filled disc, or a number printed inline; size $\sim$ magnitude when meaningful |
 | E3 | tensor / image | observation $o_t$, frame $x_t$, RGB image | a square or rectangle with optional grid; for images, a thumbnail; spatial axes preserved ![](symbols/E3.png)|
 | E4 | distribution | prior $p(z)$, posterior $p(z\mid x)$, likelihood $p(x\mid z)$, proposal $q(x)$, marginal $p(y)$ | a smooth density curve (continuous) or a histogram / bar set (discrete); the *shape* of the curve carries the distribution's character ![](symbols/E4.png) |
-| E5 | conditional distribution | $p_\theta(s_t\mid\ldots)$, $q_\phi(z\mid x)$, $p(z_{t+1}\mid a_t, z_t, h_t)$ | a distribution shape (as E4) sitting inside a node, with incoming arrows from the conditioning variables ![](symbols/E5.png) |
+| E5 | conditional distribution | $p_\theta(s_t\mid\ldots)$, $q_\phi(z\mid x)$, $p(z_{t+1}\mid a_t, z_t, h_t)$ | a distribution shape (as E4) sitting inside a thicker-bordered enclosure, with incoming arrows from the conditioning variables ![](symbols/E5.png) |
 | E6 | sufficient statistics (μ, σ) | encoder outputs, Gaussian parameters $(\mu, \sigma^2)$ | a vector chip (as E1) split into two named halves; top half labeled $\mu$, bottom half labeled $\sigma$ or $\sigma^2$ ![](symbols/E6.png) |
 | E7 | parameter set | $\theta, \phi, \psi, \rho$ (learnable) | a small square with a hat or color code; attached to the function it parameterizes via a thin line (not an arrow) ![](symbols/E7.png)|
 | E8 | dataset | $\mathcal D$, $\mathcal X = \{x^{(i)}\}$, rollout buffer | a stack of cards or a labeled bin; size indicates "large collection" |
 | E9 | minibatch | $X_M$, $B$ sequences, $K$-sample batch | a small cluster of sample markers, drawn from the dataset bin via a sampling arrow ![](symbols/E9.png) |
-| E10 | sample (a single realization) | $x^{(i)}$, $\epsilon^{(l)}$, $z^{(i,l)}$, $x_i \sim q$ | a single marker — a dot, a tagged cell, or a highlighted node ![](symbols/E10.png) |
+| E10 | sample (a single realization) | $x^{(i)}$, $\epsilon^{(l)}$, $z^{(i,l)}$, $x_i \sim q$ | a single marker — a dot, a tagged cell, or a highlighted dot ![](symbols/E10.png) |
 | E11 | trajectory / sequence | $\{(s_\tau, a_\tau)\}_{\tau=t}^{t+H}$, $\{x_t\}_{t=1}^L$, time series | a horizontal chain of entities (one per step) connected by next-step arrows |
 | E12 | loop index / operational substrate | layer $l$, time $t$, hop $t$, epoch, generation, IS sample $i$ | a labeled frame (rectangle or band) enclosing the per-iteration content, with the loop name written on the frame |
 | E13 | graph node | $v$, $u$, vertex | a filled circle, optionally with a name inside ![](symbols/E13.png) |

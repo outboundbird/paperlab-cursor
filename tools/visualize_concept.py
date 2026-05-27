@@ -169,6 +169,22 @@ class SpecCluster:
 
 
 @dataclass
+class CastEntry:
+    """One actor in the picture's cast.
+
+    The cast is the agent's casting decision: the small set of dictionary-
+    typed actors the picture will stage. Authored *before* the shape list
+    (see SKILL.md "Picture composition"). The renderer does not draw the
+    cast — it's metadata used by ``_validate`` and (later) the
+    figure-verifier subagent to catch flowchart-style over-elaboration.
+    """
+
+    actor: str          # paper notation, e.g. "P(Z_A^(l) | A, Z_X^(l-1))"
+    dict_id: str        # the actor's typed shape category, e.g. "E5"
+    role: str = ""      # one short phrase, e.g. "structural conditional"
+
+
+@dataclass
 class LegendOverride:
     """Optional per-``dict_id`` legend row override from the spec's
     top-level ``legend:`` block. Either field may be empty to keep the
@@ -188,6 +204,11 @@ class PictureSpec:
     edges: list[SpecEdge] = field(default_factory=list)
     clusters: list[SpecCluster] = field(default_factory=list)
     legend_overrides: list[LegendOverride] = field(default_factory=list)
+    # Composition metadata authored by the agent BEFORE shapes/edges. The
+    # renderer doesn't draw these but ``_validate`` uses them to keep the
+    # spec from drifting into a flowchart. See SKILL.md "Picture composition".
+    headline: str = ""                                  # subject-verb-object sentence
+    cast: list[CastEntry] = field(default_factory=list) # ≤ 6 actors
     # Optional output naming hints. When the CLI `out` argument is omitted,
     # ``output`` (a bare name or filename) is resolved against
     # ``vault_path(slug, "figures/")`` to produce the final PNG path. The
@@ -212,7 +233,16 @@ def _load_spec(path: Path) -> PictureSpec:
         rankdir=raw.get("rankdir", "LR"),
         slug=raw.get("slug"),
         output=raw.get("output"),
+        headline=raw.get("headline", ""),
     )
+    for c in raw.get("cast", []) or []:
+        if "actor" not in c or "dict_id" not in c:
+            raise ValueError(
+                f"Cast entry missing required keys (actor, dict_id): {c}"
+            )
+        spec.cast.append(CastEntry(
+            actor=c["actor"], dict_id=c["dict_id"], role=c.get("role", ""),
+        ))
     for n in raw.get("nodes", []) or []:
         if "id" not in n or "dict_id" not in n:
             raise ValueError(f"Node missing required keys (id, dict_id): {n}")
@@ -795,6 +825,60 @@ def _validate(spec: PictureSpec, entries: dict[str, DictEntry]) -> list[str]:
             warnings.append(
                 f"edge {e.src}->{e.dst}: unknown dict_id {e.dict_id!r} "
                 "(not in DICTIONARY.md)"
+            )
+
+    # Composition checks. These don't change rendering but catch
+    # flowchart-style specs that skipped the editorial step.
+    if not spec.headline:
+        warnings.append(
+            "composition: spec has no `headline:` - the agent should write a "
+            "subject-verb-object sentence summarizing what the picture shows "
+            "(see SKILL.md \"Picture composition\")."
+        )
+    if not spec.cast:
+        warnings.append(
+            "composition: spec has no `cast:` - the agent should list <= 6 "
+            "typed actors before authoring shapes."
+        )
+    elif len(spec.cast) > 6:
+        warnings.append(
+            f"composition: cast has {len(spec.cast)} entries (max 6). "
+            "Merge or demote actors that aren't load-bearing."
+        )
+    if spec.cast and spec.nodes:
+        cast_keys = {(c.actor.strip(), c.dict_id) for c in spec.cast}
+        # Every cast entry should map to at least one shape with matching dict_id
+        # and a label that contains the actor token (loose substring match — the
+        # agent often paraphrases between cast and label).
+        for c in spec.cast:
+            if not any(
+                n.dict_id == c.dict_id
+                and (
+                    not c.actor
+                    or c.actor.strip() in n.label
+                    or c.actor.strip() in n.id
+                )
+                for n in spec.nodes
+            ):
+                warnings.append(
+                    f"composition: cast entry {c.actor!r} ({c.dict_id}) has "
+                    "no matching shape in the spec — either add the shape or "
+                    "drop the actor."
+                )
+        # Conversely, every non-trivial shape should correspond to *some* cast
+        # entry (same dict_id). Frames/clusters and noise-style E2/E10 markers
+        # are exempt; this check targets the load-bearing categories.
+        load_bearing = {"E1", "E3", "E4", "E5", "E6", "E7", "E8", "E11", "E13", "E14", "E15"}
+        cast_dicts = {c.dict_id for c in spec.cast}
+        orphan_dicts = {
+            n.dict_id for n in spec.nodes if n.dict_id in load_bearing
+        } - cast_dicts
+        if orphan_dicts:
+            warnings.append(
+                "composition: shapes use dict_ids "
+                f"{sorted(orphan_dicts)} that aren't represented in the cast. "
+                "Either add a cast entry for the category or reconsider "
+                "whether the shape is load-bearing."
             )
     return warnings
 

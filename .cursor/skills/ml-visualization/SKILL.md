@@ -19,11 +19,17 @@ Fixed cascade. Every picture follows it.
 2. **State the thesis.** One sentence: what is the picture *for*? Expressed in the paper's own vocabulary. Test: a reader who walks away with only the picture and the thesis should be able to restate the claim.
 3. **Inventory against `DICTIONARY.md`.** Walk the source text top to bottom; for each named thing (noun, verb, relation) find its dictionary entry. Build a three-column table: *concept in the text → dictionary entry (E/R/A id) → notes*. **Text-driven, not dictionary-driven** — never scan the dictionary asking "could I use this entry here?", that produces clip-art.
 4. **Apply the gap rule** for any concept that doesn't fit an entry. Cascade (in `DICTIONARY.md`): (1) compose from primitives, (2) draw the closest entry with a label, (3) text-arrow fallback `— [verb objective] →`, (4) stop and report. Never invent a new symbol silently.
-5. **Honor the atomicity rule.** Each dictionary action (A1, A5, A7, …) is **one arrow**. Sub-operations that exist only to feed the action ride as annotations on the action's arrow, not as separate arrows or nodes.
-6. **Emit the picture spec** as YAML at `vault_path(slug, f"figures/{concept}.spec.yaml")`: title, optional thesis, rankdir, nodes (`id`, `dict_id`, `label`), edges (`src`, `dst`, `dict_id`, `label`), optional clusters (loop frames). The spec is the audit trail for steps 2–5.
+5. **Honor the atomicity rule.** Each dictionary action (A1, A5, A7, …) is **one arrow**. Sub-operations that exist only to feed the action ride as annotations on the action's arrow, not as separate arrows or shapes.
+5a. **Compose the picture, editorially.** Before authoring shapes, write down four things (this is the *Picture composition* step — see the section below):
+   - **headline**: one subject-verb-object sentence in the paper's own words.
+   - **cast**: ≤ 6 typed actors (`actor`, `dict_id`, `role`). These are the only things that get a load-bearing shape.
+   - **action**: which verb is the *spine* — the one arrow the reader's eye should follow.
+   - **frame**: is the picture inside a plate / loop / time index? Declare it as a cluster.
+   These decisions go into the spec's top-level `headline:` and `cast:` keys; the renderer doesn't draw them, but `_validate` checks that every cast entry has a corresponding shape and that load-bearing shape categories (E1/E3/E4/E5/E6/E7/E8/E11/E13/E14/E15) are all represented in the cast. This is the step that prevents the picture from collapsing into a flowchart of generic boxes.
+6. **Emit the picture spec** as YAML at `vault_path(slug, f"figures/{concept}.spec.yaml")`: title, optional thesis, rankdir, shapes under the `nodes:` key (each carries `id`, `dict_id`, `label`), edges (`src`, `dst`, `dict_id`, `label`), optional clusters (loop frames). The spec is the audit trail for steps 2–5. (Schema note: the YAML key is `nodes:` for backward compatibility; conceptually each entry is a **shape** — a dictionary-typed picture element. "Node" elsewhere in PaperLab text always means a graph vertex.)
 7. **Render** via `python -m tools.visualize_concept <spec.yaml> [<out.png>]` → only the final composed PNG lands on disk; figure/legend intermediates are written to a tempdir and deleted on success. The CLI `out` argument is optional: when omitted, the renderer resolves it from the spec's `slug:` and `output:` keys (see "Output naming" below). Default mode (`--legend side`) lays the figure top-to-bottom on the left and the legend panel on the right, joined via PIL. Use `--legend inline` to fall back to the legacy single-graph 4:3 layout, or `--legend none` to render the figure only.
 8. **Self-verify against the thesis.** Re-read step 2. If the picture doesn't argue the thesis sentence, the spec is wrong; do not paper over with backend tweaks. Common spec errors:
-   - Thesis claims a *layered cascade*, spec collapsed two stages into one node.
+   - Thesis claims a *layered cascade*, spec collapsed two stages into one shape.
    - Thesis claims a *factorization*, spec drew it as a single arrow.
    - Thesis describes *what changes per iteration*, spec drew only one iteration with no loop frame.
 9. **Hand off to `figure-verifier`** (when that subagent ships — see ROADMAP §3). Until then, stop after step 8.
@@ -32,14 +38,69 @@ Fixed cascade. Every picture follows it.
 
 **The dictionary is a style guide, not a clip-art library.** Each entry tells the agent *how to draw an instance of that concept in this project's visual language* — a vector chip is a small box with these proportions and colors; a conditional distribution is an ellipse with incoming conditioning arrows; a frozen parameter is a dashed box with a snowflake glyph.
 
-When the renderer encounters a node tagged `E1 vector` with label `Z_X^(l-1)`:
+When the renderer encounters a shape tagged `E1 vector` with label `Z_X^(l-1)`:
 
-- ✅ **Correct:** draws a vector-shaped node in the project's palette, with `Z_X^(l-1)` as the node's label *inside* the shape.
-- ❌ **Wrong:** pastes `symbols/E1.png` (the dictionary's *example* drawing) as the node body. This produces a Frankenstein collage where every node is at a different scale and the labels float untethered.
+- ✅ **Correct:** draws the vector-shape idiom in the project's palette, with `Z_X^(l-1)` as the label *inside* the shape.
+- ❌ **Wrong:** pastes `symbols/E1.png` (the dictionary's *example* drawing) as the shape body. This produces a Frankenstein collage where every shape is at a different scale and the labels float untethered.
 
 The user-drawn `symbols/<id>.png` files live inside `DICTIONARY.pdf` as the reference card. **They are not assets the renderer pastes into output.** A concept picture redraws each atom inline.
 
 Mental model: the dictionary is to a concept picture what a typography style guide is to a printed page. The style guide says "headings are 14pt Helvetica bold, dark blue" — it does not supply pre-rendered PNG screenshots of every heading. The page setter reads the style guide and types the heading at the right place on the page.
+
+### Picture composition (step 5a in depth)
+
+A concept picture is not a flowchart of every sentence in the source — it is a *staged scene*. The agent's job in step 5a is to make four editorial decisions, in this order:
+
+**1. Headline.** Write a single subject-verb-object sentence summarizing what the picture argues. Examples:
+- "Random walks on the input graph induce a transition matrix whose top eigenvectors are the cluster indicators."
+- "The encoder factorizes $q(z_A, z_X \mid A, X)$ into a structural conditional followed by a feature conditional."
+- "Each k-NN candidate sits on a hop ring; the loss pulls positives in and pushes negatives out within their ring."
+
+The headline goes verbatim into the spec's `headline:` field. If the agent cannot write this sentence, the picture is not ready — go back to step 2.
+
+**2. Cast (≤ 6 actors).** List the *load-bearing* entities the picture will stage. Each cast entry has three fields:
+
+```yaml
+cast:
+  - actor: "Z_X^(l-1)"
+    dict_id: E1
+    role: "feature latent (previous layer)"
+  - actor: "P(Z_A^(l) | A, Z_X^(l-1))"
+    dict_id: E5
+    role: "structural conditional"
+  - actor: "P(Z_X^(l) | Z_A^(l), Z_X^(l-1))"
+    dict_id: E5
+    role: "feature conditional"
+  ...
+```
+
+Rules of casting:
+- **Hard cap of 6.** A picture with more than 6 actors is doing the job of two pictures. Split it, or demote some actors to annotations on existing arrows.
+- **Each actor is dictionary-typed.** No "generic box" allowed. If an actor's `dict_id` is genuinely missing from `DICTIONARY.md`, invoke the gap rule (step 4) before continuing.
+- **Each load-bearing dictionary category appears at most a handful of times.** If your cast has four E1 vectors, ask whether the picture is really staging four distinct vectors or one vector at four time-steps (use a loop frame, not four shapes).
+- **Sample markers (E10), noise variables (E2 / E10 / E11), and parameters (E11) usually live as annotations on the spine arrow, not as cast members.** Reserve cast slots for the entities the headline names.
+
+**3. Action.** Which dictionary verb is the picture's *spine* — the arrow the reader's eye follows from headline-subject to headline-object? Mark it visually (the renderer's heavy arrow style for that `dict_id`) and place every other arrow as a feeder into the spine.
+
+**4. Frame.** Is the picture inside a plate / loop / time index? If so, declare the frame as a `cluster:` whose `contains:` lists the shape ids inside the frame. Examples: "for $l = 1 \ldots L$ layers", "per minibatch sample $i$", "while not converged".
+
+After these four decisions, authoring the `nodes:` and `edges:` lists is mechanical: one shape per cast entry (plus any unavoidable annotation markers), one arrow per dictionary action mentioned in the headline.
+
+#### Composition self-checks
+
+Before handing the spec to the renderer, the agent verifies (`_validate` will warn if any of these fail):
+
+- ✅ `headline:` is present and is a complete sentence.
+- ✅ `cast:` is present and has ≤ 6 entries.
+- ✅ Every cast entry maps to at least one shape with the same `dict_id` and a label that contains the actor token.
+- ✅ Every load-bearing shape category (E1, E3, E4, E5, E6, E7, E8, E11, E13, E14, E15) used in the spec is represented in the cast.
+- ✅ The action arrows trace from headline-subject to headline-object without detour.
+
+If a check fails, the fix is *upstream* (rewrite the cast or the headline) — not in the renderer.
+
+#### Why this prevents flowchart collapse
+
+The failure mode "generic box → arrow → generic box → arrow → generic box" comes from skipping the cast step and going straight from the source text to a YAML node list. When the agent enumerates *every* concept in the text as a shape, it over-classifies (everything becomes E1 vector or E14 edge because those are the most generic categories the dictionary offers), under-stages (no frame, no spine), and produces a picture that reads as procedure rather than as a claim. The cast step forces a small set of typed actors *before* shape authoring, which is exactly the editorial discipline a hand-drawn whiteboard picture has built in.
 
 ### Canvas aspect ratio
 
@@ -51,7 +112,7 @@ The legacy single-graph 4:3 layout (`--legend inline`) is preserved as a fallbac
 
 ### Dictionary-tag discipline — legend, not inline tags
 
-Nodes carry **only** their role-specific label (e.g., `Z_X^(l-1)`, `P(Z_A^(l) | A, Z_X^(l-1))`, `θ ❄ (frozen)`). Edges carry their semantic label only (`condition`, `sample`, `param-by`). Dictionary codes (`E5`, `A7`, …) are **not** drawn next to the glyphs; the visual idiom (shape, color, line style) is the tag.
+Shapes carry **only** their role-specific label (e.g., `Z_X^(l-1)`, `P(Z_A^(l) | A, Z_X^(l-1))`, `θ ❄ (frozen)`). Edges carry their semantic label only (`condition`, `sample`, `param-by`). Dictionary codes (`E5`, `A7`, …) are **not** drawn next to the glyphs; the visual idiom (shape, color, line style) is the tag.
 
 Every picture carries a **legend panel** on the right edge of the canvas listing each distinct dictionary entry used in the picture.
 
@@ -65,8 +126,8 @@ Each legend row has the form:
 
 Where:
 
-- **Paper notation** = the first-occurring node/edge `label` in the spec for that `dict_id`, rendered through the renderer's math translator so sub/superscripts (`Z_X^(l-1)`) come out as proper subscripts.
-- **Context phrase** = a 2–6 word noun phrase in the paper's vocabulary (`adjacency matrix`, `feature latent (previous layer)`, `structural conditional`, `Gaussian noise (reparameterise)`, …). Sourced from the first-occurring node/edge's `legend_context` field. If empty, only the paper notation is shown.
+- **Paper notation** = the first-occurring shape/edge `label` in the spec for that `dict_id`, rendered through the renderer's math translator so sub/superscripts (`Z_X^(l-1)`) come out as proper subscripts.
+- **Context phrase** = a 2–6 word noun phrase in the paper's vocabulary (`adjacency matrix`, `feature latent (previous layer)`, `structural conditional`, `Gaussian noise (reparameterise)`, …). Sourced from the first-occurring shape/edge's `legend_context` field. If empty, only the paper notation is shown.
 
 **The legend does NOT show the dictionary's canonical name.** The canonical name (e.g., "graph edge / adjacency", "conditional distribution") is the renderer's internal vocabulary for shape lookup; readers should see the paper's wording, not the dictionary's. The legend also never shows dictionary codes (`E14`, `R1`, `A5`) or styling qualifiers (`(dotted)`, `(dashed)`).
 
@@ -94,15 +155,22 @@ rankdir: LR                                # or TB (composed mode forces TB)
 slug: "<paper slug>"                       # optional; pairs with `output:` below
 output: "<concept-or-pseudocode-name>"     # optional; bare name, `.png` appended
 
-nodes:
-  - id: <local_id>
+headline: "<subject-verb-object sentence in the paper's vocabulary>"
+
+cast:                                      # ≤ 6 typed actors, authored BEFORE shapes
+  - actor: "<paper notation, e.g. Z_X^(l-1)>"
+    dict_id: <E*>
+    role: "<2–6 word context phrase>"
+
+nodes:                                     # YAML key (legacy name); each entry is a SHAPE
+  - id: <shape_id>
     dict_id: <E*>
     label: "<role-specific label, math syntax allowed>"
     legend_context: "<2–6 word context phrase>"   # optional; used on first occurrence
 
 edges:
-  - src: <node_id>
-    dst: <node_id>
+  - src: <shape_id>
+    dst: <shape_id>
     dict_id: <R*/A*>
     label: "<semantic label>"
     legend_context: "<2–6 word context phrase>"   # optional
@@ -110,7 +178,7 @@ edges:
 clusters:                                  # optional, for loop frames (E12/A10)
   - id: <local_id>
     label: "<frame label>"
-    contains: [<node_id>, ...]
+    contains: [<shape_id>, ...]
 
 legend:                                    # optional, overrides per dict_id
   - dict_id: E5
@@ -139,7 +207,7 @@ Intermediate figure/legend PNGs (and their `.dot`/`.svg` byproducts) are written
 
 The composed canvas is two side-by-side regions:
 
-- **Left region (figure):** the main concept picture, forced to top-to-bottom (`rankdir=TB`) in composed mode regardless of what the spec says. All concept nodes, edges, clusters, and the title sit here. (The spec's `rankdir` field is still honored when using `--legend inline`.)
+- **Left region (figure):** the main concept picture, forced to top-to-bottom (`rankdir=TB`) in composed mode regardless of what the spec says. All concept shapes, edges, clusters, and the title sit here. (The spec's `rankdir` field is still honored when using `--legend inline`.)
 - **Right region (legend):** the legend panel, a single vertical column of legend rows (40×24 swatches, 36pt body text, 44pt bold "Legend" header).
 
 The two regions are rendered as separate graphviz invocations and joined by PIL with a 60px gutter and vertical center-alignment. The combined PNG is typically landscape (~2:1) but its exact dimensions depend on the content.
@@ -162,10 +230,10 @@ Given `<vault>/GIB/markov-representation.md` and the request "draw the per-layer
    - "$\theta$ frozen" → E7 + A20
    - "for each layer $l = 1, \ldots, L$" → E12 / A10 loop frame
 4. **Gap rule.** "Local-dependence assumption" is a *property* of the chain, not an atom — annotation on the layer frame.
-5. **Atomicity.** Each A1 is one arrow. The transform $\tilde{Z}_X^{(l-1)} = \tau(\cdot)W^{(l)}$ rides as an annotation on the conditioning arrow into the second conditional, not a separate node.
-6. **Spec.** 8 nodes (A, Z_X^(l-1), θ, P_ZA, Z_A^(l), P_ZX, ε, Z_X^(l)), 7+ edges, one cluster declaring the layer-l loop frame.
+5. **Atomicity.** Each A1 is one arrow. The transform $\tilde{Z}_X^{(l-1)} = \tau(\cdot)W^{(l)}$ rides as an annotation on the conditioning arrow into the second conditional, not a separate shape.
+6. **Spec.** 8 shapes (A, Z_X^(l-1), θ, P_ZA, Z_A^(l), P_ZX, ε, Z_X^(l)), 7+ edges, one cluster declaring the layer-l loop frame.
 7. **Render** via graphviz.
-8. **Self-verify.** Two distinct E5 nodes chained `Z_X^(l-1) → P_ZA → Z_A^(l) → P_ZX → Z_X^(l)`? If only one conditional, the cascade collapsed and the thesis is unmet — fix the spec.
+8. **Self-verify.** Two distinct E5 shapes chained `Z_X^(l-1) → P_ZA → Z_A^(l) → P_ZX → Z_X^(l)`? If only one conditional, the cascade collapsed and the thesis is unmet — fix the spec.
 
 ## Conventions
 
@@ -174,8 +242,8 @@ Given `<vault>/GIB/markov-representation.md` and the request "draw the per-layer
   - Braced: `Z_{X,v}`, `X^{(l-1)}`.
   - Parenthesised (parens preserved): `Z_X^(l-1)`, `P(Z_A^(l) | A, Z_X^(l-1))`.
 
-  Greek letters and operator glyphs use Unicode (`θ`, `ε`, `μ`, `σ`, `Σ`, `∑`, `≤`, `≥`, `❄`, `⋅`). Do **not** use `$...$` delimiters. Do **not** use backslash commands (`\frac`, `\mathbb`, `\mathcal`, `\tilde`, …) — they are passed through verbatim and won't render. Compound math (fractions, expectations with subscripted distributions) belongs in the prose around the picture, not in node labels.
-- **Font.** The renderer uses `fontname="Segoe UI,DejaVu Sans,sans-serif"` on graph / node / edge defaults to cover Greek, sub/superscripts, and the ❄ snowflake.
+  Greek letters and operator glyphs use Unicode (`θ`, `ε`, `μ`, `σ`, `Σ`, `∑`, `≤`, `≥`, `❄`, `⋅`). Do **not** use `$...$` delimiters. Do **not** use backslash commands (`\frac`, `\mathbb`, `\mathcal`, `\tilde`, …) — they are passed through verbatim and won't render. Compound math (fractions, expectations with subscripted distributions) belongs in the prose around the picture, not in shape labels.
+- **Font.** The renderer uses `fontname="Segoe UI,DejaVu Sans,sans-serif"` on graph / shape / edge defaults to cover Greek, sub/superscripts, and the ❄ snowflake.
 - **Path resolution:** every path is constructed via `tools/paths.py`. The Visualizer never hard-codes paths.
 - **Slug:** verbatim user input. Never normalize.
 
@@ -184,7 +252,7 @@ Given `<vault>/GIB/markov-representation.md` and the request "draw the per-layer
 When emitting the picture spec, the agent should know what the renderer will do with it:
 
 - **Backend:** `tools.visualize_concept.render(spec_path, png_path)` (or CLI: `python -m tools.visualize_concept <spec.yaml> <out.png>`). Resolves the `dot` binary via `tools.paths.graphviz_dot()` — uses the portable Windows binary if present, else falls back to system `dot`.
-- **Node style per `dict_id`** is encoded in the renderer's `_NODE_STYLE` table (shape, fill color, stroke). The agent does **not** specify shape/color in the spec — only `dict_id` and `label`. Style is the renderer's responsibility, derived from the dictionary recipe.
+- **Shape style per `dict_id`** is encoded in the renderer's `_NODE_STYLE` table (shape, fill color, stroke). The agent does **not** specify shape/color in the spec — only `dict_id` and `label`. Style is the renderer's responsibility, derived from the dictionary recipe.
 - **Edge style per `dict_id`** likewise (color, line style, arrowhead) via `_EDGE_STYLE`. The agent specifies `dict_id` and `label`; style is automatic.
 - **Atomicity** is enforced at the spec level: one action verb in the source text → one edge with that action's `dict_id`. The renderer trusts the spec; the agent owns the rule.
 - **Outputs per render:** `<name>.png` (deliverable), `<name>.svg` (resolution-independent backup), `<name>.dot` (source for regeneration).
@@ -202,7 +270,7 @@ Run these mentally before declaring the picture done. Each maps to a failure mod
 
 - **Dictionary coverage.** Every `dict_id` in the spec resolves in `DICTIONARY.md`. Unknown `dict_id`s fail the check.
 - **Atomicity.** Each action verb in the source text appears as exactly one edge in the spec. Two arrows for one verb = atomicity violation. Zero arrows for a verb explicitly named in the thesis = under-drawing.
-- **Cascade integrity.** If the thesis says "A causes B causes C", the picture has three distinct nodes A, B, C connected `A → B → C`. Two `E5`s collapsed into one is the canonical failure here.
+- **Cascade integrity.** If the thesis says "A causes B causes C", the picture has three distinct shapes A, B, C connected `A → B → C`. Two `E5`s collapsed into one is the canonical failure here.
 - **Loop frame.** If the source text says "for each $l = 1, \ldots, L$" (or equivalent iteration), the picture has an `E12`/`A10` cluster wrapping the per-iteration content.
 - **Math rendering.** Spot-check at least one label per `dict_id` on the rendered PNG: subscripts and superscripts must render as proper smaller text, not as raw `_X` / `^(l-1)`.
 - **Legend hygiene.** Every dictionary ID used appears in the legend; rows are `<paper notation> — <context phrase>`; no canonical names from the dictionary; no codes (`E5`, `A7`); no styling qualifiers (`(dotted)`, `(dashed)`).
