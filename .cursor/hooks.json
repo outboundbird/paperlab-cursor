@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "python tools/hooks/verify_on_vault_write.py",
+        "matcher": "Write|StrReplace",
+        "timeout": 30,
+        "failClosed": false
+      }
+    ]
+  }
+}
