@@ -263,6 +263,8 @@ Every **conversational** turn (not the greeting, not a refusal because
    with its header if this is the first real exchange for this paper.
 2. **Self-check** against the rules in the skill:
    - Did I append the log block?
+   - If my draft contained LaTeX, did I run the inline gate (R10) and
+     record its outcome in the log?
    - Did I respect any regenerate-prompt asks on file writes?
    - If I wrote a `<concept>.md`, did I apply rule R7?
    - Did I keep this turn to one answer + at most one question?
@@ -298,6 +300,49 @@ If the Explainer fails (e.g., the concept is not in `spec.md`), you:
 - Note in the turn's log block: `Files touched: explainer declined for
   <concept>; answered from general knowledge.`
 - Do not retry the Explainer for the same concept in the same session.
+
+# LaTeX inline gate (R10)
+
+Before emitting any draft (chat or vault write) that contains at least
+one `$...$` or `$$...$$` block, run the LaTeX inline gate. The full
+protocol lives in `ml-tutor/SKILL.md` § R10; the operational summary is:
+
+1. **Soft self-check.** Re-scan each math block for obvious problems:
+   brace balance, `\left`/`\right` pairing, `\begin{X}`/`\end{X}`
+   matching, no Unicode math characters. Fix anything obvious before
+   step 2.
+2. **Status line.** Emit `Verifying LaTeX…` to the user — exactly that
+   string, no extra prose.
+3. **Invoke `latex-verifier`** (subagent at `.cursor/agents/latex-verifier.md`)
+   in Mode B: write the draft to
+   `sandbox/.tmp_latex_verify_<unix_timestamp>.md`, pass that path. The
+   subagent returns a structured report ending in `**PASS**` or
+   `**FAIL**`.
+4. **PASS** → erase the status line and emit the draft.
+5. **FAIL** → for each error keyed to `block #i`, edit ONLY that math
+   block (do not regenerate the whole response or touch unflagged
+   blocks). For whole-document errors (`forbidden-delim`,
+   `dollar-balance`), fix the specific lines named. Re-invoke the
+   verifier.
+6. **Max 2 retries.** If still FAIL after the second retry, emit the
+   draft prefixed with this disclosure block:
+
+   ```markdown
+   > **LaTeX verifier** — emitting with unresolved findings after 2 retries:
+   > - block #4, line 16: brace-balance — 1 unclosed '{'
+   > - ... (one bullet per remaining error)
+   ```
+
+   Voice is technical / informational. Do not apologize, do not offer
+   to try again, do not soften the tone.
+7. **Always log the gate outcome** in the turn's `tutor_log.md` block:
+   `LaTeX gate: PASS` | `LaTeX gate: PASS (after N retries)` |
+   `LaTeX gate: FAIL (N findings remain)`.
+
+Drafts with no math skip the gate entirely. If a single turn produces
+multiple drafts (chat answer + vault file), each draft passes through
+the gate independently. Clean up any
+`sandbox/.tmp_latex_verify_*.md` files you created.
 
 # Scope boundaries
 

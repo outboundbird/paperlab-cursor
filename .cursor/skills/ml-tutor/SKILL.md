@@ -232,6 +232,66 @@ The Tutor does not:
 - Run experiments.
 - Evaluate or critique the paper's claims (Critic's territory).
 
+### R10 — LaTeX inline gate
+
+Before emitting any draft (to chat OR to a vault file) that contains at
+least one `$...$` or `$$...$$` block, the Tutor MUST run the LaTeX
+inline gate. Drafts with no math skip the gate entirely.
+
+**Procedure:**
+
+1. **Soft self-check.** Re-read each LaTeX block in the draft and
+   confirm: braces balanced, every `\left` has a `\right`, every
+   `\begin{X}` has a matching `\end{X}`, no Unicode math characters
+   leaked. This is cheap insurance — fix obvious mistakes before
+   invoking the verifier.
+
+2. **Status line.** Emit a single visible line:
+   `Verifying LaTeX…` (no period, no extra prose). This is the only
+   user-visible signal of in-flight verification.
+
+3. **Invoke `latex-verifier`** subagent in Mode B (draft text passed via
+   temp file under `sandbox/`). See `.cursor/skills/ml-latex-verify/SKILL.md`
+   for the contract.
+
+4. **Read the verdict line.**
+   - `**PASS**` → erase the status line, emit the draft. Done.
+   - `**FAIL**` → go to step 5.
+
+5. **Per-block revise.** For each error keyed to `block #i` in the
+   verifier report, edit ONLY the content of math block `#i` in the
+   draft. Do not regenerate the whole response. Do not touch blocks
+   the verifier did not flag. For whole-document errors
+   (`forbidden-delim`, `dollar-balance`), fix the specific lines named.
+
+6. **Re-invoke `latex-verifier`** on the revised draft.
+   - `**PASS**` → emit. Done.
+   - `**FAIL**` → if this was the first retry, repeat step 5 once more
+     (max 2 retries total).
+
+7. **Retry-exhaustion (after 2 failed retries).** Emit the draft anyway,
+   prefixed with a disclosure block in this exact format:
+
+   ```markdown
+   > **LaTeX verifier** — emitting with unresolved findings after 2 retries:
+   > - block #4, line 16: brace-balance — 1 unclosed '{'
+   > - block #5, line 20: begin-end — \end{matrix} does not match \begin{align}
+   ```
+
+   Voice is technical / informational. Do not apologize, do not offer to
+   try again, do not soften the tone. The verifier is a tool reporting
+   facts.
+
+8. **Log it.** The turn's `tutor_log.md` block must record whether the
+   gate fired and the outcome:
+   `LaTeX gate: PASS` | `LaTeX gate: PASS (after N retries)` |
+   `LaTeX gate: FAIL (N findings remain)`.
+
+The gate applies equally to drafts that go to chat only, drafts that go
+to a vault file only, and drafts that go to both. If a single turn
+produces multiple drafts (e.g., chat answer + a `<concept>.md` write),
+each draft passes through the gate independently.
+
 ## Invoking the Explainer (backend mode)
 
 When the Tutor needs paper-bound content for a concept it does not yet
@@ -269,6 +329,7 @@ for next session.
 ---
 paper: <slug>
 category: tutor
+agent: tutor
 tags:
 - AI-guided-paper-reading
 - tutor-log
@@ -328,6 +389,7 @@ edits and only append new blocks.
 ---
 paper: <slug>
 category: tutor
+agent: tutor
 tags:
 - AI-guided-paper-reading
 - tutor-notes
@@ -419,6 +481,8 @@ actually requires them.
 ## Self-checks (at end of every turn, before ending the turn)
 
 - Did I append a block to `tutor_log.md` for this turn? (Mandatory.)
+- If my draft contained LaTeX (`$...$` or `$$...$$`), did I run the
+  inline gate (R10) and record its outcome in the log?
 - If I wrote any file other than the log, did I follow the
   regenerate-prompt rule before overwriting?
 - If I wrote a `<concept>.md` whose Section 6 links to other concept

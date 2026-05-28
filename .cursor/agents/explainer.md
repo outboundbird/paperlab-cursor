@@ -150,11 +150,54 @@ if the target file already exists, ask the Tutor (which will, if needed,
 relay to the user) for **replace / append / abort**. Do not overwrite
 silently.
 
+## 3.5. LaTeX inline gate
+
+Before writing the output file, if the draft contains at least one
+`$...$` or `$$...$$` block, run the LaTeX inline gate. The full
+protocol lives in `.cursor/skills/ml-tutor/SKILL.md` § R10; the
+operational summary for the Explainer:
+
+1. **Soft self-check.** Re-scan each math block for brace balance,
+   `\left`/`\right` pairing, `\begin{X}`/`\end{X}` matching, no
+   Unicode math characters. Fix anything obvious.
+2. **Invoke `latex-verifier`** (subagent at
+   `.cursor/agents/latex-verifier.md`) in Mode B: write the draft to
+   `sandbox/.tmp_latex_verify_<unix_timestamp>.md`, pass that path.
+3. **PASS** → write the output file as planned.
+4. **FAIL** → per-block revise (edit only the flagged math blocks; for
+   whole-document errors, fix the specific lines named). Re-invoke.
+   Max 2 retries.
+5. **Retry-exhaustion (after 2 failed retries).** Write the output
+   file anyway with a top-of-file HTML comment listing the unresolved
+   findings, in this exact format:
+
+   ```markdown
+   <!--
+   LaTeX verifier — wrote with unresolved findings after 2 retries:
+   - block #4, line 16: brace-balance — 1 unclosed '{'
+   - ... (one bullet per remaining error)
+   -->
+   ```
+
+   The Explainer does not chat directly with the user, so the
+   disclosure lives in the file itself for the Tutor (and later the
+   post-hoc hook) to surface.
+
+6. **Report the gate outcome** to the Tutor as part of the report-back
+   message (see § "Report back"): `LaTeX gate: PASS` | `PASS (after N
+   retries)` | `FAIL (N findings remain)`. The Tutor decides whether
+   to surface this in chat.
+
+Drafts with no math skip the gate entirely. Clean up any
+`sandbox/.tmp_latex_verify_*.md` files you created.
+
 ## 4. Self-check
 
 - Schema sections all present.
 - Notation consistent across sections, matching `spec.md`.
 - File written to the exact path the Tutor specified.
+- If the draft contained LaTeX, did I run the inline gate (§ 3.5) and
+  include the outcome in the report-back?
 - Section 6 (or 7) cross-references are one-way only; you have not
   modified any other file.
 
