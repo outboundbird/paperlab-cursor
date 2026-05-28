@@ -152,6 +152,59 @@ def repo_sandbox_dir(slug: str) -> Path:
 
 
 # ---------------------------------------------------------------------------
+# External CLIs PaperLab depends on. These helpers resolve absolute paths to
+# tools that may not be on the shell's PATH at the time a script runs (a
+# common Windows-on-scoop situation: scoop updates the user's PATH, but
+# subprocess shells spawned inside an existing session don't see it).
+# ---------------------------------------------------------------------------
+
+
+def firecrawl_cli() -> Path:
+    """Resolve the absolute path to the ``firecrawl`` CLI.
+
+    Lookup order:
+
+    1. ``shutil.which("firecrawl")`` — succeeds when the binary is on
+       ``PATH`` (works after a fresh shell on Windows, or natively on
+       Linux/macOS).
+    2. Windows scoop fallback: ``%USERPROFILE%/scoop/persist/nodejs/bin/firecrawl[.cmd]``.
+
+    Returns
+    -------
+    Path
+        Absolute path to a runnable firecrawl binary.
+
+    Raises
+    ------
+    FileNotFoundError
+        If neither lookup succeeds. The message points at install steps.
+    """
+    import os
+    import shutil
+
+    found = shutil.which("firecrawl")
+    if found:
+        return Path(found).resolve()
+
+    home = Path(os.path.expanduser("~"))
+    scoop_bin = home / "scoop" / "persist" / "nodejs" / "bin"
+    for name in ("firecrawl.cmd", "firecrawl"):
+        candidate = scoop_bin / name
+        if candidate.exists():
+            return candidate.resolve()
+
+    raise FileNotFoundError(
+        "firecrawl CLI not found. Install via: "
+        "(1) scoop install nodejs, "
+        "(2) npm install -g firecrawl-cli, "
+        "(3) firecrawl login --browser. "
+        "On Sanofi Windows machines, scoop installs into "
+        "%USERPROFILE%\\scoop and the npm-global binary lives under "
+        "%USERPROFILE%\\scoop\\persist\\nodejs\\bin\\."
+    )
+
+
+# ---------------------------------------------------------------------------
 # CLI for quick lookups from a shell, useful for agents that prefer subprocess
 # calls over Python imports.
 # ---------------------------------------------------------------------------
@@ -169,6 +222,7 @@ def _cli() -> None:
     - ``supplementals`` : prints ``repo_supplementals_dir(slug)``
     - ``upstream`` : prints ``repo_upstream_dir(slug)``
     - ``sandbox`` : prints ``repo_sandbox_dir(slug)``
+    - ``firecrawl`` : prints the absolute path to the firecrawl CLI
     """
     import sys
 
@@ -212,6 +266,8 @@ def _cli() -> None:
         print(repo_upstream_dir(slug))
     elif kind == "sandbox":
         print(repo_sandbox_dir(slug))
+    elif kind == "firecrawl":
+        print(firecrawl_cli())
     else:
         raise SystemExit(f"Unknown kind: {kind!r}. Run with --help.")
 

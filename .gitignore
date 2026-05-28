@@ -18,3 +18,4 @@ sandbox/
 tools/graphviz/*
 !tools/graphviz/README.md
 tools/__pycache__/
+tools/hooks/__pycache__/
