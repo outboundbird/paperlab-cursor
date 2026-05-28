@@ -42,8 +42,8 @@ Every `synth__<concept_a>__<concept_b>.md` must begin with:
 ```markdown
 ---
 paper: <slug>
-paper: <slug>
 category: model
+agent: tutor       # or `agent: explainer` for the `synth__<a>__<b>-<slug>.md` backend intermediate
 tags:
 - AI-guided-paper-reading
 - paper-concept-explanation

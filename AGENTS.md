@@ -4,7 +4,14 @@ PaperLab helps the user understand mathematics in machine learning and deep lear
 
 ## YAML front-matter
 
-Every agent-generated markdown file under `<vault>/<slug>/` carries a YAML front-matter with a `paper: <slug>` key (in addition to `category:` and `tags:`). The slug is **verbatim user input** — never normalize, capitalize, or pluralize. If the slug contains any of `:`, `#`, `[`, `]`, `{`, `}`, `,`, `&`, `*`, `!`, `|`, `>`, `'`, `"`, `%`, `@`, `` ` ``, or starts with whitespace or `-`, wrap it in double quotes: `paper: "weird:slug"`. This single key lets Obsidian Dataview / property search group every file (spec.md, code_map.md, tutor_log.md, concept files, ...) for one paper.
+Every agent-generated markdown file under `<vault>/<slug>/` carries a YAML front-matter with these keys in this order:
+
+- `paper: <slug>` — groups all files for one paper.
+- `category:` — broad bucket (`model`, `tutor`, ...).
+- `agent: <name>` — identifies the subagent that wrote the file. Required as of 2026-05-28 for the post-hoc verifier hook to know which writer's output to verify. Allowed values: `acquirer`, `dissector`, `implementer`, `critic`, `tutor`, `explainer`. The hook compares against this set; files without `agent:` (legacy vault content) are skipped silently.
+- `tags:` — Obsidian tags.
+
+The slug is **verbatim user input** — never normalize, capitalize, or pluralize. If the slug contains any of `:`, `#`, `[`, `]`, `{`, `}`, `,`, `&`, `*`, `!`, `|`, `>`, `'`, `"`, `%`, `@`, `` ` ``, or starts with whitespace or `-`, wrap it in double quotes: `paper: "weird:slug"`. The `paper:` key lets Obsidian Dataview / property search group every file (spec.md, code_map.md, tutor_log.md, concept files, ...) for one paper.
 
 ## Project Conventions
 

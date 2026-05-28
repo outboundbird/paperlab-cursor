@@ -64,8 +64,8 @@ Every `<concept>.md` must begin with a header in this format:
 ```markdown
 ---
 paper: <slug>
-paper: <slug>
 category: model
+agent: tutor       # or `agent: explainer` for the `<concept>-<slug>.md` backend intermediate
 tags:
 - AI-guided-paper-reading
 - concept-explanation

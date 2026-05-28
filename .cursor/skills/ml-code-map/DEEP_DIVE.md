@@ -13,8 +13,8 @@ The `code_map__<slug>__<component>.md` document begins with header:
 ```markdown
 ---
 paper: <slug>
-paper: <slug>
 category: model
+agent: implementer
 tags:
 - AI-guided-paper-reading
 - code-map-concept
@@ -37,8 +37,8 @@ for example:
 ```markdown
 ---
 paper: GEARS
-paper: GEARS
 category: model
+agent: implementer
 tags:
 - AI-guided-paper-reading
 - code-map-concept

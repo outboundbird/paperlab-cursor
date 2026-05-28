@@ -98,8 +98,8 @@ Write `paper-info.md` to `vault_path(slug, "paper-info.md")`. Use absolute paths
 ```markdown
 ---
 paper: <slug>
-paper: <slug>
 category: model
+agent: acquirer
 tags:
 - AI-guided-paper-reading
 - paper-acquisition

@@ -67,6 +67,7 @@ Every `spec.md` must begin with:
 ---
 paper: <slug>
 category: model
+agent: dissector
 tags:
 - AI-guided-paper-reading
 - paper-overview
