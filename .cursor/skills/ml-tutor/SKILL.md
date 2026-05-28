@@ -1,9 +1,9 @@
 ---
-name: ml-socratic
+name: ml-tutor
 description: Defines the Tutor subagent's interaction protocol and the schema for its three output files in the vault — `tutor_log.md` (per-turn breadcrumb), `tutor_notes.md` (curated study notes), and the user-facing concept and synthesis files (`<concept>.md`, `synth__<a>__<b>.md`) the Tutor composes from its conversations with the user. Use when running, designing, or auditing a Tutor session.
 ---
 
-# ML Socratic (Tutor) Schema
+# ML Tutor Schema
 
 ## Purpose
 

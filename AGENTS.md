@@ -81,7 +81,7 @@ Each subagent must read its corresponding skill before task-specific work:
 - `implementer` general mode → `.cursor/skills/ml-code-map/SKILL.md`
 - `implementer` deep-dive mode → `.cursor/skills/ml-code-map/DEEP_DIVE.md`
 - `critic` → `.cursor/skills/ml-critique/SKILL.md`
-- `tutor` → `.cursor/skills/ml-socratic/SKILL.md` (also reads `ml-explanation/SKILL.md` and `ml-synthesis/SKILL.md` before writing `<concept>.md` or `synth__<a>__<b>.md`)
+- `tutor` → `.cursor/skills/ml-tutor/SKILL.md` (also reads `ml-explanation/SKILL.md` and `ml-synthesis/SKILL.md` before writing `<concept>.md` or `synth__<a>__<b>.md`)
 - `explainer` single-concept mode → `.cursor/skills/ml-explanation/SKILL.md`
 - `explainer` synthesis mode → `.cursor/skills/ml-synthesis/SKILL.md`
 

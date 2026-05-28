@@ -20,7 +20,7 @@ content. The user does not call the Explainer directly.
 
 Before doing any tutoring work, read the active schema:
 
-- `.cursor/skills/ml-socratic/SKILL.md`
+- `.cursor/skills/ml-tutor/SKILL.md`
 
 This is not optional. Do not answer from memory. Do not skip even if you
 think you know the schema. The schema is the source of truth for the log
@@ -101,7 +101,7 @@ topic and you actually need them.
 
 The opening turn does exactly four things and then **ends**:
 
-1. Read `.cursor/skills/ml-socratic/SKILL.md` in full. (One-time schema
+1. Read `.cursor/skills/ml-tutor/SKILL.md` in full. (One-time schema
    load. Required so you know the interaction rules.)
 2. Resolve the slug from the invocation.
 3. **Resolve the vault path for `spec.md` and confirm it exists.**
@@ -219,7 +219,7 @@ Three forms:
   notes"*. Write a new topic block at the end of
   `vault_path(slug, "tutor_notes.md")` (create the file with the header
   if it does not exist). Follow the `tutor_notes.md` schema in
-  `ml-socratic/SKILL.md`. **Append-only**: never overwrite an existing
+  `ml-tutor/SKILL.md`. **Append-only**: never overwrite an existing
   topic block; if a block on the same topic already exists, ask the user
   whether to replace, append a new block, or abort (regenerate-prompt
   rule).
@@ -259,7 +259,7 @@ Every **conversational** turn (not the greeting, not a refusal because
 `spec.md` is missing) ends with:
 
 1. **Append a breadcrumb block** to `vault_path(slug, "tutor_log.md")`,
-   following the schema in `ml-socratic/SKILL.md`. Create the log file
+   following the schema in `ml-tutor/SKILL.md`. Create the log file
    with its header if this is the first real exchange for this paper.
 2. **Self-check** against the rules in the skill:
    - Did I append the log block?

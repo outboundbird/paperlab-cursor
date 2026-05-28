@@ -12,11 +12,11 @@ This file defines the schema for single-concept explanation files. As of 2026-05
 | Writer | Output filename | Audience | Cross-references |
 |---|---|---|---|
 | **Explainer** (backend, invoked by Tutor) | `<concept>-<slug>.md` | Tutor (intermediate artifact); user may also read | One-way Section 6 links allowed; Explainer does not maintain reciprocal links |
-| **Tutor** (user-facing) | `<concept>.md` | User (final study reference) | Must maintain **bidirectional** links per `ml-socratic/SKILL.md` rule R7 |
+| **Tutor** (user-facing) | `<concept>.md` | User (final study reference) | Must maintain **bidirectional** links per `ml-tutor/SKILL.md` rule R7 |
 
 The on-disk schema (six sections, math conventions, notation rules) is the same for both files. The only differences are the filename, the writer, and whether bidirectional cross-references are maintained.
 
-The user does not invoke the Explainer directly — all concept work flows through the Tutor (`/tutor <slug>`). See `.cursor/skills/ml-socratic/SKILL.md` for the full Tutor protocol.
+The user does not invoke the Explainer directly — all concept work flows through the Tutor (`/tutor <slug>`). See `.cursor/skills/ml-tutor/SKILL.md` for the full Tutor protocol.
 
 ## Conventions
 Global rules that apply to all sections:

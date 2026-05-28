@@ -19,7 +19,7 @@ As of 2026-05-27, two different agents write files conforming to this schema, wi
 | **Explainer** (backend, invoked by Tutor) | `synth__<a>__<b>-<slug>.md` | Tutor (intermediate artifact) |
 | **Tutor** (user-facing) | `synth__<a>__<b>.md` | User (final study reference) |
 
-The user does not invoke the Explainer directly — synthesis requests go through the Tutor (`/tutor <slug>`). See `.cursor/skills/ml-socratic/SKILL.md`.
+The user does not invoke the Explainer directly — synthesis requests go through the Tutor (`/tutor <slug>`). See `.cursor/skills/ml-tutor/SKILL.md`.
 
 ## Conventions
 
