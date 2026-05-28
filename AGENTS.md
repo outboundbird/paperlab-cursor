@@ -141,6 +141,29 @@ acts on.
 the verdict, but `unresolved` rows trigger a transparency disclosure
 on PASS.
 
+### Scope: what the verifiers do NOT catch
+
+The verifiers are **signature-based**, not semantic. They are a
+backstop for one specific failure mode each, not a general
+truthfulness check. Out of scope by design:
+
+- **Book / textbook citations** — no public structured resolver.
+- **Intra-document cross-references** (`see also the … section
+  above`) — not citations.
+- **Bare author-year mentions** without an arXiv ID, DOI, or URL
+  (`Tishby & Pereira (2000)`).
+- **Citations to slide decks, lecture notes, or private documents.**
+- **Mathematical correctness** — `latex-verifier` only checks
+  syntax / structure, never whether an equation is mathematically
+  right.
+- **Citation appropriateness** — `citation-verifier` only checks
+  that the cited record exists and the claimed metadata matches.
+  Whether the citation supports the surrounding claim is the Tutor's
+  responsibility.
+
+The Tutor remains solely responsible for honesty on these
+(`ml-tutor/SKILL.md` R3: paper-bound vs general-knowledge framing).
+
 ### Per-paper citation cache
 
 Resolver output is cached at `papers/<slug>/.cache/citations/`

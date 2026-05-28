@@ -339,11 +339,35 @@ across the Tutor and Explainer agent/skill files.
   `latex-verifier` and `citation-verifier` also added to "Cursor
   Subagents" and "Agent-To-Skill Mapping".
 
-**What's deferred:**
-- Cache clearing at Tutor session end (currently the cache survives
-  across sessions; only an explicit `rm -rf papers/<slug>/.cache/`
-  clears it).
-- Live smoke run on `/tutor GIB` with both gates active (next).
+**Same-day follow-ups:**
+- **Live smoke run on `/tutor GIB` with both gates active passed.**
+  Tutor produced math and a book citation; LaTeX gate fired
+  (`Verifying LaTeX…`) and resolved cleanly, citation gate
+  correctly skipped (no arXiv/DOI/URL signatures — book citations
+  are out of scope by design, see "Scope lesson" below).
+- **Temp-file naming drift caught + fixed.** The Tutor improvised
+  `sandbox/.tmp_latex_verify_notes.md` instead of the spec's
+  `_<unix_timestamp>.md` suffix. Benign in isolation but a latent
+  collision risk across concurrent gates. Hardened both verifier
+  subagent files (`latex-verifier.md`, `citation-verifier.md`)
+  with a normative "MUST use unix timestamp" clause, explicit
+  rationale, and the exact anti-pattern called out by name.
+  Commit `0a420e7`.
+
+**Scope lesson worth recording.** The citation verifier is
+signature-based, not semantic. Book citations, intra-document
+cross-references (`see also the … section above`), bare author-year
+mentions without an arXiv/DOI/URL, and citations to slide decks or
+private documents are all **out of scope by design** — there is no
+public structured resolver for them. The Tutor remains solely
+responsible for honesty on these (`ml-tutor/SKILL.md` R3: paper-bound
+vs general-knowledge framing). The verifier is a backstop, not a
+replacement for the Tutor's judgment.
+
+**Still deferred:**
+- Cache clearing at Tutor session end (currently the cache
+  survives across sessions; only an explicit
+  `rm -rf papers/<slug>/.cache/` clears it).
 - KaTeX strict-mode renderer for LaTeX v2 (Linux machine).
 
 ## Recently completed (2026-05-27 late)
