@@ -78,6 +78,8 @@ PaperLab uses Cursor project subagents in `.cursor/agents/`.
 - `critic` audits claims, reproducibility, and paper-code alignment, then writes `critic_reviews.md` to the vault.
 - `tutor` is the user-facing conversational agent for understanding the paper's concepts. Reads `spec.md` and related vault files, talks with the user, invokes the `explainer` in the background when paper-bound content is missing, and writes `tutor_log.md` (every turn), plus `tutor_notes.md` / `<concept>.md` / `synth__<a>__<b>.md` (only on explicit user request).
 - `explainer` is **backend-only as of 2026-05-27**. Invoked by the `tutor`, never by the user. Writes paper-bound intermediates: `<concept>-<slug>.md` (single-concept) or `synth__<a>__<b>-<slug>.md` (synthesis).
+- `latex-verifier` is a read-only backend subagent. Wraps `tools/verify_latex.py` (lexer v1). Invoked by `tutor` and `explainer` in the inline gate (R10 / § 3.5) and by the post-hoc hook on vault writes. Never invoked by the user directly under normal flow.
+- `citation-verifier` is a read-only backend subagent. Wraps `tools/verify_citations.py` (arXiv API + Crossref API + firecrawl CLI fallback, with per-paper cache). Invoked by `tutor` and `explainer` in the inline gate (R11 / § 3.6, sequential after the LaTeX gate) and by the post-hoc hook. Never invoked by the user directly under normal flow.
 
 ## Agent-To-Skill Mapping
 
@@ -91,8 +93,71 @@ Each subagent must read its corresponding skill before task-specific work:
 - `tutor` → `.cursor/skills/ml-tutor/SKILL.md` (also reads `ml-explanation/SKILL.md` and `ml-synthesis/SKILL.md` before writing `<concept>.md` or `synth__<a>__<b>.md`)
 - `explainer` single-concept mode → `.cursor/skills/ml-explanation/SKILL.md`
 - `explainer` synthesis mode → `.cursor/skills/ml-synthesis/SKILL.md`
+- `latex-verifier` → `.cursor/skills/ml-latex-verify/SKILL.md`
+- `citation-verifier` → `.cursor/skills/ml-citation-verify/SKILL.md`
 
 Treat those skills as authoritative for output structure, naming, scope boundaries, and self-checks.
+
+## Verifier system
+
+PaperLab runs two verifier subagents — `latex-verifier` and
+`citation-verifier` — against agent-generated content to catch the
+failure modes the Tutor and Explainer have produced in practice
+(broken math blocks, hallucinated arXiv IDs, mismatched citation
+metadata). Both verifiers are wrappers around pure-Python tools and
+emit structured JSON; the subagents translate that into a
+verdict-line report (`**PASS**` / `**FAIL**`) the calling agent
+acts on.
+
+### Two trigger paths
+
+1. **Inline gate (Tutor, Explainer) — primary path.** Runs *before*
+   emission. LaTeX first (`ml-tutor/SKILL.md` § R10), citations
+   second (§ R11), with **separate retry budgets** (max 2 each).
+   Outcomes are logged per-row in `tutor_log.md` (Tutor) or returned
+   via the report-back to the Tutor (Explainer). Failed citations
+   only fail the gate when `mismatched`; `unresolved` warnings are
+   reported via a disclosure block but do not block emission, because
+   transient resolver issues (proxy, rate limit, quota) commonly
+   affect valid citations.
+2. **Post-hoc hook — backstop for non-gated agents.** When any agent
+   other than `tutor` or `explainer-intermediate` writes a `.md`
+   file under the vault, `.cursor/hooks.json` fires
+   `tools/hooks/verify_on_vault_write.py`. The hook runs both
+   verifiers sequentially on the saved file, appends two blocks
+   (one per verifier) to `vault_path(slug, "verifier_log.md")`, and
+   returns a combined `additional_context` message so the calling
+   agent sees the result in chat. The hook fails open: any crash is
+   logged to stderr and the file write is never blocked.
+
+### What flips a verdict
+
+| Verifier | PASS | FAIL |
+|---|---|---|
+| `latex-verifier` | No `error`-severity findings | 1+ `error` findings |
+| `citation-verifier` | No `mismatched` rows | 1+ `mismatched` rows |
+
+`warning` (LaTeX) and `unresolved` / `skipped` (citations) never flip
+the verdict, but `unresolved` rows trigger a transparency disclosure
+on PASS.
+
+### Per-paper citation cache
+
+Resolver output is cached at `papers/<slug>/.cache/citations/`
+keyed by `(kind, id)`. Survives across Tutor turns within a session.
+Cache clearing at session end is on the roadmap (see `ROADMAP.md`).
+
+### Tool layer
+
+- `tools/verify_latex.py` — pure-Python LaTeX lexer (v1). Eight
+  rules across six families, all scoped to math blocks except
+  `forbidden-delim` and `dollar-balance` (whole document). KaTeX
+  strict-mode renderer (v2) is planned for the Linux machine.
+- `tools/verify_citations.py` — detector + resolver. Resolvers:
+  arXiv Atom API → Crossref REST API → firecrawl CLI (fallback for
+  arXiv/DOI 404s and bare URLs). Claimed metadata parsed from prose
+  is matched against resolved metadata (60% title overlap, any
+  claimed surname in resolved authors, year within ±1).
 
 ## Suggested Workflow
 

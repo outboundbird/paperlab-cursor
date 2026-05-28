@@ -270,6 +270,82 @@ Small refinements to existing schemas that aren't urgent but are worth rememberi
 
 - **Reconsider slide-deck structure** — the current schema (title / headline / one-per-component / results / limitations) is generic. Tweak it to track paper content more faithfully: e.g., split "method" into problem-setup vs. solution slides, surface the loss/objective as its own slide when central, and let `spec.md` §6 grouping drive section count rather than a fixed 8–12 budget. May require enriching `spec.md` fields the dissector currently extracts (e.g., explicit "core contribution" vs. "supporting machinery" tags on §6.1 entries).
 
+## Recently completed (2026-05-28)
+
+End-to-end verifier system shipped. Two read-only backend subagents
+(`latex-verifier` and `citation-verifier`), two pure-Python tools,
+two trigger paths (inline gate + post-hoc hook), and documentation
+across the Tutor and Explainer agent/skill files.
+
+- **`tools/verify_citations.py` — citation detector + multi-tier
+  resolver.** Detects arXiv IDs (`arXiv:NNNN.NNNNN`,
+  `arxiv.org/abs/...`), DOIs (`10.NNNN/...`, `doi:...`,
+  `doi.org/...`), and bare URLs. Three-tier resolution: arXiv Atom
+  API → Crossref REST API → firecrawl CLI fallback. Claimed
+  metadata parsed from prose (markdown-link text when title-shaped,
+  `Author et al., YYYY` patterns on the citation's line + previous
+  line). Judgment against resolved fields: 60% title token-overlap,
+  any claimed surname in resolved authors, year within ±1. Per-paper
+  cache at `papers/<slug>/.cache/citations/<sha1(kind:id)>.json`
+  keyed by `(kind, id)`. Exit code 1 only on `mismatched`;
+  `unresolved` is a warning (transient resolver issues are common
+  for valid citations). Smoke-tested on a synthetic fixture with
+  the Transformer paper, LeCun et al. 2015, and an unresolvable URL.
+- **`firecrawl_cli()` helper in `tools/paths.py`.** Resolves the
+  firecrawl CLI absolute path through `shutil.which` first, then
+  the Windows scoop persist directory fallback
+  (`%USERPROFILE%/scoop/persist/nodejs/bin/firecrawl.cmd`). Raises
+  `FileNotFoundError` with install instructions when neither path
+  works. Added to the `python -m tools.paths firecrawl` CLI
+  dispatcher. Solves the corporate-Windows-PATH-not-propagating-to-
+  spawned-shells issue documented during the firecrawl setup
+  journey.
+- **`.cursor/skills/ml-citation-verify/SKILL.md`** — mirrors the
+  `ml-latex-verify` shape exactly (Purpose, Resolver tiers,
+  Per-paper cache, Two invocation modes, What detects, What judges,
+  Status semantics, Output schema, Subagent contract, Scope
+  boundaries, Self-checks). Documents that `mismatched` is the only
+  gate-failing status; `unresolved` is a warning surfaced via
+  disclosure block.
+- **`.cursor/agents/citation-verifier.md`** — read-only backend
+  subagent. `readonly: true` with one documented escape hatch
+  (Mode B temp file in `sandbox/`, mirroring `latex-verifier`).
+  Explicitly isolated from forwarded context — judges only from the
+  tool's JSON output to avoid trust-pressure from the calling agent.
+- **`ml-tutor/SKILL.md` § R11 — Citation inline gate.** Runs
+  sequentially after R10 (LaTeX) on the same draft with a separate
+  retry budget (max 2 each). Detection signatures spelled out
+  explicitly (`arXiv:`, `arxiv.org/abs/`, `doi:`, `doi.org/`, bare
+  `10.NNNN/...`, any `http(s)://`). Soft self-check before invoking
+  the verifier ("the Tutor is the cause, the verifier is the
+  backstop"). Two disclosure templates intentionally worded
+  differently — retry-exhaustion uses "mismatches", resolver
+  warnings use "could not reach" — so the user can tell them apart
+  at a glance. Six log-row values cover every combination of
+  (no-retries / N-retries / FAIL) × (no-warnings / M-warnings).
+- **`.cursor/agents/tutor.md` § "Citation inline gate (R11)" and
+  `.cursor/agents/explainer.md` § 3.6** mirror the skill, with the
+  Explainer using HTML-comment disclosures (file-write context, no
+  user-facing chat).
+- **`tools/hooks/verify_on_vault_write.py` — post-hoc hook
+  extended.** Runs both verifiers sequentially on any non-gated
+  vault `.md` write. Each verifier fails independently — a LaTeX
+  crash doesn't kill citations and vice versa. Writes two append
+  blocks to `verifier_log.md` (one per verifier) and returns one
+  combined `additional_context` message to the calling agent.
+- **`AGENTS.md` "Verifier system" section** added: documents the
+  two trigger paths (inline gate + post-hoc hook), what flips a
+  verdict per verifier, per-paper cache scope, and the tool layer.
+  `latex-verifier` and `citation-verifier` also added to "Cursor
+  Subagents" and "Agent-To-Skill Mapping".
+
+**What's deferred:**
+- Cache clearing at Tutor session end (currently the cache survives
+  across sessions; only an explicit `rm -rf papers/<slug>/.cache/`
+  clears it).
+- Live smoke run on `/tutor GIB` with both gates active (next).
+- KaTeX strict-mode renderer for LaTeX v2 (Linux machine).
+
 ## Recently completed (2026-05-27 late)
 
 Follow-up hardening after the morning ship, driven by first-use friction on `/tutor GIB`:

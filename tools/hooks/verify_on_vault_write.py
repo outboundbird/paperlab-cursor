@@ -18,15 +18,22 @@ Skip logic — the hook is a no-op when any of these is true:
   user-facing file).
 
 For all other agents (``acquirer``, ``dissector``, ``implementer``,
-``critic``, future agents) the hook invokes
-``tools.verify_latex.verify_text`` directly and reports findings via:
+``critic``, future agents) the hook runs **two verifiers sequentially**
+on the same file:
 
-1. An appended block in ``vault_path(slug, "verifier_log.md")``.
-2. An ``additional_context`` field in the hook's JSON output so the
-   calling agent sees the result in chat.
+1. ``tools.verify_latex.verify_text`` — LaTeX lexer.
+2. ``tools.verify_citations.verify`` — citation resolver (arXiv,
+   Crossref, firecrawl).
 
-The hook fails open: any unexpected exception is caught and logged to
-stderr; the file write itself is never blocked.
+Both report findings via:
+
+1. Append-only blocks in ``vault_path(slug, "verifier_log.md")`` (one
+   block per verifier).
+2. A combined ``additional_context`` field in the hook's JSON output so
+   the calling agent sees both results in chat.
+
+The hook fails open: any unexpected exception in either verifier is
+caught and logged to stderr; the file write itself is never blocked.
 """
 
 from __future__ import annotations
@@ -109,13 +116,13 @@ def _should_skip(file_path: Path, vault_root: Path) -> tuple[bool, str]:
     return False, ""
 
 
-def _format_log_block(
+def _format_latex_log_block(
     file_path: Path,
     agent: str,
     findings: list[dict],
     timestamp: str,
 ) -> str:
-    """Render one append-block for ``verifier_log.md``."""
+    """Render one LaTeX append-block for ``verifier_log.md``."""
     lines = [
         "",
         f"## {timestamp} — latex-verifier — {file_path.name}",
@@ -134,6 +141,49 @@ def _format_log_block(
         )
         lines.append(
             f"- {marker} {loc}, line {f['line']}: {f['rule_id']} — {f['message']}"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _format_citations_log_block(
+    file_path: Path,
+    agent: str,
+    report: dict,
+    timestamp: str,
+) -> str:
+    """Render one citations append-block for ``verifier_log.md``.
+
+    Mirrors the LaTeX block's shape. Reports `mismatched` as ERROR
+    rows, `unresolved` as WARN rows, and `skipped` as INFO rows.
+    """
+    s = report["summary"]
+    lines = [
+        "",
+        f"## {timestamp} — citation-verifier — {file_path.name}",
+        f"- agent: {agent}",
+        (
+            f"- summary: total={s['total']} verified={s['verified']} "
+            f"mismatched={s['mismatched']} unresolved={s['unresolved']} "
+            f"skipped={s['skipped']}"
+        ),
+    ]
+    if s["total"] == 0:
+        lines.append("- clean (no citations detected)")
+        lines.append("")
+        return "\n".join(lines)
+    for c in report["citations"]:
+        status = c["status"]
+        if status == "verified":
+            continue
+        marker = {
+            "mismatched": "ERROR",
+            "unresolved": "WARN ",
+            "skipped": "INFO ",
+        }.get(status, "INFO ")
+        note = c.get("notes") or status
+        lines.append(
+            f"- {marker} line {c['line']}, {c['kind']}:{c['id']} — {note}"
         )
     lines.append("")
     return "\n".join(lines)
@@ -164,12 +214,9 @@ def _append_log(log_path: Path, block: str, slug: str) -> None:
         fh.write(block)
 
 
-def _format_agent_message(
+def _format_latex_agent_message(
     file_path: Path, findings: list[dict]
 ) -> str:
-    """Render the message returned to the calling agent via
-    ``additional_context``.
-    """
     errors = [f for f in findings if f["severity"] == "error"]
     warnings = [f for f in findings if f["severity"] == "warning"]
     if not findings:
@@ -194,6 +241,37 @@ def _format_agent_message(
     return "\n".join(lines)
 
 
+def _format_citations_agent_message(
+    file_path: Path, report: dict | None
+) -> str:
+    if report is None:
+        return (
+            f"Citation verifier (post-hoc): {file_path.name} — "
+            f"verifier crashed; see stderr."
+        )
+    s = report["summary"]
+    if s["total"] == 0:
+        return (
+            f"Citation verifier (post-hoc): {file_path.name} clean "
+            f"(no citations detected)."
+        )
+    header = (
+        f"Citation verifier (post-hoc): {file_path.name} — "
+        f"verified={s['verified']} mismatched={s['mismatched']} "
+        f"unresolved={s['unresolved']} skipped={s['skipped']}."
+    )
+    lines = [header]
+    for c in report["citations"]:
+        if c["status"] == "verified":
+            continue
+        note = c.get("notes") or c["status"]
+        lines.append(
+            f"- {c['status'].upper()} line {c['line']}, "
+            f"{c['kind']}:{c['id']} — {note}"
+        )
+    return "\n".join(lines)
+
+
 def main() -> None:
     try:
         raw = sys.stdin.read()
@@ -213,6 +291,7 @@ def main() -> None:
 
     try:
         from tools.paths import vault_path, vault_root
+        from tools.verify_citations import verify as verify_citations_text
         from tools.verify_latex import verify_text
     except Exception as exc:
         sys.stderr.write(
@@ -246,30 +325,60 @@ def main() -> None:
     agent = fm.get("agent", "unknown")
     slug = file_path.resolve().relative_to(vroot).parts[0]
 
+    timestamp = _dt.datetime.now().strftime("%Y-%m-%dT%H:%M")
+
     try:
-        findings = verify_text(text)
+        latex_findings = verify_text(text)
+        latex_findings_as_dicts = [f.to_dict() for f in latex_findings]
     except Exception as exc:
         sys.stderr.write(
-            f"verify_on_vault_write: verifier crashed ({exc}); "
-            f"failing open.\n"
+            f"verify_on_vault_write: LaTeX verifier crashed ({exc}); "
+            f"failing open on LaTeX.\n"
         )
-        _emit({})
+        latex_findings_as_dicts = None
 
-    findings_as_dicts = [f.to_dict() for f in findings]
-    timestamp = _dt.datetime.now().strftime("%Y-%m-%dT%H:%M")
-    block = _format_log_block(file_path, agent, findings_as_dicts, timestamp)
+    try:
+        citation_report = verify_citations_text(
+            text, slug, file_label=str(file_path)
+        )
+    except Exception as exc:
+        sys.stderr.write(
+            f"verify_on_vault_write: citation verifier crashed ({exc}); "
+            f"failing open on citations.\n"
+        )
+        citation_report = None
 
     try:
         log_path = vault_path(slug, "verifier_log.md")
-        _append_log(log_path, block, slug)
+        if latex_findings_as_dicts is not None:
+            _append_log(
+                log_path,
+                _format_latex_log_block(
+                    file_path, agent, latex_findings_as_dicts, timestamp
+                ),
+                slug,
+            )
+        if citation_report is not None:
+            _append_log(
+                log_path,
+                _format_citations_log_block(
+                    file_path, agent, citation_report, timestamp
+                ),
+                slug,
+            )
     except Exception as exc:
         sys.stderr.write(
             f"verify_on_vault_write: log append failed ({exc}); "
             f"continuing.\n"
         )
 
-    message = _format_agent_message(file_path, findings_as_dicts)
-    _emit({"additional_context": message})
+    parts: list[str] = []
+    if latex_findings_as_dicts is not None:
+        parts.append(
+            _format_latex_agent_message(file_path, latex_findings_as_dicts)
+        )
+    parts.append(_format_citations_agent_message(file_path, citation_report))
+    _emit({"additional_context": "\n\n".join(parts)})
 
 
 if __name__ == "__main__":
