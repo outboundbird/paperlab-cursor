@@ -65,9 +65,16 @@ provide it, ask. Do not guess.
   > Cannot verify: file `<path>` does not exist.
   End the turn.
 - **Mode B (draft text):** write the draft to a temporary file at
-  `sandbox/.tmp_citation_verify_<unix_timestamp>.md`. (The `sandbox/`
-  tree is git-ignored.) Delete the temp file at the end of the turn,
-  even on error.
+  `sandbox/.tmp_citation_verify_<unix_timestamp>.md`. The
+  `<unix_timestamp>` suffix is **mandatory** — it is the only thing
+  that prevents two concurrent gate invocations from clobbering each
+  other's temp files and producing nonsensical verdicts. Do **not**
+  substitute semantically-meaningful suffixes (e.g.
+  `.tmp_citation_verify_notes.md`,
+  `.tmp_citation_verify_<concept>.md`), even if they feel more
+  readable — collisions across turns are silent and hard to debug.
+  The `sandbox/` tree is git-ignored, so temp files are safe. Delete
+  the temp file at the end of the turn, even on error.
 - **Slug + filename:** run `python -m tools.paths vault <slug> <file>`
   to resolve, then proceed as Mode A.
 
