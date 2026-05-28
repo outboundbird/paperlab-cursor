@@ -292,6 +292,132 @@ to a vault file only, and drafts that go to both. If a single turn
 produces multiple drafts (e.g., chat answer + a `<concept>.md` write),
 each draft passes through the gate independently.
 
+### R11 — Citation inline gate
+
+Runs **sequentially after R10** (LaTeX) on the same draft, with a
+**separate retry budget**. Before emitting any draft (to chat OR to a
+vault file) that contains at least one citation — arXiv ID, DOI, or
+bare URL — the Tutor MUST run the citation inline gate. Drafts with
+no citations skip the gate entirely.
+
+**Detection signatures.** The Tutor treats a draft as containing
+citations if it matches any of: `arXiv:`, `arxiv.org/abs/`, `doi:`,
+`doi.org/`, a bare `10.NNNN/...` DOI pattern, or any `http://` /
+`https://` URL. Mirrors what `tools/verify_citations.py` detects;
+when in doubt, run the gate.
+
+The two gates are kept separate so the log records each verifier's
+outcome on its own row, and so a LaTeX retry doesn't burn the
+citation budget.
+
+**Procedure:**
+
+1. **Soft self-check.** Re-read each citation in the draft and
+   confirm: arXiv IDs look like `NNNN.NNNNN` (or `NNNN.NNNNNvN`),
+   DOIs start with `10.`, and any claimed author / year sitting next
+   to the citation in prose lines up with what the Tutor actually
+   knows about the cited paper. This is cheap insurance — the Tutor
+   is the *cause* of bad citations and the verifier is the backstop;
+   catching obvious hallucinations here saves a verifier round-trip.
+
+2. **Status line.** Emit a single visible line:
+   `Verifying citations…` (no period, no extra prose).
+
+3. **Invoke `citation-verifier`** subagent in Mode B (draft text
+   passed via temp file under `sandbox/`). The Tutor MUST pass the
+   active paper `slug` — the verifier cannot scope its cache
+   without it. See `.cursor/skills/ml-citation-verify/SKILL.md` for
+   the contract.
+
+4. **Read the verdict line.** Two PASS sub-cases and one FAIL case:
+
+   - `**PASS**` with no `unresolved` rows → erase the status line,
+     emit the draft. Done.
+   - `**PASS**` with one or more `unresolved` rows → emit the draft
+     with a **resolver-warning disclosure** prefix (see "Disclosure
+     blocks" below). The gate did not fail; this is a transparency
+     signal for transient resolver issues.
+   - `**FAIL**` → go to step 5.
+
+5. **Per-citation revise.** For each `mismatched` row in the verifier
+   report, edit ONLY the citation at the named line. Replace with the
+   resolved metadata (or remove the citation if the Tutor cannot
+   reconstruct a correct one from the paper at hand). Do not
+   regenerate the whole response. Do not touch citations the verifier
+   did not flag.
+
+6. **Re-invoke `citation-verifier`** on the revised draft.
+   - `**PASS**` → emit (with the resolver-warning prefix if any
+     `unresolved` rows remain). Done.
+   - `**FAIL**` → if this was the first retry, repeat step 5 once
+     more (max 2 retries total).
+
+7. **Retry-exhaustion (after 2 failed retries).** Emit the draft with
+   a **retry-exhaustion disclosure** prefix (see below). If the final
+   report also contains `unresolved` rows, list them in the same
+   disclosure block under a "and resolver warnings" sub-list rather
+   than emitting two separate prefixes.
+
+8. **Log it.** The turn's `tutor_log.md` block must record the
+   citation gate outcome on its own row, separate from the LaTeX row.
+   Pick the most specific value that applies; the retry count and
+   warning count may both appear:
+
+   - `Citation gate: PASS`
+   - `Citation gate: PASS (M resolver warnings)`
+   - `Citation gate: PASS (after N retries)`
+   - `Citation gate: PASS (after N retries, M resolver warnings)`
+   - `Citation gate: FAIL (N mismatched remain)`
+   - `Citation gate: FAIL (N mismatched remain, M resolver warnings)`
+
+**Disclosure blocks.** Two variants, intentionally worded
+differently so the user can tell them apart at a glance:
+
+- **Retry-exhaustion** — the gate failed; the Tutor could not fix
+  the mismatches in 2 retries. Use the word *mismatches*, not
+  *findings*. If the final report also has `unresolved` rows, append
+  them under the "and resolver warnings" sub-list (do **not** emit a
+  second prefix):
+
+  ```markdown
+  > **Citation verifier** — emitting with unresolved mismatches after 2 retries:
+  > - line 12, arxiv:1706.03762 — year mismatch: claimed 2016 vs resolved 2017
+  > - line 18, doi:10.1038/nature14539 — authors mismatch: claimed [Hinton et al.] vs resolved [LeCun, Bengio, Hinton]
+  >
+  > and resolver warnings (could not reach):
+  > - line 24, url:https://example.com/some-paper
+  ```
+
+- **Resolver warning** — the gate passed; one or more citations
+  could not be reached by any resolver (proxy, rate limit, quota,
+  404). Use the word *resolver*, not *unresolved*, to avoid lexical
+  collision with the failure case:
+
+  ```markdown
+  > **Citation verifier** — emitting with resolver warnings (could not reach):
+  > - line 24, url:https://example.com/some-paper
+  ```
+
+Voice in both is technical / informational. Do not apologize, do not
+offer to try again. The verifier is a tool reporting facts.
+
+**Skipped rows.** `skipped` rows (placeholders like
+`arXiv:XXXX.XXXXX`) are informational only. They do not block
+emission and they do not appear in either disclosure block — the
+user can already see them in their own draft.
+
+**Cache scope.** The verifier caches resolver output at
+`papers/<slug>/.cache/citations/` (see
+`.cursor/skills/ml-citation-verify/SKILL.md` § "Per-paper cache"). The
+cache survives across Tutor turns within a session and across the
+LaTeX↔citation gate boundary, so a citation resolved in turn 1 is
+free in turn 2.
+
+The gate applies equally to drafts that go to chat only, drafts that
+go to a vault file only, and drafts that go to both. If a single turn
+produces multiple drafts, each draft passes through both R10 and R11
+independently.
+
 ## Invoking the Explainer (backend mode)
 
 When the Tutor needs paper-bound content for a concept it does not yet
@@ -482,7 +608,10 @@ actually requires them.
 
 - Did I append a block to `tutor_log.md` for this turn? (Mandatory.)
 - If my draft contained LaTeX (`$...$` or `$$...$$`), did I run the
-  inline gate (R10) and record its outcome in the log?
+  LaTeX inline gate (R10) and record its outcome in the log?
+- If my draft contained any citation (arXiv ID, DOI, or bare URL),
+  did I run the citation inline gate (R11) **after** R10, with the
+  active paper `slug`, and record its outcome on a separate log row?
 - If I wrote any file other than the log, did I follow the
   regenerate-prompt rule before overwriting?
 - If I wrote a `<concept>.md` whose Section 6 links to other concept

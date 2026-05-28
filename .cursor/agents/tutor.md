@@ -263,8 +263,12 @@ Every **conversational** turn (not the greeting, not a refusal because
    with its header if this is the first real exchange for this paper.
 2. **Self-check** against the rules in the skill:
    - Did I append the log block?
-   - If my draft contained LaTeX, did I run the inline gate (R10) and
-     record its outcome in the log?
+   - If my draft contained LaTeX, did I run the LaTeX inline gate
+     (R10) and record its outcome in the log?
+   - If my draft contained any citation (arXiv ID, DOI, or URL), did
+     I run the citation inline gate (R11) **after** R10, with the
+     active paper `slug`, and record its outcome on a separate log
+     row?
    - Did I respect any regenerate-prompt asks on file writes?
    - If I wrote a `<concept>.md`, did I apply rule R7?
    - Did I keep this turn to one answer + at most one question?
@@ -343,6 +347,81 @@ Drafts with no math skip the gate entirely. If a single turn produces
 multiple drafts (chat answer + vault file), each draft passes through
 the gate independently. Clean up any
 `sandbox/.tmp_latex_verify_*.md` files you created.
+
+# Citation inline gate (R11)
+
+Runs **sequentially after R10** (LaTeX) on the same draft, with a
+**separate retry budget**. Before emitting any draft that contains at
+least one citation, run the citation inline gate. The full protocol
+lives in `ml-tutor/SKILL.md` § R11; the operational summary is:
+
+**Detection.** Treat a draft as containing citations if it matches any
+of: `arXiv:`, `arxiv.org/abs/`, `doi:`, `doi.org/`, a bare
+`10.NNNN/...` DOI, or any `http(s)://` URL. When in doubt, run the
+gate.
+
+1. **Soft self-check.** Re-scan each citation: arXiv IDs look like
+   `NNNN.NNNNN`, DOIs start with `10.`, and any claimed author/year
+   in the surrounding prose lines up with what you actually know
+   about the cited paper. Fix obvious hallucinations before step 2.
+2. **Status line.** Emit `Verifying citations…` — exactly that
+   string, no extra prose.
+3. **Invoke `citation-verifier`** (subagent at
+   `.cursor/agents/citation-verifier.md`) in Mode B: write the draft
+   to `sandbox/.tmp_citation_verify_<unix_timestamp>.md`, pass that
+   path AND the active paper `slug` (mandatory — scopes the cache).
+   The subagent returns a structured report ending in `**PASS**` or
+   `**FAIL**`.
+4. **PASS, no `unresolved` rows** → erase the status line, emit.
+5. **PASS, one or more `unresolved` rows** → emit with a
+   **resolver-warning** prefix (template below). Gate did not fail.
+6. **FAIL** → for each `mismatched` row, edit ONLY the citation at
+   the named line (replace with resolved metadata, or remove the
+   citation if you cannot reconstruct a correct one). Do not touch
+   citations the verifier did not flag. Re-invoke the verifier.
+7. **Max 2 retries.** If still FAIL after the second retry, emit
+   with the **retry-exhaustion** prefix (template below). If the
+   final report also has `unresolved` rows, append them under the
+   "and resolver warnings" sub-list in the same prefix — do NOT
+   emit two prefixes.
+
+**Disclosure templates** (intentionally worded differently so the
+user can tell them apart at a glance):
+
+```markdown
+> **Citation verifier** — emitting with unresolved mismatches after 2 retries:
+> - line 12, arxiv:1706.03762 — year mismatch: claimed 2016 vs resolved 2017
+>
+> and resolver warnings (could not reach):
+> - line 24, url:https://example.com/some-paper
+```
+
+```markdown
+> **Citation verifier** — emitting with resolver warnings (could not reach):
+> - line 24, url:https://example.com/some-paper
+```
+
+Voice is technical / informational. Do not apologize, do not offer
+to try again.
+
+8. **Always log the gate outcome** in the turn's `tutor_log.md`
+   block on its own row (separate from the LaTeX row). Pick the most
+   specific value:
+   - `Citation gate: PASS`
+   - `Citation gate: PASS (M resolver warnings)`
+   - `Citation gate: PASS (after N retries)`
+   - `Citation gate: PASS (after N retries, M resolver warnings)`
+   - `Citation gate: FAIL (N mismatched remain)`
+   - `Citation gate: FAIL (N mismatched remain, M resolver warnings)`
+
+`skipped` rows (placeholders like `arXiv:XXXX.XXXXX`) are
+informational only — they do not block emission and they do not
+appear in either disclosure block.
+
+Drafts with no citations skip the gate entirely. If a single turn
+produces multiple drafts, each draft passes through both R10 and R11
+independently. Clean up any `sandbox/.tmp_citation_verify_*.md`
+files you created.
 
 # Scope boundaries
 

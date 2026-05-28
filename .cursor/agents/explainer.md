@@ -191,13 +191,91 @@ operational summary for the Explainer:
 Drafts with no math skip the gate entirely. Clean up any
 `sandbox/.tmp_latex_verify_*.md` files you created.
 
+## 3.6. Citation inline gate
+
+Runs **sequentially after § 3.5** (LaTeX) on the same draft, with a
+**separate retry budget**. Before writing the output file, if the
+draft contains at least one citation, run the citation inline gate.
+The full protocol lives in `.cursor/skills/ml-tutor/SKILL.md` § R11;
+the operational summary for the Explainer:
+
+**Detection.** Treat the draft as containing citations if it matches
+any of: `arXiv:`, `arxiv.org/abs/`, `doi:`, `doi.org/`, a bare
+`10.NNNN/...` DOI, or any `http(s)://` URL.
+
+1. **Soft self-check.** Re-scan each citation: arXiv IDs look like
+   `NNNN.NNNNN`, DOIs start with `10.`, and any claimed author/year
+   in the surrounding prose lines up with the paper's reference list
+   in `spec.md` § References. Fix obvious hallucinations.
+2. **Invoke `citation-verifier`** (subagent at
+   `.cursor/agents/citation-verifier.md`) in Mode B: write the draft
+   to `sandbox/.tmp_citation_verify_<unix_timestamp>.md`, pass that
+   path AND the active paper `slug` (mandatory — scopes the cache).
+3. **PASS, no `unresolved` rows** → write the output file as planned.
+4. **PASS with `unresolved` rows** → write the output file with a
+   top-of-file HTML comment **resolver-warning** disclosure (template
+   below).
+5. **FAIL** → per-citation revise (edit only the flagged citations;
+   replace with resolved metadata, or remove the citation if you
+   cannot reconstruct it from `spec.md`). Re-invoke. Max 2 retries.
+6. **Retry-exhaustion (after 2 failed retries).** Write the output
+   file anyway with a top-of-file HTML comment **retry-exhaustion**
+   disclosure. If the final report also has `unresolved` rows, list
+   them under the "and resolver warnings" sub-list in the same
+   comment — do NOT emit two HTML comments.
+
+**Disclosure templates** (file-write variant — HTML comments, not
+chat blockquotes, since the Explainer doesn't talk to the user):
+
+```markdown
+<!--
+Citation verifier — wrote with unresolved mismatches after 2 retries:
+- line 12, arxiv:1706.03762 — year mismatch: claimed 2016 vs resolved 2017
+
+and resolver warnings (could not reach):
+- line 24, url:https://example.com/some-paper
+-->
+```
+
+```markdown
+<!--
+Citation verifier — wrote with resolver warnings (could not reach):
+- line 24, url:https://example.com/some-paper
+-->
+```
+
+The Explainer does not chat directly with the user, so the disclosure
+lives in the file itself for the Tutor (and later the post-hoc hook)
+to surface.
+
+7. **Report the gate outcome** to the Tutor as part of the
+   report-back message (see § "Report back"). Pick the most specific
+   value:
+   - `Citation gate: PASS`
+   - `Citation gate: PASS (M resolver warnings)`
+   - `Citation gate: PASS (after N retries)`
+   - `Citation gate: PASS (after N retries, M resolver warnings)`
+   - `Citation gate: FAIL (N mismatched remain)`
+   - `Citation gate: FAIL (N mismatched remain, M resolver warnings)`
+
+   The Tutor decides whether to surface this in chat.
+
+`skipped` rows (placeholders) are informational only — they do not
+block the write and they do not appear in any disclosure comment.
+
+Drafts with no citations skip the gate entirely. Clean up any
+`sandbox/.tmp_citation_verify_*.md` files you created.
+
 ## 4. Self-check
 
 - Schema sections all present.
 - Notation consistent across sections, matching `spec.md`.
 - File written to the exact path the Tutor specified.
-- If the draft contained LaTeX, did I run the inline gate (§ 3.5) and
-  include the outcome in the report-back?
+- If the draft contained LaTeX, did I run the LaTeX inline gate
+  (§ 3.5) and include the outcome in the report-back?
+- If the draft contained any citation, did I run the citation
+  inline gate (§ 3.6) **after** § 3.5, with the active paper `slug`,
+  and include its outcome on a separate report-back line?
 - Section 6 (or 7) cross-references are one-way only; you have not
   modified any other file.
 
