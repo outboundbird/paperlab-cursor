@@ -11,8 +11,12 @@ Extraction strategy
 2. ``pdftotext`` (Poppler) if available on PATH — used only as a fallback
    when ``pypdf`` raises.
 
-Results are cached to ``<repo>/papers/<slug>/.cache/<source>.txt`` (the
-``papers/`` tree is git-ignored). Pass ``refresh=True`` to force re-extraction.
+Results are cached as a **visible** text copy alongside the PDF: the main
+paper at ``<repo>/papers/<slug>/<slug>.txt`` and any supplement at
+``<repo>/papers/<slug>/<slug>-<source>.txt`` (the ``papers/`` tree is
+git-ignored, so the copy is per-machine). A visible sibling of the PDF lets
+any agent read the paper text directly without triggering extraction. Pass
+``refresh=True`` to force re-extraction.
 
 Examples
 --------
@@ -32,7 +36,13 @@ from tools.paths import repo_paper_dir, repo_pdf_path
 
 
 def extracted_cache_path(slug: str, source: str = "paper") -> Path:
-    """Return the cache path for extracted PDF text.
+    """Return the visible text-copy path for extracted PDF text.
+
+    The text copy is a sibling of the PDF under ``papers/<slug>/`` so any
+    agent can read it directly:
+
+    - main paper (``source="paper"``) → ``papers/<slug>/<slug>.txt``
+    - supplement (any other ``source``) → ``papers/<slug>/<slug>-<source>.txt``
 
     Parameters
     ----------
@@ -42,7 +52,8 @@ def extracted_cache_path(slug: str, source: str = "paper") -> Path:
         Logical name of the PDF — ``"paper"`` for the main PDF, or a
         supplement stem for supplementals.
     """
-    return repo_paper_dir(slug) / ".cache" / f"{source}.txt"
+    stem = slug if source == "paper" else f"{slug}-{source}"
+    return repo_paper_dir(slug) / f"{stem}.txt"
 
 
 def _extract_with_pypdf(pdf_path: Path) -> str:

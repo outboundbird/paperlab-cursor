@@ -10,6 +10,8 @@ verifier on it and appends findings to the per-paper
 Skip logic — the hook is a no-op when any of these is true:
 
 - File is not under ``vault_root() / <slug> / ...``.
+- File is under the ``experiments/<topic>/`` tree (multi-paper output
+  from the experimenter suite; the ``comparator`` gates it inline).
 - File extension is not ``.md``.
 - File lacks a YAML front-matter ``agent:`` field (legacy vault content).
 - ``agent: tutor`` (already gated inline by R10).
@@ -98,6 +100,12 @@ def _should_skip(file_path: Path, vault_root: Path) -> tuple[bool, str]:
     parts = rel.parts
     if len(parts) < 2:
         return True, "not under a per-paper folder"
+    # The experimenter suite writes multi-paper files under
+    # `experiments/<topic>/`, which has no single `<slug>` and so doesn't fit
+    # this hook's per-paper log/cache model. The comparator gates its output
+    # inline (LaTeX + citations) instead, so skip the whole tree here.
+    if parts[0] == "experiments":
+        return True, "experiments/ tree is gated inline (comparator)"
     slug = parts[0]
     try:
         text = file_path.read_text(encoding="utf-8")

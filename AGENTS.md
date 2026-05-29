@@ -8,8 +8,10 @@ Every agent-generated markdown file under `<vault>/<slug>/` carries a YAML front
 
 - `paper: <slug>` — groups all files for one paper.
 - `category:` — broad bucket (`model`, `tutor`, ...).
-- `agent: <name>` — identifies the subagent that wrote the file. Required as of 2026-05-28 for the post-hoc verifier hook to know which writer's output to verify. Allowed values: `acquirer`, `dissector`, `implementer`, `critic`, `tutor`, `explainer`. The hook compares against this set; files without `agent:` (legacy vault content) are skipped silently.
+- `agent: <name>` — identifies the subagent that wrote the file. Required as of 2026-05-28 for the post-hoc verifier hook to know which writer's output to verify. Allowed values: `acquirer`, `dissector`, `implementer`, `critic`, `tutor`, `explainer`, `comparator`. The hook compares against this set; files without `agent:` (legacy vault content) are skipped silently.
 - `tags:` — Obsidian tags.
+
+**Multi-paper variant (experimenter suite).** Files under `<vault>/experiments/<topic>/` span several papers, so they replace the singular `paper:` key with `topic: <topic>` and a `papers:` list of slugs. Example header keys, in order: `topic:`, `papers:` (list), `category:` (e.g. `comparison`), `agent:` (e.g. `comparator`), `tags:`. These files are verified by the comparator's **inline** gate, not the post-hoc hook (the hook skips the `experiments/` tree — see Verifier system).
 
 The slug is **verbatim user input** — never normalize, capitalize, or pluralize. If the slug contains any of `:`, `#`, `[`, `]`, `{`, `}`, `,`, `&`, `*`, `!`, `|`, `>`, `'`, `"`, `%`, `@`, `` ` ``, or starts with whitespace or `-`, wrap it in double quotes: `paper: "weird:slug"`. The `paper:` key lets Obsidian Dataview / property search group every file (spec.md, code_map.md, tutor_log.md, concept files, ...) for one paper.
 
@@ -88,14 +90,14 @@ PaperLab uses Cursor project subagents in `.cursor/agents/`.
 - `latex-verifier` is a read-only backend subagent. Wraps `tools/verify_latex.py` (lexer v1). Invoked by `tutor` and `explainer` in the inline gate (R10 / § 3.5) and by the post-hoc hook on vault writes. Never invoked by the user directly under normal flow.
 - `citation-verifier` is a read-only backend subagent. Wraps `tools/verify_citations.py` (arXiv API + Crossref API + firecrawl CLI fallback, with per-paper cache). Invoked by `tutor` and `explainer` in the inline gate (R11 / § 3.6, sequential after the LaTeX gate) and by the post-hoc hook. Never invoked by the user directly under normal flow.
 
-### Experimenter suite (designed 2026-05-29, not yet built)
+### Experimenter suite (designed 2026-05-29)
 
-A four-agent suite for **multi-paper empirical comparison** of methods addressing the same problem class. Design + rationale: [`log/2026-05-29-experimenter-design.md`](./log/2026-05-29-experimenter-design.md). Agent/skill files are not yet written — these entries document the agreed design.
+A four-agent suite for **multi-paper empirical comparison** of methods addressing the same problem class. Design + rationale: [`log/2026-05-29-experimenter-design.md`](./log/2026-05-29-experimenter-design.md). The `comparator` is **shipped (2026-05-29)**; `experimenter`, `coder`, and `evaluator` are designed but not yet built.
 
-- `experimenter` is the user-facing **orchestrator**. Holds the interactive session; owns the experiment design and data-synthesis *decisions*; does small in-session code tweaks; discusses results. Invokes `comparator`, `coder`, and `evaluator`. Writes `design.md` / `findings.md` to `<vault>/experiments/<topic>/`.
-- `comparator` is **dual-mode** (user-facing + backend). Conceptual method comparison from `spec.md` (+ `code_map.md` when present). Runs standalone ("compare methods for `<topic>`") or as a design-phase input invoked by the `experimenter`. Prose output.
-- `coder` is **backend-only**. One-shot heavy scaffold: writes data-synthesis and method code into `sandbox/experiments/<topic>/` and runs experiments. A user-check gate sits between writing the code and running it. Invoked by the `experimenter`.
-- `evaluator` is **backend-only**. Interprets empirical run outputs and communicates only through the `experimenter`.
+- `comparator` (**shipped**) is **dual-mode** (user-facing + backend). Conceptual method comparison from each paper's `spec.md` (+ `code_map.md` / PDF when needed) along a user-chosen axis. Runs standalone ("compare methods for `<topic>`") or as a design-phase input invoked by the `experimenter`. May refine a vague axis via propose-and-confirm. Writes `comparison.md` to `<vault>/experiments/<topic>/`, **verified by an inline LaTeX + citation gate** (the post-hoc hook skips the `experiments/` tree). Carries the critic's `[A]`/`[B]` inference discipline (forbidden `[C]`).
+- `experimenter` (designed) is the user-facing **orchestrator**. Holds the interactive session; owns the experiment design and data-synthesis *decisions*; does small in-session code tweaks; discusses results. Invokes `comparator`, `coder`, and `evaluator`. Writes `design.md` / `findings.md` to `<vault>/experiments/<topic>/`.
+- `coder` (designed) is **backend-only**. One-shot heavy scaffold: writes data-synthesis and method code into `sandbox/experiments/<topic>/` and runs experiments. A user-check gate sits between writing the code and running it. Invoked by the `experimenter`.
+- `evaluator` (designed) is **backend-only**. Interprets empirical run outputs and communicates only through the `experimenter`.
 
 The interaction model is **Model 3 (hybrid)**: the `coder` does the heavy scaffold one-shot; the `experimenter` does the tight write→check→tweak loop in-session — mirroring the `tutor`/`explainer` split.
 
@@ -113,11 +115,11 @@ Each subagent must read its corresponding skill before task-specific work:
 - `explainer` synthesis mode → `.cursor/skills/ml-synthesis/SKILL.md`
 - `latex-verifier` → `.cursor/skills/ml-latex-verify/SKILL.md`
 - `citation-verifier` → `.cursor/skills/ml-citation-verify/SKILL.md`
+- `comparator` → `.cursor/skills/ml-comparison/SKILL.md`
 
 Experimenter suite (planned skills, not yet written):
 
 - `experimenter` → `.cursor/skills/ml-experiment-design/SKILL.md`
-- `comparator` → `.cursor/skills/ml-comparison/SKILL.md`
 - `coder` → `.cursor/skills/ml-experiment-code/SKILL.md`
 - `evaluator` → `.cursor/skills/ml-evaluation/SKILL.md`
 
@@ -136,9 +138,14 @@ acts on.
 
 ### Two trigger paths
 
-1. **Inline gate (Tutor, Explainer) — primary path.** Runs *before*
-   emission. LaTeX first (`ml-tutor/SKILL.md` § R10), citations
-   second (§ R11), with **separate retry budgets** (max 2 each).
+1. **Inline gate (Tutor, Explainer, Dissector, Comparator) — primary
+   path.** Runs *before* emission / before declaring output complete.
+   LaTeX first, citations second, with **separate retry budgets**
+   (max 2 each). The Tutor's gate is the reference spec
+   (`ml-tutor/SKILL.md` § R10 / R11); the Dissector gates `spec.md`
+   (LaTeX only via the post-hoc hook for citations) and the Comparator
+   gates `comparison.md` (both, since the post-hoc hook skips its
+   `experiments/` tree).
    Outcomes are logged per-row in `tutor_log.md` (Tutor) or returned
    via the report-back to the Tutor (Explainer). Failed citations
    only fail the gate when `mismatched`; `unresolved` warnings are
@@ -147,8 +154,10 @@ acts on.
    affect valid citations.
 2. **Post-hoc hook — backstop for non-gated agents.** When any agent
    other than `tutor` or `explainer-intermediate` writes a `.md`
-   file under the vault, `.cursor/hooks.json` fires
-   `tools/hooks/verify_on_vault_write.py`. The hook runs both
+   file under a per-paper `<slug>/` vault folder, `.cursor/hooks.json`
+   fires `tools/hooks/verify_on_vault_write.py`. The hook skips the
+   `experiments/<topic>/` tree (multi-paper files have no single
+   `<slug>` and are gated inline by the comparator). The hook runs both
    verifiers sequentially on the saved file, appends two blocks
    (one per verifier) to `vault_path(slug, "verifier_log.md")`, and
    returns a combined `additional_context` message so the calling

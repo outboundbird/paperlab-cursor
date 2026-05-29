@@ -225,18 +225,60 @@ Every decision locked this session, with the *why*:
     `coder`'s job; the implementer keeps its clean read-and-map-to-
     `code_map.md` contract.
 
-## 9. Open questions (resolve in build phase)
+## 9. Open questions
 
-1. Standalone `comparator` output filename (`comparison.md` under
-   `experiments/<topic>/` vs. another location/scheme).
-2. Build order. Proposed: **`comparator` first** — it is dual-mode,
-   reads only durable artifacts, and is independently testable without
-   the rest of the suite. Then `experimenter` (orchestrator shell) →
-   `coder` → `evaluator`.
-3. Whether `experiments/<topic>/` needs its own YAML front-matter
-   `category`/`agent` conventions (the front-matter section in
-   `AGENTS.md` currently enumerates per-paper agents only).
+Resolved during the comparator build (2026-05-29); kept for traceability.
+
+1. ~~Standalone `comparator` output filename.~~ **Resolved:**
+   `vault_experiments_dir(topic)/comparison.md` (one per topic folder).
+2. Build order. **`comparator` first — shipped 2026-05-29.** Then
+   `experimenter` (orchestrator shell) → `coder` → `evaluator`.
+3. ~~Front-matter for `experiments/<topic>/`.~~ **Resolved:** multi-paper
+   files use `topic:` + `papers:` (list) instead of singular `paper:`,
+   plus `category:` (`comparison` for the comparator) and `agent:`.
+   Documented in `AGENTS.md`.
 4. Coder verifier gate design (parked — §8.11).
+
+## 11. Build notes — comparator (2026-05-29)
+
+The first agent of the suite shipped. Decisions made during the build,
+beyond the design above:
+
+- **PDF access → visible text copy.** `tools/pdf.py` now caches extracted
+  text as a *visible* sibling of the PDF: main paper at
+  `papers/<slug>/<slug>.txt`, supplement at
+  `papers/<slug>/<slug>-<source>.txt` (was the hidden
+  `papers/<slug>/.cache/<source>.txt`). Any agent can read the paper
+  text directly. Still git-ignored (per-machine). CIGA's existing cache
+  was migrated to the new path. The comparator may read PDFs (via
+  `extract_pdf_text`) and other vault/`papers/` material, not just specs.
+- **Verification: inline gate, not post-hoc hook.** The post-hoc hook
+  (`verify_on_vault_write.py`) assumes a per-paper `<slug>/` folder for
+  its log location and citation-cache key — which the multi-paper
+  `experiments/<topic>/` layout breaks (`parts[0]` would be the literal
+  `"experiments"`). Rather than teach the hook the new layout, the
+  comparator gates inline (LaTeX → citations, retry budget 2 each,
+  mirroring the dissector), and the hook now **skips the `experiments/`
+  tree**. Citation gate passes the first compared slug as the cache key.
+- **Critic discipline carried over.** The `ml-comparison` schema adopts
+  the critic's `[A]`/`[B]` inference prefixes and forbids `[C]`
+  field-level critique — cross-paper comparison is where unfounded
+  field-knowledge ranking creeps in.
+- **Files shipped:** `.cursor/skills/ml-comparison/SKILL.md`,
+  `.cursor/agents/comparator.md`, `tools/pdf.py` (visible cache),
+  `tools/hooks/verify_on_vault_write.py` (skip `experiments/`),
+  `AGENTS.md` (comparator entries, multi-paper front-matter,
+  verifier-system update).
+
+## 12. Parked
+
+- **Critic-in-experimenter.** During the experiment **design** phase,
+  the `experimenter` could consult each paper's `critic_reviews.md` (if
+  present) to surface claim/code uncertainties before designing the
+  comparison — as an **optional advisory, not a gate** (requiring a full
+  critic run for every paper is too heavy; critic itself needs `spec.md`
+  + `code_map.md` + upstream). Use if present, degrade gracefully if not,
+  never force. Revisit when building the `experimenter`.
 
 ## 10. Out of scope for this session
 
