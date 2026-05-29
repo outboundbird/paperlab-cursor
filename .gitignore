@@ -1,6 +1,9 @@
 # Per-paper source material (PDFs, supplementals, upstream clones)
 papers/
 
+# Virtual environment
+.venv/
+
 # Per-machine config
 paperlab.config.yaml
 .marprc.yml
