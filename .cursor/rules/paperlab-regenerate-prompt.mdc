@@ -22,6 +22,7 @@ Use the `AskQuestion` tool for this prompt. Do not infer the user's intent from 
 - The target file does not yet exist (first-time write — proceed without asking).
 - The file is a write to the repo, not the vault (e.g., cloning upstream code, writing to `sandbox/`).
 - The user has explicitly said in the *current* message: "replace all", "append all", or similar blanket instruction for this run.
+- **Acquirer → Dissector auto-chain.** A `/acquirer rerun <slug>` run (and the Dissector run it auto-triggers) carries implicit replace authorization for the two files those agents own: `paper-info.md` (Acquirer) and `spec.md` (Dissector). These are regenerated to the current schema and **overwritten without prompting**, but the agent MUST warn the user in its report that an existing file was overwritten (path + that it was replaced). This exception is scoped to those two files only — `code_map.md`, `critic_reviews.md`, and all tutor/explainer files still require the replace/append/abort prompt. The rationale below (hand-edits) is why the warning is mandatory even though the prompt is skipped.
 
 ## Append-mode formatting
 

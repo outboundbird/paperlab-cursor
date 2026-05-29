@@ -44,6 +44,32 @@ Paths are resolved via the helpers in `tools/paths.py` (see `.cursor/rules/paper
   complete, Acquirer subagent writes an updated `paper-info.md` reporting full
   completion and reports "nothing to do" — no refusal.
 
+- **Two modes**: `acquire <slug> <url>` (new paper) and `rerun <slug>`
+  (refresh an existing paper). `rerun` runs the same checklist but is
+  explicitly for papers already in the workspace: it downloads only
+  what is still missing, refreshes derived metadata (commit SHA,
+  repo-URL re-scan), and **regenerates `paper-info.md` against the
+  current schema**. `rerun` requires the paper to already exist (repo
+  or vault folder present); otherwise it directs the user to
+  `acquire`. `rerun` carries implicit replace authorization for
+  `paper-info.md` (overwrite without prompting, warn in the report) —
+  see `.cursor/rules/paperlab-regenerate-prompt.mdc`.
+
+- **Auto-dissect handoff**: acquisition is a single user action. When
+  the run finishes **with the main PDF present**, the Acquirer invokes
+  the Dissector subagent for `<slug>` automatically — no user
+  confirmation, no "next step" instruction. The PDF is the only gating
+  item; missing supplements or a missing upstream repo are
+  non-blocking and do not prevent the dissect. If the dissect
+  overwrites an existing `spec.md`, that is allowed under the same
+  regenerate-prompt exception (overwrite + warn).
+
+- **PDF-missing branch**: when the main PDF could not be downloaded
+  (paywall, auth, network), the Acquirer does NOT run the Dissector.
+  It surfaces an interactive prompt (`AskQuestion`) telling the user
+  the exact target path (`repo_pdf_path(slug)`) and source URL and
+  asking them to place the PDF and re-run, then ends the turn.
+
 - Each landing-page fetch attempt has a reasonable timeout. If a supplement URL doesn't respond, skip it and continue; do not retry.
 
 - Before downloading a candidate supplement PDF, verify the URL ends in

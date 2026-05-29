@@ -13,9 +13,9 @@ Follow the schema in `.cursor/skills/ml-acquisition/SKILL.md` for all decisions 
 
 # Invocation
 
-Usage:
+There are two modes: **acquire** (new paper) and **rerun** (refresh an existing paper).
 
-Explicit invocation examples:
+## acquire — new paper
 
 - `/acquirer acquire <slug> <paper-url>`
 - `/acquirer acquire <slug> <paper-url> with repo <repo-url>`
@@ -33,6 +33,16 @@ Example:
 
 Both arguments are required. If either is missing, respond:
 "I need both a slug and a paper URL. Ask me as: `/acquirer acquire <slug> <paper-url>` or provide them in natural language."
+
+## rerun — refresh an existing paper
+
+- `/acquirer rerun <slug>`
+
+Use this for a paper already set up in the workspace. `rerun` re-derives the checklist state, downloads only what is still missing, refreshes derived metadata (commit SHA, repo-URL re-scan if previously unknown), and **regenerates `paper-info.md` against the current schema**. It does not re-download files that already exist.
+
+- Only `<slug>` is required; no URL. Pull the source URL from the existing `paper-info.md` if a re-scan needs it.
+- Precondition: `repo_paper_dir(slug)` or `vault_slug_dir(slug)` must already exist. If neither exists, respond: "No existing paper found for `<slug>`. Use `/acquirer acquire <slug> <paper-url>` to set it up first." and end the turn.
+- `rerun` carries implicit replace authorization for `paper-info.md` (see `paperlab-regenerate-prompt.mdc`): overwrite it without prompting, but warn in the report that it was replaced.
 
 **The slug is verbatim user input.** Do NOT lowercase, hyphenate, pluralize, expand, or otherwise alter the slug the user gave you. If the user says `WorldModel`, the slug is `WorldModel`. If the slug is unusable as a filesystem name (contains `/`, `\`, `:`, `*`, `?`, `"`, `<`, `>`, `|`), stop and ask the user for an alternative — do not silently rename.
 
@@ -64,7 +74,15 @@ Both arguments are required. If either is missing, respond:
 
 4. **Write paper-info.md** to `vault_path(slug, "paper-info.md")`. Summarize all item states. Use absolute paths (built via `tools/paths.py`) when referencing the PDF, supplementals, or upstream clone so links work from inside Obsidian. Include a "Pending actions" section for anything the user needs to do.
 
-5. **Report back.** Respond with a status table summarizing all items. Use absolute paths so the user can click them in Obsidian / Cursor. Example format:
+5. **Branch on PDF presence (gate for the auto-dissect handoff).**
+   - **PDF present** (`repo_pdf_path(slug)` exists): acquisition is considered successful. Proceed to Step 5a (auto-dissect) without asking the user anything. Missing supplements or a missing upstream repo do NOT block this — they are non-blocking and only reported.
+   - **PDF missing / pending manual download:** do NOT run the dissector. Surface an interactive prompt (use the `AskQuestion` tool) telling the user the PDF could not be downloaded automatically, showing the exact target path from `repo_pdf_path(slug)` and the source URL, and asking them to place the PDF there and re-run. List any other items still needed (supplements, repo URL). End the turn after the prompt — do not continue to the dissector.
+
+5a. **Auto-dissect handoff (only when PDF is present).** Invoke the Dissector subagent for `<slug>` directly — no user confirmation. The user invoked one command and expects `spec.md` to follow automatically.
+   - If `spec.md` already exists, it is overwritten and the user is warned (the `rerun` / auto-chain exception in `paperlab-regenerate-prompt.mdc` applies — overwrite without prompting, warn in the report).
+   - The Dissector's own output and uncertainty flags are surfaced to the user after it completes.
+
+6. **Report back.** Respond with a status table summarizing all items. Use absolute paths so the user can click them in Obsidian / Cursor. If `paper-info.md` (or, via the handoff, `spec.md`) overwrote an existing file, include an explicit warning line. Example format:
 ```
 ✓ Repo folder created:  <repo_paper_dir(scGen)>
 ✓ Vault folder created: <vault_slug_dir(scGen)>
@@ -80,12 +98,12 @@ Pending user actions:
 Download PDF manually (see above)
 Download supplements if needed
 
-Once PDF is in place, proceed with the dissector subagent for `scGen`.
+PDF missing — dissector NOT run. Place the PDF at the path above and re-run `/acquirer rerun scGen`.
 ```
 
+(When the PDF *is* present, the report instead ends with the Dissector's output, since it ran automatically.)
 
-
-6. **Self-check:**
+7. **Self-check:**
    - `vault_path(slug, "paper-info.md")` exists and has all checklist rows populated.
    - Both `repo_paper_dir(slug)` and `vault_slug_dir(slug)` exist on disk.
    - For each item marked "done": the expected file/folder actually
@@ -104,5 +122,7 @@ Per schema §Scope boundaries.
 After acquisition completes, respond with:
 - What was acquired: main PDF (yes), supplements (count or "none"), upstream repo (yes with commit SHA, or "none detected", or "clone failed")
 - Any acquisition notes from the Acquisition notes field
-- Next step: "Proceed with the dissector subagent for `<slug>`."
+- A warning line for any vault file that was overwritten (`paper-info.md`, and `spec.md` if the dissect ran on a paper that already had one).
+- **If the PDF was present:** the dissector ran automatically — surface its summary and any `⚠️ UNCERTAIN:` flags. Do not tell the user to run the dissector themselves.
+- **If the PDF was missing:** state that the dissector did not run, and that it will run automatically once the PDF is in place and the user re-runs `/acquirer rerun <slug>`.
 - If supplements failed due to landing page blocking, suggest the manual fetch workflow explicitly

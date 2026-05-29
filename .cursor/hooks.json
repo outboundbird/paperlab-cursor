@@ -7,6 +7,12 @@
         "matcher": "Write|StrReplace",
         "timeout": 30,
         "failClosed": false
+      },
+      {
+        "command": "python tools/hooks/dissect_on_acquire.py",
+        "matcher": "Write|StrReplace",
+        "timeout": 15,
+        "failClosed": false
       }
     ]
   }
