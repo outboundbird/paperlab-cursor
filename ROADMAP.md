@@ -1,6 +1,6 @@
 # PaperLab Roadmap
 
-Status as of 2026-05-27. Living document — items move between sections as their status changes.
+Status as of 2026-05-29. Living document — items move between sections as their status changes.
 
 ## File layout contract
 
@@ -65,8 +65,8 @@ Living table of all subagents in the project. Update whenever an agent ships, is
 
 | Agent | Status | Skill(s) | Role | Invocation cue |
 |---|---|---|---|---|
-| `acquirer` | Shipped | `ml-acquisition` | Set up per-paper repo + vault folders; download PDF / supplements; clone upstream; write `paper-info.md` | User: "acquire / add / initialize / download paper `<slug>`" |
-| `dissector` | Shipped | `ml-paper-spec` | Read `<slug>.pdf`; write `spec.md` (structured extraction). | User: "dissect / parse / summarize / spec paper `<slug>`" |
+| `acquirer` | Shipped (auto-chain 2026-05-29) | `ml-acquisition` | Set up per-paper repo + vault folders; download PDF / supplements; clone upstream; write `paper-info.md`. Two modes: `acquire <slug> <url>` (new) and `rerun <slug>` (refresh existing to current schema). On success (PDF present) auto-chains to `dissector` via the `dissect_on_acquire` hook — no user input. | User: "acquire / add / initialize / download paper `<slug>`" or "rerun `<slug>`" |
+| `dissector` | Shipped (LaTeX-gated 2026-05-29) | `ml-paper-spec` | Read `<slug>.pdf`; write `spec.md` (structured extraction). Runs an **inline LaTeX gate** (latex-verifier Mode A, fix → retry ×2 → disclose) before reporting. Auto-invoked by `acquirer` after a successful acquire; carries implicit replace authorization for `spec.md`. | User: "dissect / parse / summarize / spec paper `<slug>`" (or automatic after acquire) |
 | `implementer` | Shipped | `ml-code-map` (+ `DEEP_DIVE`) | Map paper concepts to cloned upstream code; write `code_map.md` or deep-dive `code_map__<slug>__<component>.md` | User: "map / annotate / explain code for `<slug>`" |
 | `critic` | Shipped | `ml-critique` | Audit claims, reproducibility, paper↔code alignment; write `critic_reviews.md` | User: "audit / critique / review `<slug>`" |
 | `tutor` | **Shipped (2026-05-27)** | `ml-tutor` (+ `ml-explanation`, `ml-synthesis` when writing concept / synthesis files) | User-facing conversational tutor. Anchored to one paper at a time; paper-grounded + field-grounded; persistent memory via `tutor_log.md`. Invokes `explainer` in the background when paper-bound content is missing. Writes `tutor_log.md` (every turn), and on explicit user request `tutor_notes.md`, `<concept>.md`, `synth__<a>__<b>.md`. | User: `/tutor <slug>` or `/tutor` to resume the most recent session |
@@ -269,6 +269,64 @@ Not yet decided: rip-and-replace v1 in one PR, build v2 alongside, or skill-firs
 Small refinements to existing schemas that aren't urgent but are worth remembering. These tend to surface during use.
 
 - **Reconsider slide-deck structure** — the current schema (title / headline / one-per-component / results / limitations) is generic. Tweak it to track paper content more faithfully: e.g., split "method" into problem-setup vs. solution slides, surface the loss/objective as its own slide when central, and let `spec.md` §6 grouping drive section count rather than a fixed 8–12 budget. May require enriching `spec.md` fields the dissector currently extracts (e.g., explicit "core contribution" vs. "supporting machinery" tags on §6.1 entries).
+
+## Recently completed (2026-05-29)
+
+Acquirer → Dissector workflow tightening, plus a fresh-clone setup pass.
+
+- **Acquirer `rerun <slug>` mode.** New invocation alongside `acquire`,
+  for papers already in the workspace. Re-derives checklist state,
+  downloads only what is missing, refreshes derived metadata (commit
+  SHA, repo-URL re-scan), and regenerates `paper-info.md` against the
+  current schema. Requires the paper to already exist (repo or vault
+  folder). Carries implicit replace authorization for `paper-info.md`
+  (overwrite + warn, no prompt). Documented in `.cursor/agents/acquirer.md`
+  and `ml-acquisition/SKILL.md`.
+- **Acquirer → Dissector auto-chain (single user action).** After a
+  successful acquire (PDF present), the Dissector runs automatically
+  with no user input. The PDF is the sole gate — missing supplements /
+  upstream repo are non-blocking. If the PDF is missing, the Acquirer
+  surfaces an `AskQuestion` manual-download prompt and does **not**
+  dissect; the user places the PDF and runs `rerun` to resume.
+- **Enforcement via hook, not just prompt.** `tools/hooks/dissect_on_acquire.py`
+  fires on `afterFileEdit` when `paper-info.md` is written (the
+  Acquirer's guaranteed final write, in both `acquire` and `rerun`),
+  gates on `repo_pdf_path(slug)` existence, and injects
+  `additional_context` telling the agent to either dissect (PDF present)
+  or surface the download prompt (PDF missing). Triggering on
+  `paper-info.md` + gating on the PDF covers both flows, including the
+  manual-download case where dropping a file fires no agent event.
+  Registered as the second `afterFileEdit` hook in `.cursor/hooks.json`.
+  Fails open, mirrors `verify_on_vault_write.py` conventions. Smoke-tested
+  on GIB (present → dissect), a fake slug (missing → prompt), and a
+  non-`paper-info.md` write (no-op).
+- **Dissector inline LaTeX gate.** The Dissector is now a LaTeX-gated
+  agent (like Tutor / Explainer), not post-hoc-only. After writing
+  `spec.md` it invokes the `latex-verifier` (Mode A on the file), fixes
+  error-severity findings, re-verifies, retry budget max 2, and discloses
+  remaining errors if the budget is exhausted. Documented in
+  `.cursor/agents/dissector.md` and `ml-paper-spec/SKILL.md`. The post-hoc
+  hook still runs on `spec.md` writes and additionally checks citations.
+- **Regenerate-prompt exception.** `.cursor/rules/paperlab-regenerate-prompt.mdc`
+  gained a scoped exception: the `rerun` + auto-dissect chain may
+  overwrite `paper-info.md` and `spec.md` without the replace/append/abort
+  prompt, but **must warn** in the report. Scoped to those two files only.
+- **Caught a real error with the new gate's tool.** CIGA `spec.md` had a
+  `brace-balance` error (line 33, unclosed `_{` subscript group) — a
+  v1-lexer-catchable class the inline gate would have blocked at emit
+  time. Fixed manually; re-verified clean. Confirms the gate addresses a
+  real failure mode, not a hypothetical one.
+- **Fresh-clone setup.** This machine was a fresh clone: created
+  `paperlab.config.yaml` from the example (filled `repo_root`,
+  `vault_paperlab_path`, `obsidian_vault_root`), created `papers/`, and
+  built a repo-local `.venv` (Python 3.12.1) with `requirements.txt`
+  installed; added `.venv/` to `.gitignore`. Path resolution and both
+  verifier tools confirmed working in the venv.
+
+**Caveat carried forward.** The LaTeX gate uses the v1 lexer (~70%
+coverage). Render-time errors (undefined macros, wrong arg counts) still
+slip through until the v2 KaTeX renderer lands (Linux-machine TODO).
+Brace / delimiter / `$`-balance errors are solidly covered.
 
 ## Recently completed (2026-05-28)
 

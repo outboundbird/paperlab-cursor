@@ -62,9 +62,41 @@ Do not consult `repo_upstream_dir(slug)` content. That is Implementer's territor
    uncertainty flags in your chat response instead.
 7. Self-check: is every schema section filled? Use the documented
    fallbacks ("No assumptions stated", "None stated") for empty sections.
+8. **Run the LaTeX verification gate** (see below) before reporting back.
+
+## LaTeX verification gate (before reporting)
+
+`spec.md` is dense with math (`$...$`, `$$...$$`), so verify it before
+declaring the dissect complete. This is an **inline gate**: the file is
+not considered "output" until it passes (or the retry budget is spent).
+
+1. **Invoke the `latex-verifier` subagent in Mode A** (file on disk) on
+   the written `spec.md`. Resolve the path first:
+   `python -m tools.paths vault <slug> spec.md`. The verifier returns a
+   report ending in a `**PASS**` or `**FAIL**` verdict line.
+2. **PASS** (no error-severity findings) → proceed to report back.
+   Warnings do not block; mention them if present.
+3. **FAIL** (1+ errors) → fix each reported error in `spec.md` (the
+   verifier names the block index, line, `rule_id`, and message — act on
+   it, do not paraphrase or guess), rewrite the file, then re-invoke the
+   verifier.
+   - **Retry budget: max 2** fix-and-re-verify cycles.
+   - If `spec.md` still fails after 2 retries, stop fixing and **disclose
+     the remaining errors** in your report (each block / line / `rule_id`
+     / message). Never silently emit a file you know has LaTeX errors.
+4. Only after PASS (or budget exhaustion with disclosure) do you report.
+
+This gate covers LaTeX only. The post-hoc hook
+(`tools/hooks/verify_on_vault_write.py`) still runs on each `spec.md`
+write and additionally checks citations; act on any citation findings it
+surfaces in chat.
 
 ## Reporting back
 
-After writing the file, respond with:
+After the LaTeX gate passes (or its budget is exhausted), respond with:
 - A one-sentence summary of what was extracted
 - A bullet list of every `⚠️ UNCERTAIN:` flag in spec.md
+- The LaTeX gate outcome: "LaTeX gate: clean" on PASS, or the list of
+  remaining errors if the retry budget was exhausted
+- If `spec.md` overwrote an existing file (auto-chain / rerun), a warning
+  line saying so

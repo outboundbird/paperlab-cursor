@@ -59,6 +59,26 @@ Global rules that apply to all sections:
 - Flag uncertainty with ⚠️ UNCERTAIN: prefix
 - Target length: 2-4 pages
 
+## LaTeX verification gate
+
+`spec.md` is math-dense, so the Dissector runs an **inline LaTeX gate**
+before reporting the dissect complete — it is a gated agent for LaTeX
+(like the Tutor and Explainer), not a post-hoc-only one.
+
+After writing `spec.md`, the Dissector invokes the `latex-verifier`
+subagent in **Mode A** (file on disk) on the resolved
+`vault_path(slug, "spec.md")` and acts on the verdict:
+
+- **PASS** (no error-severity findings) → report. Warnings do not block.
+- **FAIL** (1+ errors) → fix the named errors, rewrite, re-verify;
+  **retry budget max 2**. If still failing, disclose the remaining
+  errors in the report rather than emitting silently.
+
+The gate covers LaTeX syntax/structure only (see
+`.cursor/skills/ml-latex-verify/SKILL.md` for the rule set). It does not
+check mathematical correctness or citations; the post-hoc hook still
+runs on each `spec.md` write and additionally checks citations.
+
 ## Document header
 
 Every `spec.md` must begin with:
