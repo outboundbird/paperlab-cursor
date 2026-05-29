@@ -75,7 +75,7 @@ Living table of all subagents in the project. Update whenever an agent ships, is
 | `figure-verifier` | **On hold (2026-05-27)** | (never authored) | Three-layer pass/fail check on `(concept_text, picture_spec, rendered_png)`. Coupled to the visualizer's retry loop; on hold for the same reason. | (On hold — do not invoke) |
 | `prerequisite` | Planned | `ml-prerequisites` (planned) | Scan `spec.md`; detect assumed background; cross-check vault coverage; produce prereq graph + on-demand primers (delegates to `tutor`) | User: "what do I need to know first / check prereqs for `<slug>`" |
 | `experimenter` | Designed (2026-05-29) | `ml-experiment-design` (planned) | User-facing **orchestrator** for multi-paper empirical comparisons. Holds the interactive session; owns experiment + data-synthesis *design*; does small in-session code tweaks; discusses results. Invokes `comparator` / `coder` / `evaluator`. Notes → `<vault>/experiments/<topic>/`; code/data → `sandbox/experiments/<topic>/`. | User: "design / run an experiment comparing methods for `<topic>`" |
-| `comparator` | Designed (2026-05-29, un-parked) | `ml-comparison` (planned) | **Conceptual** cross-method comparison from `spec.md` (+ `code_map.md` when present). **Dual-mode:** standalone (user) or design-phase input (invoked by `experimenter`). Prose output under `<vault>/experiments/<topic>/`. | User: "compare methods for `<topic>`" or (backend) invoked by `experimenter` |
+| `comparator` | **Shipped (2026-05-29)** | `ml-comparison` | **Conceptual** cross-method comparison from `spec.md` (+ `code_map.md` / PDF when needed) along a user-chosen axis; may refine a vague axis via propose-and-confirm. **Dual-mode:** standalone (user) or design-phase input (invoked by `experimenter`). Writes `comparison.md` under `<vault>/experiments/<topic>/`, verified by an inline LaTeX + citation gate. Carries the critic's `[A]`/`[B]` inference discipline. | User: "compare methods for `<topic>`" or (backend) invoked by `experimenter` |
 | `coder` | Designed (2026-05-29) | `ml-experiment-code` (planned) | **Backend-only.** One-shot heavy scaffold: writes data-synthesis + method code into `sandbox/experiments/<topic>/` and runs experiments. User-check gate sits between write and run. | (Internal — invoked by `experimenter`) |
 | `evaluator` | Designed (2026-05-29) | `ml-evaluation` (planned) | **Backend-only.** Interprets empirical run outputs; communicates only through `experimenter`. | (Internal — invoked by `experimenter`) |
 
@@ -119,17 +119,18 @@ Build order is top-to-bottom. Each unit lists the primitive(s) it requires.
 
 ### 3. Experimenter suite — `experimenter` + `comparator` + `coder` + `evaluator`
 
-**Designed 2026-05-29.** Full decision log and rationale in
+**Designed 2026-05-29; `comparator` shipped 2026-05-29.** Full decision
+log and rationale in
 [`log/2026-05-29-experimenter-design.md`](./log/2026-05-29-experimenter-design.md).
 Re-scoped from the original single-paper `ml-sandbox` framing into a
 **multi-paper, problem-type-oriented, full-lifecycle** comparison suite.
 The previously-parked `comparator` is un-parked and folded in here.
 
 - **Four agents:**
-  - `experimenter` (user-facing orchestrator) — interactive design + data-synthesis decisions; small in-session code tweaks; discusses results. Skill: `ml-experiment-design`.
-  - `comparator` (dual-mode) — conceptual method comparison from specs. Skill: `ml-comparison`.
-  - `coder` (backend) — one-shot heavy scaffold of synth + method code, runs experiments. Skill: `ml-experiment-code`.
-  - `evaluator` (backend) — empirical results interpretation. Skill: `ml-evaluation`.
+  - `experimenter` (user-facing orchestrator, **designed**) — interactive design + data-synthesis decisions; small in-session code tweaks; discusses results. Skill: `ml-experiment-design`.
+  - `comparator` (dual-mode, **shipped 2026-05-29**) — conceptual method comparison from specs along a user-chosen axis. Skill: `ml-comparison`. See "Recently completed" for build notes.
+  - `coder` (backend, **designed**) — one-shot heavy scaffold of synth + method code, runs experiments. Skill: `ml-experiment-code`.
+  - `evaluator` (backend, **designed**) — empirical results interpretation. Skill: `ml-evaluation`.
 - **Interaction model — Model 3 (hybrid).** Heavy scaffold one-shot via `coder`; tight write→check→tweak loop in-session via `experimenter`. Mirrors the proven tutor/explainer split.
 - **The flow:** design (experimenter ⇄ user) → method trade-offs on demand (`comparator`) → implement+run (`coder`, user-check gate between write and run) → evaluate (`evaluator`) → discuss.
 - **Interactive data-design phase** (owned by `experimenter`, Seam A): what property is tested (expressivity, sample efficiency, robustness, ...); what data features stress it (size, density, noise, distribution shift); synthetic vs. small real; minimum viable comparison (metrics, baselines, seeds). The `coder` implements this design; it does not decide it.
@@ -137,7 +138,7 @@ The previously-parked `comparator` is un-parked and folded in here.
 - **Path helpers shipped this session:** `repo_experiments_dir(topic)` and `vault_experiments_dir(topic)` in `tools/paths.py` (CLI: `exp-sandbox`, `exp-vault`).
 - **`.gitignore` carve-out shipped:** `sandbox/experiments/` re-included from the blanket `sandbox/` ignore; only `sandbox/experiments/*/data/` stays ignored (code + seed committed).
 - **Parked sub-decision:** a `coder` verifier gate (a future "does it run?" check analogous to the dissector's LaTeX gate) — noted, not built now.
-- **Build order:** `comparator` first (dual-mode, reads only durable specs, independently testable) → `experimenter` shell → `coder` → `evaluator`.
+- **Build order:** `comparator` first (dual-mode, reads only durable specs, independently testable) ✅ **done** → `experimenter` shell (next, planned for the week of 2026-06-01) → `coder` → `evaluator`.
 
 ### 4. External-data access
 
@@ -288,6 +289,36 @@ Not yet decided: rip-and-replace v1 in one PR, build v2 alongside, or skill-firs
 Small refinements to existing schemas that aren't urgent but are worth remembering. These tend to surface during use.
 
 - **Reconsider slide-deck structure** — the current schema (title / headline / one-per-component / results / limitations) is generic. Tweak it to track paper content more faithfully: e.g., split "method" into problem-setup vs. solution slides, surface the loss/objective as its own slide when central, and let `spec.md` §6 grouping drive section count rather than a fixed 8–12 budget. May require enriching `spec.md` fields the dissector currently extracts (e.g., explicit "core contribution" vs. "supporting machinery" tags on §6.1 entries).
+
+## Recently completed (2026-05-29, comparator shipped)
+
+First agent of the Experimenter suite. Build notes in
+[`log/2026-05-29-experimenter-design.md`](./log/2026-05-29-experimenter-design.md) §11.
+
+- **`comparator` agent + `ml-comparison` skill.** Dual-mode conceptual
+  comparison of 2+ papers' methods along a user-chosen axis. Resolves
+  slugs/axis/topic (asks if missing; needs ≥ 2 papers), may refine a
+  vague axis via propose-and-confirm, reads `spec.md` (+ `code_map.md` /
+  PDF when needed), writes `comparison.md` to
+  `vault_experiments_dir(topic)`. 8-section schema with multi-paper
+  front-matter (`topic:` + `papers:` list), notation reconciliation, and
+  the critic's `[A]`/`[B]` inference discipline (forbidden `[C]`).
+- **Inline verification gate (both LaTeX + citations).** The comparator
+  is the first agent to gate *both* inline (Tutor/Explainer gate both on
+  draft text; Dissector gates only LaTeX inline). Needed because the
+  post-hoc hook can't handle the multi-paper layout.
+- **Post-hoc hook skips `experiments/`.** `verify_on_vault_write.py`
+  returns a no-op skip for the `experiments/<topic>/` tree (no single
+  `<slug>` for its log/cache model). Smoke-tested.
+- **PDF text promoted to a visible copy.** `tools/pdf.py` now caches
+  extracted text as `papers/<slug>/<slug>.txt` (supplements:
+  `<slug>-<source>.txt`) instead of the hidden `.cache/`. Any agent can
+  read the paper text directly. CIGA's cache migrated.
+- **Verified:** both verifier tools run clean on a comparison-style file
+  (LaTeX PASS; arXiv citation resolved 1/1); hook skip confirmed; no
+  lint regressions.
+- **Parked (for the `experimenter`):** optional critic advisory during
+  the design phase (consult `critic_reviews.md` if present, never force).
 
 ## Recently completed (2026-05-29, later)
 
