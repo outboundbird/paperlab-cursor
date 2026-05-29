@@ -31,7 +31,8 @@ PaperLab splits files between two locations. Every subagent MUST read `paperlab.
 - `papers/<slug>/<slug>.pdf` — paper PDF.
 - `papers/<slug>/supplementals/` — appendices, supplementary PDFs.
 - `papers/<slug>/upstream/<slug>/` — cloned official git repo (if any).
-- `sandbox/<slug>/` — toy experiments.
+- `sandbox/<slug>/` — per-paper toy experiments (git-ignored).
+- `sandbox/experiments/<topic>/` — multi-paper comparison experiments for the `experimenter` suite. Code + seeds are tracked; generated `data/` is git-ignored. Resolve via `repo_experiments_dir(topic)`. `<topic>` is a user-chosen problem class, not a paper slug.
 - `paperlab.config.yaml` — per-machine paths (git-ignored). Copy from `paperlab.config.example.yaml`.
 
 ### Vault (`vault_paperlab_path` from the config)
@@ -49,6 +50,12 @@ All agent-generated files live flat under one folder per paper at `<vault_paperl
 - `synth__<concept_a>__<concept_b>.md` — concept synthesis, written by the `tutor`.
 - `synth__<concept_a>__<concept_b>-<slug>.md` — paper-bound synthesis intermediate, written by the `explainer` (backend).
 - `notes.md` — user notes.
+
+The `experimenter` suite (see Cursor Subagents) writes outside the per-paper folders, under `<vault_paperlab_path>/experiments/<topic>/` (resolve via `vault_experiments_dir(topic)`):
+
+- `design.md` — experiment design: topic, criterion, method set, data-synthesis design, rationale.
+- `findings.md` — results write-up.
+- `comparison.md` — standalone conceptual comparison from the `comparator` (filename to be finalized in the build phase).
 
 > The `visualizer` subagent (`slides.md`, `*.tldr`, `*.svg`, `*.png`) is **on hold** as of 2026-05-27. See [`visualizer-todo.md`](./visualizer-todo.md) and the archive branch `visualizer` for the previous implementation.
 
@@ -81,6 +88,17 @@ PaperLab uses Cursor project subagents in `.cursor/agents/`.
 - `latex-verifier` is a read-only backend subagent. Wraps `tools/verify_latex.py` (lexer v1). Invoked by `tutor` and `explainer` in the inline gate (R10 / § 3.5) and by the post-hoc hook on vault writes. Never invoked by the user directly under normal flow.
 - `citation-verifier` is a read-only backend subagent. Wraps `tools/verify_citations.py` (arXiv API + Crossref API + firecrawl CLI fallback, with per-paper cache). Invoked by `tutor` and `explainer` in the inline gate (R11 / § 3.6, sequential after the LaTeX gate) and by the post-hoc hook. Never invoked by the user directly under normal flow.
 
+### Experimenter suite (designed 2026-05-29, not yet built)
+
+A four-agent suite for **multi-paper empirical comparison** of methods addressing the same problem class. Design + rationale: [`log/2026-05-29-experimenter-design.md`](./log/2026-05-29-experimenter-design.md). Agent/skill files are not yet written — these entries document the agreed design.
+
+- `experimenter` is the user-facing **orchestrator**. Holds the interactive session; owns the experiment design and data-synthesis *decisions*; does small in-session code tweaks; discusses results. Invokes `comparator`, `coder`, and `evaluator`. Writes `design.md` / `findings.md` to `<vault>/experiments/<topic>/`.
+- `comparator` is **dual-mode** (user-facing + backend). Conceptual method comparison from `spec.md` (+ `code_map.md` when present). Runs standalone ("compare methods for `<topic>`") or as a design-phase input invoked by the `experimenter`. Prose output.
+- `coder` is **backend-only**. One-shot heavy scaffold: writes data-synthesis and method code into `sandbox/experiments/<topic>/` and runs experiments. A user-check gate sits between writing the code and running it. Invoked by the `experimenter`.
+- `evaluator` is **backend-only**. Interprets empirical run outputs and communicates only through the `experimenter`.
+
+The interaction model is **Model 3 (hybrid)**: the `coder` does the heavy scaffold one-shot; the `experimenter` does the tight write→check→tweak loop in-session — mirroring the `tutor`/`explainer` split.
+
 ## Agent-To-Skill Mapping
 
 Each subagent must read its corresponding skill before task-specific work:
@@ -95,6 +113,13 @@ Each subagent must read its corresponding skill before task-specific work:
 - `explainer` synthesis mode → `.cursor/skills/ml-synthesis/SKILL.md`
 - `latex-verifier` → `.cursor/skills/ml-latex-verify/SKILL.md`
 - `citation-verifier` → `.cursor/skills/ml-citation-verify/SKILL.md`
+
+Experimenter suite (planned skills, not yet written):
+
+- `experimenter` → `.cursor/skills/ml-experiment-design/SKILL.md`
+- `comparator` → `.cursor/skills/ml-comparison/SKILL.md`
+- `coder` → `.cursor/skills/ml-experiment-code/SKILL.md`
+- `evaluator` → `.cursor/skills/ml-evaluation/SKILL.md`
 
 Treat those skills as authoritative for output structure, naming, scope boundaries, and self-checks.
 

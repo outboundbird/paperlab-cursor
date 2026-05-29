@@ -14,7 +14,14 @@ sandbox/**/__pycache__/
 
 # local setting
 .vscode/
-sandbox/
+# Ignore sandbox contents, but NOT the experimenter suite's experiments/ tree.
+# Negation can't re-include a path whose parent dir is excluded, so exclude
+# sandbox/* entries individually and carve out experiments/ before recursing.
+sandbox/*
+!sandbox/experiments/
+
+# Experimenter suite: track experiment code + seeds, but never generated data.
+sandbox/experiments/*/data/
 
 # Portable binaries (per-machine, downloaded by setup);
 # README documents how to populate the folder, so keep it tracked.

@@ -151,6 +151,29 @@ def repo_sandbox_dir(slug: str) -> Path:
     return repo_root() / "sandbox" / slug
 
 
+def repo_experiments_dir(topic: str) -> Path:
+    """``<repo>/sandbox/experiments/<topic>/`` — multi-paper comparison
+    experiment folder for the ``experimenter`` suite.
+
+    ``topic`` is a user-chosen problem class (not a paper slug). Lives under a
+    dedicated ``experiments/`` namespace to avoid collision with the per-paper
+    ``sandbox/<slug>/`` convention. Holds the code and run outputs; generated
+    data under ``data/`` is git-ignored and regenerable from a pinned seed.
+    """
+    return repo_root() / "sandbox" / "experiments" / topic
+
+
+def vault_experiments_dir(topic: str) -> Path:
+    """``<vault>/experiments/<topic>/`` — design notes and findings for a
+    multi-paper comparison experiment.
+
+    Holds the markdown the ``experimenter`` suite generates (``design.md``,
+    ``findings.md``, standalone ``comparator`` output). The code/data
+    counterpart lives in :func:`repo_experiments_dir`.
+    """
+    return vault_root() / "experiments" / topic
+
+
 # ---------------------------------------------------------------------------
 # External CLIs PaperLab depends on. These helpers resolve absolute paths to
 # tools that may not be on the shell's PATH at the time a script runs (a
@@ -222,6 +245,8 @@ def _cli() -> None:
     - ``supplementals`` : prints ``repo_supplementals_dir(slug)``
     - ``upstream`` : prints ``repo_upstream_dir(slug)``
     - ``sandbox`` : prints ``repo_sandbox_dir(slug)``
+    - ``exp-sandbox`` : prints ``repo_experiments_dir(topic)``
+    - ``exp-vault`` : prints ``vault_experiments_dir(topic)``
     - ``firecrawl`` : prints the absolute path to the firecrawl CLI
     """
     import sys
@@ -266,6 +291,14 @@ def _cli() -> None:
         print(repo_upstream_dir(slug))
     elif kind == "sandbox":
         print(repo_sandbox_dir(slug))
+    elif kind == "exp-sandbox":
+        if not slug:
+            raise SystemExit("usage: python -m tools.paths exp-sandbox <topic>")
+        print(repo_experiments_dir(slug))
+    elif kind == "exp-vault":
+        if not slug:
+            raise SystemExit("usage: python -m tools.paths exp-vault <topic>")
+        print(vault_experiments_dir(slug))
     elif kind == "firecrawl":
         print(firecrawl_cli())
     else:

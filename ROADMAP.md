@@ -74,8 +74,10 @@ Living table of all subagents in the project. Update whenever an agent ships, is
 | `visualizer` | **On hold (2026-05-27)** | (archived) | Concept-picture generator. Four implementation iterations did not reach the hand-drawn quality bar. Code, skills, dictionary, and renderers archived on branch `visualizer` and tag `archive-visualizer-2026-05-27`; removed from `main`. See `visualizer-todo.md` for the full chronicle and a research-flavored side-project spec. | (On hold — do not invoke) |
 | `figure-verifier` | **On hold (2026-05-27)** | (never authored) | Three-layer pass/fail check on `(concept_text, picture_spec, rendered_png)`. Coupled to the visualizer's retry loop; on hold for the same reason. | (On hold — do not invoke) |
 | `prerequisite` | Planned | `ml-prerequisites` (planned) | Scan `spec.md`; detect assumed background; cross-check vault coverage; produce prereq graph + on-demand primers (delegates to `tutor`) | User: "what do I need to know first / check prereqs for `<slug>`" |
-| `experimenter` | Planned | `ml-sandbox` (planned) | Scaffold toy implementation in `sandbox/<slug>/`; interactive data-design phase; pairs with future `comparator` | User: "build a toy / sandbox / experiment for `<slug>`" |
-| `comparator` | Parked | `ml-comparison` (parked) | Cross-paper synthesis on a comparison axis; output to `<vault>/PaperLab/comparisons/<topic>/comparison.md` | (Parked) |
+| `experimenter` | Designed (2026-05-29) | `ml-experiment-design` (planned) | User-facing **orchestrator** for multi-paper empirical comparisons. Holds the interactive session; owns experiment + data-synthesis *design*; does small in-session code tweaks; discusses results. Invokes `comparator` / `coder` / `evaluator`. Notes → `<vault>/experiments/<topic>/`; code/data → `sandbox/experiments/<topic>/`. | User: "design / run an experiment comparing methods for `<topic>`" |
+| `comparator` | Designed (2026-05-29, un-parked) | `ml-comparison` (planned) | **Conceptual** cross-method comparison from `spec.md` (+ `code_map.md` when present). **Dual-mode:** standalone (user) or design-phase input (invoked by `experimenter`). Prose output under `<vault>/experiments/<topic>/`. | User: "compare methods for `<topic>`" or (backend) invoked by `experimenter` |
+| `coder` | Designed (2026-05-29) | `ml-experiment-code` (planned) | **Backend-only.** One-shot heavy scaffold: writes data-synthesis + method code into `sandbox/experiments/<topic>/` and runs experiments. User-check gate sits between write and run. | (Internal — invoked by `experimenter`) |
+| `evaluator` | Designed (2026-05-29) | `ml-evaluation` (planned) | **Backend-only.** Interprets empirical run outputs; communicates only through `experimenter`. | (Internal — invoked by `experimenter`) |
 
 ## Decision framework: agent vs. skill vs. rule vs. hook vs. MCP
 
@@ -115,15 +117,27 @@ Build order is top-to-bottom. Each unit lists the primitive(s) it requires.
 - **Interaction model:** detect → check → ask. Presents the unknown list as a checklist; the user picks what to learn. Generated primers delegate to `explainer`.
 - **Why subagent + skill:** detecting assumed knowledge needs judgment; the prereq-graph schema is reference.
 
-### 3. `experimenter` subagent + `ml-sandbox` skill
+### 3. Experimenter suite — `experimenter` + `comparator` + `coder` + `evaluator`
 
-- **What:** scaffolds a minimal toy implementation in `sandbox/<slug>/` with a small synthetic or standard dataset, enabling A/B comparison of methods.
-- **Interactive data-design phase:** before generating code, the agent dialogues with the user about:
-  - What property of the method is being tested (expressivity, sample efficiency, robustness, ...).
-  - What data features would stress that property (size, density, noise, distribution shift, ...).
-  - Synthetic vs. small real dataset.
-  - Minimum viable comparison (metrics, baselines, seeds).
-- **Pairs with:** future `comparator`.
+**Designed 2026-05-29.** Full decision log and rationale in
+[`log/2026-05-29-experimenter-design.md`](./log/2026-05-29-experimenter-design.md).
+Re-scoped from the original single-paper `ml-sandbox` framing into a
+**multi-paper, problem-type-oriented, full-lifecycle** comparison suite.
+The previously-parked `comparator` is un-parked and folded in here.
+
+- **Four agents:**
+  - `experimenter` (user-facing orchestrator) — interactive design + data-synthesis decisions; small in-session code tweaks; discusses results. Skill: `ml-experiment-design`.
+  - `comparator` (dual-mode) — conceptual method comparison from specs. Skill: `ml-comparison`.
+  - `coder` (backend) — one-shot heavy scaffold of synth + method code, runs experiments. Skill: `ml-experiment-code`.
+  - `evaluator` (backend) — empirical results interpretation. Skill: `ml-evaluation`.
+- **Interaction model — Model 3 (hybrid).** Heavy scaffold one-shot via `coder`; tight write→check→tweak loop in-session via `experimenter`. Mirrors the proven tutor/explainer split.
+- **The flow:** design (experimenter ⇄ user) → method trade-offs on demand (`comparator`) → implement+run (`coder`, user-check gate between write and run) → evaluate (`evaluator`) → discuss.
+- **Interactive data-design phase** (owned by `experimenter`, Seam A): what property is tested (expressivity, sample efficiency, robustness, ...); what data features stress it (size, density, noise, distribution shift); synthetic vs. small real; minimum viable comparison (metrics, baselines, seeds). The `coder` implements this design; it does not decide it.
+- **File layout:** notes/design in vault `<vault>/experiments/<topic>/` (`design.md`, `findings.md`, standalone `comparison.md`); code/data in repo `sandbox/experiments/<topic>/` (`synth/`, `methods/`, `run/`, `results/`, git-ignored `data/`). `<topic>` is user-chosen; the `experiments/` namespace avoids collision with `sandbox/<slug>/`.
+- **Path helpers shipped this session:** `repo_experiments_dir(topic)` and `vault_experiments_dir(topic)` in `tools/paths.py` (CLI: `exp-sandbox`, `exp-vault`).
+- **`.gitignore` carve-out shipped:** `sandbox/experiments/` re-included from the blanket `sandbox/` ignore; only `sandbox/experiments/*/data/` stays ignored (code + seed committed).
+- **Parked sub-decision:** a `coder` verifier gate (a future "does it run?" check analogous to the dissector's LaTeX gate) — noted, not built now.
+- **Build order:** `comparator` first (dual-mode, reads only durable specs, independently testable) → `experimenter` shell → `coder` → `evaluator`.
 
 ### 4. External-data access
 
@@ -146,10 +160,15 @@ Units that were started or shipped and are now paused after running into a quali
 
 Designed but deferred until the units above are stable.
 
-### `comparator` subagent + `ml-comparison` skill
+### `comparator` subagent + `ml-comparison` skill — UN-PARKED 2026-05-29
 
-- **What:** cross-paper synthesis. Inputs N paper slugs + a comparison axis (e.g., "Graph Information Bottleneck objective formulations"). Output: `<vault>/PaperLab/comparisons/<topic>/comparison.md`.
-- **Why parked:** synthesis design is tricky; revisit when there are 3+ comparable papers in the vault.
+Folded into the Experimenter suite (Planned units §3). Re-scoped to a
+**conceptual, dual-mode** comparison agent (standalone or invoked by the
+`experimenter` in the design phase). Empirical results comparison split
+out into the new backend-only `evaluator`. See
+[`log/2026-05-29-experimenter-design.md`](./log/2026-05-29-experimenter-design.md).
+
+- **Original framing (for traceability):** cross-paper synthesis. Inputs N paper slugs + a comparison axis (e.g., "Graph Information Bottleneck objective formulations"). Output: `<vault>/PaperLab/comparisons/<topic>/comparison.md`. Parked because synthesis design is tricky; revisit when there are 3+ comparable papers in the vault. (The 3+-papers condition is now met across the vault.)
 
 ## Deferred features
 
@@ -269,6 +288,41 @@ Not yet decided: rip-and-replace v1 in one PR, build v2 alongside, or skill-firs
 Small refinements to existing schemas that aren't urgent but are worth remembering. These tend to surface during use.
 
 - **Reconsider slide-deck structure** — the current schema (title / headline / one-per-component / results / limitations) is generic. Tweak it to track paper content more faithfully: e.g., split "method" into problem-setup vs. solution slides, surface the loss/objective as its own slide when central, and let `spec.md` §6 grouping drive section count rather than a fixed 8–12 budget. May require enriching `spec.md` fields the dissector currently extracts (e.g., explicit "core contribution" vs. "supporting machinery" tags on §6.1 entries).
+
+## Recently completed (2026-05-29, later)
+
+Experimenter suite **design session** (no agent/skill files yet — design
++ scaffolding only). Full decision log in
+[`log/2026-05-29-experimenter-design.md`](./log/2026-05-29-experimenter-design.md).
+
+- **Re-scoped the `experimenter`** from a single-paper toy scaffolder
+  into a **multi-paper, problem-type-oriented, full-lifecycle**
+  comparison suite of four agents: `experimenter` (user-facing
+  orchestrator), `comparator` (dual-mode conceptual comparison, un-parked),
+  `coder` (backend scaffold+run), `evaluator` (backend empirical
+  interpretation).
+- **Locked the interaction model — Model 3 (hybrid):** `coder` does the
+  heavy scaffold one-shot; `experimenter` does the tight write→check→tweak
+  loop in-session. Mirrors the proven tutor/explainer split. The
+  one-shot-vs-in-session trade-off is the documented rationale.
+- **Split conceptual from empirical comparison:** `comparator` (prose,
+  from specs, dual-mode) vs. `evaluator` (numbers, from run outputs,
+  backend-only, routes through `experimenter`).
+- **Locked file layout:** notes/design in vault
+  `<vault>/experiments/<topic>/`; code/data in repo
+  `sandbox/experiments/<topic>/` (`synth/`, `methods/`, `run/`,
+  `results/`, git-ignored `data/`). `<topic>` user-chosen; `experiments/`
+  namespace avoids collision with `sandbox/<slug>/`.
+- **Shipped path helpers:** `repo_experiments_dir(topic)` and
+  `vault_experiments_dir(topic)` in `tools/paths.py`, with CLI verbs
+  `exp-sandbox` / `exp-vault`. Both resolve from existing config keys —
+  no new config key needed. Verified resolving on this machine.
+- **Shipped `.gitignore` carve-out:** `sandbox/experiments/` re-included
+  from the blanket `sandbox/` ignore; only `sandbox/experiments/*/data/`
+  stays ignored. Verified: code tracked, data ignored, other `sandbox/`
+  still ignored.
+- **`implementer` left as-is**, coder verifier gate parked. Build order:
+  `comparator` first, then `experimenter` → `coder` → `evaluator`.
 
 ## Recently completed (2026-05-29)
 
