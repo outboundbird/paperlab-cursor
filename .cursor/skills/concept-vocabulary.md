@@ -36,3 +36,27 @@ One entry per concept:
 ## Concepts
 
 <!-- Append new concepts below. Keep alphabetical by canonical name. -->
+
+### centrality
+- Aliases: node centrality, centrality measures
+- First seen: GNR (2026-06-02)
+
+### graph-convolutional-network
+- Aliases: GCN, graph convolutional networks, graph convolutional neural networks
+- First seen: M-RCNN (2026-06-02)
+
+### graph-attention-network
+- Aliases: GAT, graph attention networks
+- First seen: GNR (2026-06-02)
+
+### graph-neural-network
+- Aliases: GNN, graph neural networks
+- First seen: GNR (2026-06-02)
+
+### network-dismantling
+- Aliases: network dismantling, graph dismantling
+- First seen: GNR (2026-06-02)
+
+### node-ranking
+- Aliases: node ranking, influential node identification
+- First seen: GNR (2026-06-02)

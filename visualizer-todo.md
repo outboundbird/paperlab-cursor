@@ -123,6 +123,43 @@ The Run-1 output is the cleanest evidence that the architecture has hit a ceilin
 
 - **AI image generation (DALL·E / SD).** Ruled out 2026-05-20 because faithful structural correspondence is unachievable. Still true.
 
+## Current limitations (moved from ROADMAP.md 2026-06-02)
+
+Visualizer-related limitations that still apply to the artifacts left in
+the repo (figure extraction, TikZ rendering). Moved here from the
+roadmap's "Known limitations" so the roadmap stays scoped to the active
+system; these belong with the on-hold visualizer work.
+
+### Figure extraction occasionally crops imperfectly
+
+- **What:** for some PDF layouts the caption-block-width heuristic in
+  `tools/figures.py` still over- or under-crops (observed on GIB-DS and
+  one inset figure in Memento).
+- **Workaround:** add a manual bbox entry in
+  `papers/<slug>/.cache/figures/manual_crops.json`, or use `--whole-page`
+  to render the full page and let the slide layout class handle scaling.
+- **Trigger to revisit:** if a paper of interest has more than ~1
+  unusable crop.
+
+### TikZ only renders in Obsidian Reading view
+
+- **What:** ```` ```tikz ```` fenced blocks render in Obsidian's Reading
+  view (via the `marp-tikz-plus` plugin's TikZ markdown post-processor),
+  but **not** in Marp slide preview (Obsidian's Marp Slides plugin or VS
+  Code Marp), nor in `marp-cli` HTML/PDF/PPTX export. In those targets the
+  raw `\begin{tikzpicture}` source appears verbatim as a code block.
+- **Why:** marp-tikz-plus's PPTX/PDF export commands DO pre-render TikZ to
+  SVG before calling marp-cli, but only when export is launched from the
+  plugin's command palette in Obsidian — not from other Marp tools.
+- **Workaround:** preview decks in Obsidian Reading view; export PPTX/PDF
+  from the marp-tikz-plus command palette in Obsidian. Avoid VS Code Marp
+  and standalone `marp-cli`.
+- **Possible fix:** a `tools.tikz` unit that pre-renders every TikZ block
+  to SVG at write time, so the embed is portable `![](figures/diagramN.svg)`
+  instead of a raw `tikz` fence. SVG renders in every downstream tool.
+  (Tracked as a Planned unit in `ROADMAP.md`, but coupled to the
+  visualizer and dormant while it is on hold.)
+
 ## Side project — research spec
 
 Frame this as **learning a layout policy**, not as prompt-engineering an LLM to emit picture specs. The LLM is good at extraction (entities, relations, intent); it is bad at spatial composition (foreground/background, plates, callouts, dataflow routing). The side project keeps the LLM for the part it's good at and replaces the part it's bad at with a learnable model.
