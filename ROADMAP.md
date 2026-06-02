@@ -74,7 +74,7 @@ Living table of all subagents in the project. Update whenever an agent ships, is
 | `visualizer` | **On hold (2026-05-27)** | (archived) | Concept-picture generator. Four implementation iterations did not reach the hand-drawn quality bar. Code, skills, dictionary, and renderers archived on branch `visualizer` and tag `archive-visualizer-2026-05-27`; removed from `main`. See `visualizer-todo.md` for the full chronicle and a research-flavored side-project spec. | (On hold — do not invoke) |
 | `figure-verifier` | **On hold (2026-05-27)** | (never authored) | Three-layer pass/fail check on `(concept_text, picture_spec, rendered_png)`. Coupled to the visualizer's retry loop; on hold for the same reason. | (On hold — do not invoke) |
 | `prerequisite` | Planned | `ml-prerequisites` (planned) | Scan `spec.md`; detect assumed background; cross-check vault coverage; produce prereq graph + on-demand primers (delegates to `tutor`) | User: "what do I need to know first / check prereqs for `<slug>`" |
-| `experimenter` | Designed (2026-05-29) | `ml-experiment-design` (planned) | User-facing **orchestrator** for multi-paper empirical comparisons. Holds the interactive session; owns experiment + data-synthesis *design*; does small in-session code tweaks; discusses results. Invokes `comparator` / `coder` / `evaluator`. Notes → `<vault>/experiments/<topic>/`; code/data → `sandbox/experiments/<topic>/`. | User: "design / run an experiment comparing methods for `<topic>`" |
+| `experimenter` | **Design-phase shell shipped (2026-06-02)** | `ml-experiment-design` | User-facing **orchestrator** for multi-paper empirical comparisons. Holds the interactive session; owns experiment + data-synthesis *design*; does small in-session code tweaks; discusses results. Invokes `comparator` / `coder` / `evaluator`. Notes → `<vault>/experiments/<topic>/`; code/data → `sandbox/experiments/<topic>/`. **Shipped scope:** design phase only (design ⇄ user, trade-offs via `comparator`, optional critic advisory, writes `design.md` with inline gate). Stops at the implement boundary until `coder` / `evaluator` ship. | User: `/experimenter <topic>` |
 | `comparator` | **Shipped (2026-05-29)** | `ml-comparison` | **Conceptual** cross-method comparison from `spec.md` (+ `code_map.md` / PDF when needed) along a user-chosen axis; may refine a vague axis via propose-and-confirm. **Dual-mode:** standalone (user) or design-phase input (invoked by `experimenter`). Writes `comparison.md` under `<vault>/experiments/<topic>/`, verified by an inline LaTeX + citation gate. Carries the critic's `[A]`/`[B]` inference discipline. | User: "compare methods for `<topic>`" or (backend) invoked by `experimenter` |
 | `coder` | Designed (2026-05-29) | `ml-experiment-code` (planned) | **Backend-only.** One-shot heavy scaffold: writes data-synthesis + method code into `sandbox/experiments/<topic>/` and runs experiments. User-check gate sits between write and run. | (Internal — invoked by `experimenter`) |
 | `evaluator` | Designed (2026-05-29) | `ml-evaluation` (planned) | **Backend-only.** Interprets empirical run outputs; communicates only through `experimenter`. | (Internal — invoked by `experimenter`) |
@@ -138,7 +138,7 @@ The previously-parked `comparator` is un-parked and folded in here.
 - **Path helpers shipped this session:** `repo_experiments_dir(topic)` and `vault_experiments_dir(topic)` in `tools/paths.py` (CLI: `exp-sandbox`, `exp-vault`).
 - **`.gitignore` carve-out shipped:** `sandbox/experiments/` re-included from the blanket `sandbox/` ignore; only `sandbox/experiments/*/data/` stays ignored (code + seed committed).
 - **Parked sub-decision:** a `coder` verifier gate (a future "does it run?" check analogous to the dissector's LaTeX gate) — noted, not built now.
-- **Build order:** `comparator` first (dual-mode, reads only durable specs, independently testable) ✅ **done** → `experimenter` shell (next, planned for the week of 2026-06-01) → `coder` → `evaluator`.
+- **Build order:** `comparator` first (dual-mode, reads only durable specs, independently testable) ✅ **done** → `experimenter` shell (design phase) ✅ **done 2026-06-02** → `coder` → `evaluator`.
 
 ### 4. External-data access
 
@@ -306,6 +306,41 @@ Not yet decided: rip-and-replace v1 in one PR, build v2 alongside, or skill-firs
 Small refinements to existing schemas that aren't urgent but are worth remembering. These tend to surface during use.
 
 - **Reconsider slide-deck structure** — the current schema (title / headline / one-per-component / results / limitations) is generic. Tweak it to track paper content more faithfully: e.g., split "method" into problem-setup vs. solution slides, surface the loss/objective as its own slide when central, and let `spec.md` §6 grouping drive section count rather than a fixed 8–12 budget. May require enriching `spec.md` fields the dissector currently extracts (e.g., explicit "core contribution" vs. "supporting machinery" tags on §6.1 entries).
+
+## Recently completed (2026-06-02, experimenter shell + reindex v1 + graph groundwork)
+
+Three connected pieces landed this session.
+
+- **Graph-index front-matter groundwork (Phase 1).** Added `status`,
+  `sources`, `concepts` keys to the artifact front-matter schema
+  (`AGENTS.md` "Graph index groundwork"), propagated to the six generator
+  skills, and created `.cursor/skills/concept-vocabulary.md` (grow-on-
+  demand canonical concept list). Keys are inert until a reader exists,
+  but double as Obsidian backlinks today. `comparison.md` uses
+  `status: compared` (multi-paper, outside the linear pipeline).
+- **`tools.reindex` v1.** Deterministic read-only parser that walks the
+  vault, parses front-matter + body `[[wiki-links]]`, and emits
+  `graph.json` under `vault_index_dir()` (`<vault>/.index/`). Nodes:
+  papers / topics / artifacts / concepts. Edges: `has_artifact`,
+  `includes_paper`, `has_status`, `derived_from`, `mentions`. Drift
+  report to stderr. CLI: `python -m tools.reindex [--check]`. Added
+  `vault_index_dir()` to `tools/paths.py`. Three design questions
+  resolved: link-only (no staleness hashing), report-only concept drift,
+  JSON-only. First run: 45 nodes / 31 edges over the legacy vault (only
+  `has_artifact` fired — test papers predate the schema, deliberately not
+  backfilled). v2 directions (staleness, graph-consulting agents,
+  lifecycle queries, rollup) captured in Planned units §5.
+- **`experimenter` design-phase shell.** Second agent of the suite.
+  `.cursor/agents/experimenter.md` + `.cursor/skills/ml-experiment-design/SKILL.md`.
+  User-facing orchestrator scoped to the **design phase**: conversational
+  design ⇄ user (criterion → methods → hypotheses → data → MVP →
+  rationale), conceptual trade-offs via backend `comparator`, optional
+  critic advisory (consult `critic_reviews.md` if present, never force —
+  un-parks §12 of the design log), writes `design.md` (`status: designed`)
+  with an inline LaTeX + citation gate. Stops at the implement boundary;
+  `findings.md` schema documented but write-path deferred to the
+  `evaluator`. Build order: `comparator` ✅ → `experimenter` shell ✅ →
+  `coder` → `evaluator`.
 
 ## Recently completed (2026-05-29, comparator shipped)
 

@@ -8,8 +8,8 @@ Every agent-generated markdown file under `<vault>/<slug>/` carries a YAML front
 
 - `paper: <slug>` — groups all files for one paper.
 - `category:` — broad bucket (`model`, `tutor`, ...).
-- `agent: <name>` — identifies the subagent that wrote the file. Required as of 2026-05-28 for the post-hoc verifier hook to know which writer's output to verify. Allowed values: `acquirer`, `dissector`, `implementer`, `critic`, `tutor`, `explainer`, `comparator`. The hook compares against this set; files without `agent:` (legacy vault content) are skipped silently.
-- `status:` — the lifecycle step this artifact represents. Per-paper pipeline values, in order: `acquired`, `dissected`, `implemented`, `critiqued`, `tutored`. Multi-paper artifacts use `compared` (the `comparator`'s `comparison.md`), which sits outside the linear per-paper pipeline. Records where the work is in the workflow so the lifecycle becomes queryable (see "Graph index groundwork" below).
+- `agent: <name>` — identifies the subagent that wrote the file. Required as of 2026-05-28 for the post-hoc verifier hook to know which writer's output to verify. Allowed values: `acquirer`, `dissector`, `implementer`, `critic`, `tutor`, `explainer`, `comparator`, `experimenter`. The hook compares against this set; files without `agent:` (legacy vault content) are skipped silently.
+- `status:` — the lifecycle step this artifact represents. Per-paper pipeline values, in order: `acquired`, `dissected`, `implemented`, `critiqued`, `tutored`. Multi-paper experiment-suite artifacts sit outside the linear per-paper pipeline: `compared` (the `comparator`'s `comparison.md`), `designed` (the `experimenter`'s `design.md`), and `evaluated` (the `experimenter`'s `findings.md`). Records where the work is in the workflow so the lifecycle becomes queryable (see "Graph index groundwork" below).
 - `sources:` — list of `[[wiki-links]]` to the artifacts or papers this file was derived from (provenance edges). Example: a `comparison.md` lists the `spec.md` files it read. Omit or leave empty for root artifacts (e.g. `paper-info.md`).
 - `concepts:` — list of `[[wiki-links]]` to canonical concept names this artifact touches (concept edges; the cross-paper connective tissue). Names come from the shared concept vocabulary (see "Graph index groundwork").
 - `tags:` — Obsidian tags.
@@ -104,10 +104,10 @@ PaperLab uses Cursor project subagents in `.cursor/agents/`.
 
 ### Experimenter suite (designed 2026-05-29)
 
-A four-agent suite for **multi-paper empirical comparison** of methods addressing the same problem class. Design + rationale: [`log/2026-05-29-experimenter-design.md`](./log/2026-05-29-experimenter-design.md). The `comparator` is **shipped (2026-05-29)**; `experimenter`, `coder`, and `evaluator` are designed but not yet built.
+A four-agent suite for **multi-paper empirical comparison** of methods addressing the same problem class. Design + rationale: [`log/2026-05-29-experimenter-design.md`](./log/2026-05-29-experimenter-design.md). The `comparator` is **shipped (2026-05-29)**; the `experimenter` **design-phase shell is shipped (2026-06-02)**; `coder` and `evaluator` are designed but not yet built.
 
 - `comparator` (**shipped**) is **dual-mode** (user-facing + backend). Conceptual method comparison from each paper's `spec.md` (+ `code_map.md` / PDF when needed) along a user-chosen axis. Runs standalone ("compare methods for `<topic>`") or as a design-phase input invoked by the `experimenter`. May refine a vague axis via propose-and-confirm. Writes `comparison.md` to `<vault>/experiments/<topic>/`, **verified by an inline LaTeX + citation gate** (the post-hoc hook skips the `experiments/` tree). Carries the critic's `[A]`/`[B]` inference discipline (forbidden `[C]`).
-- `experimenter` (designed) is the user-facing **orchestrator**. Holds the interactive session; owns the experiment design and data-synthesis *decisions*; does small in-session code tweaks; discusses results. Invokes `comparator`, `coder`, and `evaluator`. Writes `design.md` / `findings.md` to `<vault>/experiments/<topic>/`.
+- `experimenter` (**design-phase shell shipped 2026-06-02**) is the user-facing **orchestrator**. Holds the interactive session; owns the experiment design and data-synthesis *decisions*; does small in-session code tweaks; discusses results. Invokes `comparator`, `coder`, and `evaluator`. Writes `design.md` / `findings.md` to `<vault>/experiments/<topic>/`. **Current scope:** the design phase only — design ⇄ user, conceptual trade-offs via the `comparator`, optional critic advisory (consult `critic_reviews.md` if present, never force), and writing `design.md` (inline LaTeX + citation gate). It stops at the implement boundary until `coder` / `evaluator` ship; it does not write code, run experiments, or write `findings.md`. Invoked via `/experimenter <topic>`.
 - `coder` (designed) is **backend-only**. One-shot heavy scaffold: writes data-synthesis and method code into `sandbox/experiments/<topic>/` and runs experiments. A user-check gate sits between writing the code and running it. Invoked by the `experimenter`.
 - `evaluator` (designed) is **backend-only**. Interprets empirical run outputs and communicates only through the `experimenter`.
 
@@ -129,11 +129,11 @@ Each subagent must read its corresponding skill before task-specific work:
 - `citation-verifier` → `.cursor/skills/ml-citation-verify/SKILL.md`
 - `comparator` → `.cursor/skills/ml-comparison/SKILL.md`
 
-Experimenter suite (planned skills, not yet written):
+Experimenter suite:
 
-- `experimenter` → `.cursor/skills/ml-experiment-design/SKILL.md`
-- `coder` → `.cursor/skills/ml-experiment-code/SKILL.md`
-- `evaluator` → `.cursor/skills/ml-evaluation/SKILL.md`
+- `experimenter` → `.cursor/skills/ml-experiment-design/SKILL.md` (**shipped 2026-06-02**)
+- `coder` → `.cursor/skills/ml-experiment-code/SKILL.md` (planned, not yet written)
+- `evaluator` → `.cursor/skills/ml-evaluation/SKILL.md` (planned, not yet written)
 
 Treat those skills as authoritative for output structure, naming, scope boundaries, and self-checks.
 
