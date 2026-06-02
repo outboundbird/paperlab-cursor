@@ -66,6 +66,11 @@ Every `<concept>.md` must begin with a header in this format:
 paper: <slug>
 category: model
 agent: tutor       # or `agent: explainer` for the `<concept>-<slug>.md` backend intermediate
+status: tutored
+sources:
+- "[[<slug>/spec.md]]"
+concepts:
+- "[[<canonical-concept-name>]]"
 tags:
 - AI-guided-paper-reading
 - concept-explanation

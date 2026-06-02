@@ -9,9 +9,21 @@ Every agent-generated markdown file under `<vault>/<slug>/` carries a YAML front
 - `paper: <slug>` — groups all files for one paper.
 - `category:` — broad bucket (`model`, `tutor`, ...).
 - `agent: <name>` — identifies the subagent that wrote the file. Required as of 2026-05-28 for the post-hoc verifier hook to know which writer's output to verify. Allowed values: `acquirer`, `dissector`, `implementer`, `critic`, `tutor`, `explainer`, `comparator`. The hook compares against this set; files without `agent:` (legacy vault content) are skipped silently.
+- `status:` — the lifecycle step this artifact represents. Per-paper pipeline values, in order: `acquired`, `dissected`, `implemented`, `critiqued`, `tutored`. Multi-paper artifacts use `compared` (the `comparator`'s `comparison.md`), which sits outside the linear per-paper pipeline. Records where the work is in the workflow so the lifecycle becomes queryable (see "Graph index groundwork" below).
+- `sources:` — list of `[[wiki-links]]` to the artifacts or papers this file was derived from (provenance edges). Example: a `comparison.md` lists the `spec.md` files it read. Omit or leave empty for root artifacts (e.g. `paper-info.md`).
+- `concepts:` — list of `[[wiki-links]]` to canonical concept names this artifact touches (concept edges; the cross-paper connective tissue). Names come from the shared concept vocabulary (see "Graph index groundwork").
 - `tags:` — Obsidian tags.
 
-**Multi-paper variant (experimenter suite).** Files under `<vault>/experiments/<topic>/` span several papers, so they replace the singular `paper:` key with `topic: <topic>` and a `papers:` list of slugs. Example header keys, in order: `topic:`, `papers:` (list), `category:` (e.g. `comparison`), `agent:` (e.g. `comparator`), `tags:`. These files are verified by the comparator's **inline** gate, not the post-hoc hook (the hook skips the `experiments/` tree — see Verifier system).
+**Multi-paper variant (experimenter suite).** Files under `<vault>/experiments/<topic>/` span several papers, so they replace the singular `paper:` key with `topic: <topic>` and a `papers:` list of slugs. Example header keys, in order: `topic:`, `papers:` (list), `category:` (e.g. `comparison`), `agent:` (e.g. `comparator`), `status:`, `sources:`, `concepts:`, `tags:`. These files are verified by the comparator's **inline** gate, not the post-hoc hook (the hook skips the `experiments/` tree — see Verifier system).
+
+### Graph index groundwork
+
+`status:`, `sources:`, and `concepts:` are **infrastructure for a future graph index** (`reindex.py`, see `ROADMAP.md`). They are inert today — no tool reads them yet — but agents populate them now so the data exists across the vault when the reader is built. Until then they double as Obsidian backlinks/graph-view edges, which work immediately.
+
+- **`status` vocabulary** is the linear per-paper pipeline plus `tutored`, with `compared` for multi-paper artifacts. Use the value that matches the artifact's role (e.g. `spec.md` → `dissected`, `code_map.md` → `implemented`, `critic_reviews.md` → `critiqued`, tutor/explainer files → `tutored`, `comparison.md` → `compared`).
+- **`sources` and `concepts` use `[[wiki-link]]` syntax** so Obsidian renders the relationships with zero tooling. `sources` links point to other artifacts (e.g. `[[GIB/spec.md]]`); `concepts` links point to canonical concept names (e.g. `[[information-bottleneck]]`).
+- **Concept vocabulary** is **grown on demand**, not pre-seeded: agents append new canonical names to the shared list at `.cursor/skills/concept-vocabulary.md` as they encounter concepts, reusing an existing name when one fits rather than coining a variant (avoid `IB` vs. `Information Bottleneck` drift). Match against the existing list before adding.
+- **These keys are prose-enforced** until `reindex.py` validates them, so partial adoption across legacy files is expected; a backfill pass over existing papers is a known follow-up.
 
 The slug is **verbatim user input** — never normalize, capitalize, or pluralize. If the slug contains any of `:`, `#`, `[`, `]`, `{`, `}`, `,`, `&`, `*`, `!`, `|`, `>`, `'`, `"`, `%`, `@`, `` ` ``, or starts with whitespace or `-`, wrap it in double quotes: `paper: "weird:slug"`. The `paper:` key lets Obsidian Dataview / property search group every file (spec.md, code_map.md, tutor_log.md, concept files, ...) for one paper.
 

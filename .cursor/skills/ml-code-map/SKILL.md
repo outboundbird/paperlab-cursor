@@ -51,6 +51,11 @@ Every code_map.md must begins with a document header in this format:
 paper: <slug>
 category: model
 agent: implementer
+status: implemented
+sources:
+- "[[<slug>/spec.md]]"
+concepts:
+- "[[<canonical-concept-name>]]"
 tags:
 - AI-guided-paper-reading
 - code-map
@@ -76,6 +81,11 @@ Example (filled in for GEARS):
 paper: GEARS
 category: model
 agent: implementer
+status: implemented
+sources:
+- "[[GEARS/spec.md]]"
+concepts:
+- "[[gene-perturbation]]"
 tags:
 - AI-guided-paper-reading
 - code-map

@@ -88,6 +88,11 @@ Every `spec.md` must begin with:
 paper: <slug>
 category: model
 agent: dissector
+status: dissected
+sources:
+- "[[<slug>/paper-info.md]]"
+concepts:
+- "[[<canonical-concept-name>]]"
 tags:
 - AI-guided-paper-reading
 - paper-overview

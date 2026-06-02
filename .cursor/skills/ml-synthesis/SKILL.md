@@ -44,6 +44,12 @@ Every `synth__<concept_a>__<concept_b>.md` must begin with:
 paper: <slug>
 category: model
 agent: tutor       # or `agent: explainer` for the `synth__<a>__<b>-<slug>.md` backend intermediate
+status: tutored
+sources:
+- "[[<slug>/spec.md]]"
+concepts:
+- "[[<concept-a>]]"
+- "[[<concept-b>]]"
 tags:
 - AI-guided-paper-reading
 - paper-concept-explanation

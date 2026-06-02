@@ -456,6 +456,7 @@ for next session.
 paper: <slug>
 category: tutor
 agent: tutor
+status: tutored
 tags:
 - AI-guided-paper-reading
 - tutor-log
@@ -469,6 +470,11 @@ tags:
 > they are the agent's memory. If you want to record your own thoughts,
 > use `notes.md` or `tutor_notes.md`.
 ```
+
+The append-only log carries only `status: tutored`; it omits `sources:` /
+`concepts:` by design, because its header is written once at creation and
+cannot track per-turn edges. Provenance and concept edges live on
+`tutor_notes.md` and the `<concept>.md` files instead.
 
 ### Per-turn block
 
@@ -516,6 +522,11 @@ edits and only append new blocks.
 paper: <slug>
 category: tutor
 agent: tutor
+status: tutored
+sources:
+- "[[<slug>/spec.md]]"
+concepts:
+- "[[<canonical-concept-name>]]"
 tags:
 - AI-guided-paper-reading
 - tutor-notes

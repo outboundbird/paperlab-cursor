@@ -143,6 +143,13 @@ papers:
 - <slug_c>
 category: comparison
 agent: comparator
+status: compared
+sources:
+- "[[<slug_a>/spec.md]]"
+- "[[<slug_b>/spec.md]]"
+- "[[<slug_c>/spec.md]]"
+concepts:
+- "[[<canonical-concept-name>]]"
 tags:
 - AI-guided-paper-reading
 - method-comparison

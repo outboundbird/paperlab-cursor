@@ -145,6 +145,15 @@ The previously-parked `comparator` is un-parked and folded in here.
 - **MCP:** reuse `firecrawl` (already configured). Add a thin `arxiv` MCP only if structured metadata becomes a recurring need.
 - **Rule:** `external-fetch-budget.mdc` — max ~5 external fetches per concept; prefer arXiv abstract + 1 blog + author page; never crawl whole sites. Threshold to be tuned.
 
+### 5. `tools.reindex` — graph index over the vault
+
+- **What:** deterministic tool (`tools/reindex.py`) that walks the vault, parses each artifact's YAML front-matter (`paper`/`topic`, `agent`, `status`, `sources`, `concepts`) and body `[[wiki-links]]`, and emits a queryable graph index (`graph.json`) under `<vault>/PaperLab/.index/`. Entities: papers, artifacts, concepts, topics. Edges: `derived_from` (from `sources`), `mentions` (from `concepts`), `has_status` (from `status`). The index is a **derived cache** — rebuilt from the markdown, never hand-edited; if lost, regenerate.
+- **Why:** the front-matter groundwork (shipped Phase 1, 2026-06-02) populates `status`/`sources`/`concepts` across the vault but nothing *reads* them yet. This unit is the reader. Unlocks: staleness detection (a derived file built from an older `sources` hash), lifecycle queries ("which papers are dissected but not critiqued"), and cross-paper concept connections ("where else does `information-bottleneck` appear").
+- **Depends on:** the Phase-1 front-matter schema (`AGENTS.md` "Graph index groundwork") being populated. Legacy files predating the schema need a one-time backfill pass.
+- **Open design questions:** (a) whether to add source content-hashes to `sources:` for true staleness detection (vs. link-only edges now); (b) concept-name normalization against `.cursor/skills/concept-vocabulary.md` at index time to catch drift; (c) whether the index stays read-only JSON or also emits a human-facing `_index.md` rollup per paper.
+- **Why tool, not subagent?** Pure deterministic parse-and-aggregate — `tool` per the decision framework.
+- **Related future work (deferred, design captured 2026-06-02):** the **two-memory critic loop** — generators share a structured-spec working memory; critics hold a *complementary* representation (consequence lists: limits, signs, types/shapes, invariants, Markov/independence, monotonicity) and gate the working memory **pre-emission** (critic checks → retry ×2 → escalate to user; no disk write/rewrite loop). This builds on the same front-matter/graph substrate but is a larger effort; not scheduled.
+
 ## On hold
 
 Units that were started or shipped and are now paused after running into a quality ceiling that further iteration inside PaperLab is unlikely to clear. Distinct from **Parked** (deferred without trying) and **Planned** (designed, not started). Each on-hold entry points at a postmortem document so the work can be resumed (or respun as a side project) without losing context.
