@@ -147,12 +147,20 @@ The previously-parked `comparator` is un-parked and folded in here.
 
 ### 5. `tools.reindex` — graph index over the vault
 
-- **What:** deterministic tool (`tools/reindex.py`) that walks the vault, parses each artifact's YAML front-matter (`paper`/`topic`, `agent`, `status`, `sources`, `concepts`) and body `[[wiki-links]]`, and emits a queryable graph index (`graph.json`) under `<vault>/PaperLab/.index/`. Entities: papers, artifacts, concepts, topics. Edges: `derived_from` (from `sources`), `mentions` (from `concepts`), `has_status` (from `status`). The index is a **derived cache** — rebuilt from the markdown, never hand-edited; if lost, regenerate.
-- **Why:** the front-matter groundwork (shipped Phase 1, 2026-06-02) populates `status`/`sources`/`concepts` across the vault but nothing *reads* them yet. This unit is the reader. Unlocks: staleness detection (a derived file built from an older `sources` hash), lifecycle queries ("which papers are dissected but not critiqued"), and cross-paper concept connections ("where else does `information-bottleneck` appear").
-- **Depends on:** the Phase-1 front-matter schema (`AGENTS.md` "Graph index groundwork") being populated. Legacy files predating the schema need a one-time backfill pass.
-- **Open design questions:** (a) whether to add source content-hashes to `sources:` for true staleness detection (vs. link-only edges now); (b) concept-name normalization against `.cursor/skills/concept-vocabulary.md` at index time to catch drift; (c) whether the index stays read-only JSON or also emits a human-facing `_index.md` rollup per paper.
-- **Why tool, not subagent?** Pure deterministic parse-and-aggregate — `tool` per the decision framework.
-- **Related future work (deferred, design captured 2026-06-02):** the **two-memory critic loop** — generators share a structured-spec working memory; critics hold a *complementary* representation (consequence lists: limits, signs, types/shapes, invariants, Markov/independence, monotonicity) and gate the working memory **pre-emission** (critic checks → retry ×2 → escalate to user; no disk write/rewrite loop). This builds on the same front-matter/graph substrate but is a larger effort; not scheduled.
+**v1 shipped 2026-06-02.** Deterministic tool (`tools/reindex.py`) that walks the vault, parses each artifact's YAML front-matter (`paper`/`topic` + `papers`, `agent`, `status`, `sources`, `concepts`) and body `[[wiki-links]]`, and emits a queryable graph (`graph.json`) under `vault_index_dir()` (`<vault>/.index/`, a dotfolder so Obsidian ignores it). The index is a **derived cache** — rebuilt from the markdown, never hand-edited; if lost, rerun.
+
+- **What v1 does:** nodes for papers / topics / artifacts / concepts; edges `has_artifact`, `includes_paper`, `has_status`, `derived_from` (from `sources`), `mentions` (from `concepts` + bare body wiki-links). Drift report to stderr: artifacts missing `agent`/`status`, concept names not in `.cursor/skills/concept-vocabulary.md`, and `sources` links that don't resolve to a known artifact. CLI: `python -m tools.reindex` (write) and `--check` (report only). Path helper `vault_index_dir()` added to `tools/paths.py` (CLI verb `index-dir`).
+- **v1 resolved the three open questions** (per design 2026-06-02): (a) **link-only edges, no staleness hashing** — staleness needs a write-side hash stamp, deferred to v2a; (b) **concept normalization is report-only** — flags unknown names, never renames; (c) **JSON only** — no `_index.md` rollup (Obsidian's graph view already gives a human view).
+- **First run (2026-06-02):** 45 nodes / 31 edges over the legacy test vault. Only `has_artifact` edges fired — the existing papers predate Phase 1, so they carry no `status`/`sources`/`concepts` and the drift report correctly flags them. Expected: the test papers were deliberately **not** backfilled. New papers acquired after Phase 1 populate the schema automatically; the richer edges light up then.
+- **Why tool, not subagent?** Pure deterministic parse-and-aggregate.
+
+#### v2 directions (need a larger paper corpus to validate)
+
+- **v2a — Staleness detection.** Record source content-hashes at *write* time (a hook change), so reindex can flag "`comparison.md` built from `spec.md`@a3f9, now @b1c2 — stale." The original motivation; gated on the write-side stamp.
+- **v2b — Agents consult the graph.** Generators query `graph.json` before reading raw files (tutor: "what concepts here, and where else do they appear"; comparator: "which papers share this concept"). Graph as a generation *input*, not just output.
+- **v2c — Lifecycle queries.** "Which papers are dissected but not critiqued" as a CLI/dashboard, or driving auto-chain logic.
+- **v2d — `_index.md` rollup.** Human-facing per-paper or global summary generated from the graph.
+- **Bigger leap — two-memory critic loop (design captured 2026-06-02):** generators share a structured-spec working memory; critics hold a *complementary* representation (consequence lists: limits, signs, types/shapes, invariants, Markov/independence, monotonicity) and gate the working memory **pre-emission** (critic checks → retry ×2 → escalate to user; no disk write/rewrite loop). The graph's `derived_from` / `mentions` edges are the substrate a pre-emission critic needs. Larger effort; not scheduled.
 
 ## On hold
 

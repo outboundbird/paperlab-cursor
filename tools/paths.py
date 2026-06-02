@@ -121,6 +121,17 @@ def vault_path(slug: str, filename: str) -> Path:
     return vault_slug_dir(slug) / filename
 
 
+def vault_index_dir() -> Path:
+    """``<vault>/.index/`` — the derived graph-index cache.
+
+    Holds machine-generated output of :mod:`tools.reindex` (e.g. ``graph.json``).
+    A dotfolder so Obsidian's graph view and search ignore it. The contents are
+    a regenerable cache built from the vault's markdown front-matter and
+    ``[[wiki-links]]`` — never hand-edited; if lost, rerun ``reindex``.
+    """
+    return vault_root() / ".index"
+
+
 # ---------------------------------------------------------------------------
 # Repo paths (source material and experiments live here).
 # ---------------------------------------------------------------------------
@@ -240,6 +251,7 @@ def _cli() -> None:
 
     - ``vault``  : prints ``vault_path(slug, name)``
     - ``vault-dir`` : prints ``vault_slug_dir(slug)``
+    - ``index-dir`` : prints ``vault_index_dir()``
     - ``pdf``    : prints ``repo_pdf_path(slug)``
     - ``paper-dir`` : prints ``repo_paper_dir(slug)``
     - ``supplementals`` : prints ``repo_supplementals_dir(slug)``
@@ -281,6 +293,8 @@ def _cli() -> None:
         print(vault_path(slug, name))
     elif kind == "vault-dir":
         print(vault_slug_dir(slug))
+    elif kind == "index-dir":
+        print(vault_index_dir())
     elif kind == "pdf":
         print(repo_pdf_path(slug))
     elif kind == "paper-dir":
