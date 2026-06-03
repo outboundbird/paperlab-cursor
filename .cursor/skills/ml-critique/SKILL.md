@@ -158,3 +158,82 @@ A short list of links that help the reader navigate between code_map.md and spec
 - **Claim 1**: spec.md §1 (intro), code_map.md §2 (forward pass)
 - **Claim 2**: spec.md §7.1, code_map.md §2 (forward pass), code_map.md §3 (training loop)
 - **Discrepancy 1** (cross-gene MLP input dimensionality): code_map.md §5 gotcha #1, code_map.md §2 (cross-gene embedding), spec.md §6.1 step 4e
+
+## Blueprint-check mode
+
+A second, **backend-only** mode of the Critic, invoked by the
+`implementer` during blueprint generation (`ml-blueprint` skill). It
+audits a **draft `code_blueprint.md`** *pre-emission* — before the file
+is written — and returns a **PASS/FAIL verdict with findings**. It
+writes **no file** (it does not produce `critic_reviews.md` or any
+artifact). This is the hop-1 guard in the two-hop fidelity model
+(`log/2026-06-03-implementer-coder-blueprint-design.md`).
+
+### Independence is the whole point
+
+The Critic must build its **own** representation of the paper's math from
+`spec.md` (and the PDF only where the spec is ambiguous), and check the
+draft against *that*. It does **not** treat the draft's §3 steps or §4
+invariants as given, and does **not** share the implementer's working
+memory. The check has value only because the two representations are
+derived independently — the generator/discriminator firewall from the
+2026-06-02 two-memory design. Build the independent consequence list
+*before* studying the draft's §4 closely, to avoid anchoring on it.
+
+### What the Critic derives independently
+
+The same "consequence list" discipline as audit mode, applied to
+implementation rather than claims:
+
+- **Shapes** of each named quantity through the forward pass.
+- **Signs / ranges** the math implies (a softmax output is in `[0,1]`; a
+  norm-based loss is `≥ 0`).
+- **Normalization / conservation** (a softmax is row-stochastic over a
+  specific axis; probabilities sum to 1).
+- **Invariances / equivariances / limits / monotonicity** the method's
+  math entails (permutation-equivariance, a temperature limit, etc.).
+
+Carry the `[A]` (mechanical consequence) / `[B]` (scope) inference
+discipline. `[C]` field-level critique remains **forbidden** — judge the
+draft against the paper's own math, not against outside work.
+
+### Verdict rules
+
+- **FAIL** — at least one of:
+  - `[CONTRADICTION]`: a draft §4 invariant contradicts the math (e.g.
+    normalization over the wrong axis, an impossible sign or range).
+  - `[INCONSISTENT-STEP]`: a draft §3 step cannot follow from the spec's
+    math.
+- **WARN (does not flip the verdict)**:
+  - `[MISSING-INVARIANT]`: a property the Critic derived that the draft
+    should assert but omits. Completeness is not provable, so a missing
+    invariant is a suggestion, not a failure (mirrors how an
+    `unresolved` citation warns but does not block).
+  - `[UNSUPPORTED]`: a draft claim not grounded in the spec/PDF.
+- **PASS** — no `[CONTRADICTION]` and no `[INCONSISTENT-STEP]`. Warnings
+  may still be present and should be reported so the implementer can act
+  on them.
+
+### Scope: what this mode does NOT do
+
+- It does **not** check that the draft lists *enough* invariants
+  (completeness is unprovable — hence `[MISSING-INVARIANT]` only warns).
+  This yields strong **consistency**, not a correctness proof — the same
+  stance as the two-memory design.
+- It does **not** check runnable code (there is none yet; that is the
+  Coder's hop-2 concern, guarded by invariants-as-assertions).
+- It does **not** judge the method against the broader field (`[C]`
+  forbidden).
+
+### Reporting back (to the implementer)
+
+Return, without writing a file:
+
+- **Verdict:** PASS or FAIL.
+- **Findings:** each tagged `[CONTRADICTION]` / `[INCONSISTENT-STEP]`
+  (fail) or `[MISSING-INVARIANT]` / `[UNSUPPORTED]` (warn), each naming
+  the draft §/step and the spec reference, specific enough for the
+  implementer to revise directly.
+
+The implementer owns the retry loop (max 2) and the escalation to the
+user; the Critic only returns verdicts.
