@@ -9,7 +9,7 @@ Every agent-generated markdown file under `<vault>/<slug>/` carries a YAML front
 - `paper: <slug>` — groups all files for one paper.
 - `category:` — broad bucket (`model`, `tutor`, ...).
 - `agent: <name>` — identifies the subagent that wrote the file. Required as of 2026-05-28 for the post-hoc verifier hook to know which writer's output to verify. Allowed values: `acquirer`, `dissector`, `implementer`, `critic`, `tutor`, `explainer`, `comparator`, `experimenter`. The hook compares against this set; files without `agent:` (legacy vault content) are skipped silently.
-- `status:` — the lifecycle step this artifact represents. Per-paper pipeline values, in order: `acquired`, `dissected`, `implemented`, `critiqued`, `tutored`. Multi-paper experiment-suite artifacts sit outside the linear per-paper pipeline: `compared` (the `comparator`'s `comparison.md`), `designed` (the `experimenter`'s `design.md`), and `evaluated` (the `experimenter`'s `findings.md`). Records where the work is in the workflow so the lifecycle becomes queryable (see "Graph index groundwork" below).
+- `status:` — the lifecycle step this artifact represents. Per-paper pipeline values, in order: `acquired`, `dissected`, `implemented`, `critiqued`, `tutored`. `blueprinted` is a side-branch of `implemented`: it marks `code_blueprint.md`, the from-math reconstruction the `implementer` writes when a paper has **no official code** (vs. `implemented` for `code_map.md`, which maps real upstream code). Multi-paper experiment-suite artifacts sit outside the linear per-paper pipeline: `compared` (the `comparator`'s `comparison.md`), `designed` (the `experimenter`'s `design.md`), and `evaluated` (the `experimenter`'s `findings.md`). Records where the work is in the workflow so the lifecycle becomes queryable (see "Graph index groundwork" below).
 - `sources:` — list of `[[wiki-links]]` to the artifacts or papers this file was derived from (provenance edges). Example: a `comparison.md` lists the `spec.md` files it read. Omit or leave empty for root artifacts (e.g. `paper-info.md`).
 - `concepts:` — list of `[[wiki-links]]` to canonical concept names this artifact touches (concept edges; the cross-paper connective tissue). Names come from the shared concept vocabulary (see "Graph index groundwork").
 - `tags:` — Obsidian tags.
@@ -99,7 +99,7 @@ The five per-paper agents that take one paper from acquisition through understan
 
 - `acquirer` sets up the per-paper repo folder (`papers/<slug>/`) and vault folder (`<vault>/<slug>/`), downloads PDFs/supplements, clones upstream repos, and writes `paper-info.md` to the vault.
 - `dissector` reads the paper PDF and writes `spec.md` to the vault.
-- `implementer` maps paper concepts to official code and writes `code_map.md` to the vault; deep-dive mode writes `code_map__<slug>__<component>.md`.
+- `implementer` maps paper concepts to official code and writes `code_map.md` to the vault; deep-dive mode writes `code_map__<slug>__<component>.md`. **Blueprint mode** (explicit, opt-in) handles papers with **no official code**: it reconstructs a framework-agnostic implementation contract from the paper's math and writes `code_blueprint.md` (`status: blueprinted`), gated **pre-emission** by the `critic` (draft passed as payload → retry ×2 → escalate; written only on PASS). A blueprint is the hop-1 artifact the `coder` later turns into runnable code (hop-2, validated against the blueprint's invariants). See [`log/2026-06-03-implementer-coder-blueprint-design.md`](./log/2026-06-03-implementer-coder-blueprint-design.md).
 - `critic` audits claims, reproducibility, and paper-code alignment, then writes `critic_reviews.md` to the vault.
 - `tutor` is the user-facing conversational agent for understanding the paper's concepts. Reads `spec.md` and related vault files, talks with the user, invokes the `explainer` in the background when paper-bound content is missing, and writes `tutor_log.md` (every turn), plus `tutor_notes.md` / `<concept>.md` / `synth__<a>__<b>.md` (only on explicit user request).
 - `explainer` is **backend-only as of 2026-05-27**. Invoked by the `tutor`, never by the user. Writes paper-bound intermediates: `<concept>-<slug>.md` (single-concept) or `synth__<a>__<b>-<slug>.md` (synthesis).
@@ -125,6 +125,7 @@ Each subagent must read its corresponding skill before task-specific work:
 - `dissector` → `.cursor/skills/ml-paper-spec/SKILL.md`
 - `implementer` general mode → `.cursor/skills/ml-code-map/SKILL.md`
 - `implementer` deep-dive mode → `.cursor/skills/ml-code-map/DEEP_DIVE.md`
+- `implementer` blueprint mode → `.cursor/skills/ml-blueprint/SKILL.md`
 - `critic` → `.cursor/skills/ml-critique/SKILL.md`
 - `tutor` → `.cursor/skills/ml-tutor/SKILL.md` (also reads `ml-explanation/SKILL.md` and `ml-synthesis/SKILL.md` before writing `<concept>.md` or `synth__<a>__<b>.md`)
 - `explainer` single-concept mode → `.cursor/skills/ml-explanation/SKILL.md`
