@@ -35,7 +35,7 @@ Paths are resolved via the helpers in `tools/paths.py` (see `.cursor/rules/paper
   - Dissector subagent recognizes both patterns.
 
 - **Structure**: Acquirer subagent creates two parallel folders for each paper:
-  - **Repo side** — `repo_paper_dir(slug)` holds the PDF (`<slug>.pdf`), `supplementals/` (if any), and `upstream/<slug>/` (if a git repo exists).
+  - **Repo side** — `repo_paper_dir(slug)` holds the PDF (`<slug>.pdf`), `supplementals/` (only if ≥1 supplement is downloaded), and `upstream/<slug>/` (only if a repo is cloned). The latter two folders are created lazily, never as placeholders.
   - **Vault side** — `vault_slug_dir(slug)` is created empty for downstream subagents to fill with `spec.md`, `code_map.md`, etc.
   The `paper-info.md` file is written to the **vault** folder (`vault_path(slug, "paper-info.md")`) and links back to the repo-side PDF and upstream paths using absolute paths from `tools/paths.py`.
 - **Idempotency**: Acquirer subagent uses a state-driven checklist (see §3).
@@ -94,12 +94,20 @@ For example, GEARS is the slug name.
 ```
 <repo>/papers/GEARS/
 ├── GEARS.pdf                 ← downloaded by Acquirer
-├── supplementals/            ← created by Acquirer if any supplements found
+├── supplementals/            ← ONLY if ≥1 supplement is actually downloaded
 │   ├── GEARS_supplement.pdf
 │   └── ...
-└── upstream/                 ← created by Acquirer if a git repo is found
+└── upstream/                 ← ONLY if a repo is actually cloned
     └── GEARS/                ← cloned by Acquirer
 ```
+
+`supplementals/` and `upstream/` are **created lazily** — only
+immediately before a successful write into them (a downloaded
+supplement, a completed clone). If no supplements are found, no
+`supplementals/` folder is created. If no repo URL is found or the clone
+fails, no `upstream/` folder is created. Never create either folder as a
+precondition or placeholder. (This prevents empty folders going forward;
+the Acquirer does not delete pre-existing empty folders.)
 
 **Vault side** (`vault_slug_dir("GEARS")`):
 
@@ -141,8 +149,8 @@ tags:
 | Item | Status | Absolute path / Notes |
 |------|--------|-----------------------|
 | Main PDF | ✓ done / ⏳ pending | absolute path from `repo_pdf_path(slug)` or "manual download required" |
-| Supplement PDFs | ✓ (N found) / — none detected / ⏳ pending | absolute path of `repo_supplementals_dir(slug)` + filenames |
-| Upstream repo | ✓ cloned / ⏳ pending / ✗ not found | absolute path of `repo_upstream_dir(slug)`, URL, and commit SHA |
+| Supplement PDFs | ✓ (N found) / — none detected (no folder created) / ⏳ pending | absolute path of `repo_supplementals_dir(slug)` + filenames if any; otherwise "— none" |
+| Upstream repo | ✓ cloned / ⏳ pending / ✗ not found (no folder created) | absolute path of `repo_upstream_dir(slug)`, URL, and commit SHA if cloned; otherwise "— none" |
 
 ## Pending actions
 
@@ -195,9 +203,9 @@ prevent attempts on others.
 
 **Item 4: Supplement PDFs**
 - If any `<slug>_supplement*.pdf` files already exist under `repo_supplementals_dir(slug)` → mark "done (manual or previous run)."
-- Otherwise, create `repo_supplementals_dir(slug)` if needed, then attempt landing-page scrape per publisher rules (§ Supplement handling below).
-- If scrape succeeds and supplements found → download each into `repo_supplementals_dir(slug)`, mark "done."
-- If scrape fails or finds none → mark "none detected" or "pending manual download," depending on whether the scrape itself worked.
+- Otherwise, attempt the landing-page scrape per publisher rules (§ Supplement handling below) **without creating the folder yet**.
+- If the scrape finds supplements → create `repo_supplementals_dir(slug)` **at that point**, download each into it, mark "done."
+- If the scrape fails or finds none → mark "none detected" or "pending manual download," depending on whether the scrape itself worked. **Do not create `repo_supplementals_dir(slug)`** — leave no empty folder.
 
 **Item 5: Git repo URL**
 - If `--repo <url>` provided → use that directly, mark "done."
@@ -263,7 +271,7 @@ The Acquirer subagent fetches the user-provided URL to retrieve the landing page
   "appendix", "SI" (case-insensitive) AND whose URL ends in `.pdf`.
 
 Naming (all under `repo_supplementals_dir(slug)`):
-- Zero supplements found → no file created.
+- Zero supplements found → no file created, and `repo_supplementals_dir(slug)` is not created.
 - One supplement → save as `<slug>_supplement.pdf`.
 - Multiple supplements → save as `<slug>_supplement1.pdf`,
   `<slug>_supplement2.pdf`, etc., in landing-page order.

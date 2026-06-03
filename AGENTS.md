@@ -93,6 +93,10 @@ If you currently have an emoji in the path, rename the parent folder (e.g., `Mod
 
 PaperLab uses Cursor project subagents in `.cursor/agents/`.
 
+### Learning suite
+
+The five per-paper agents that take one paper from acquisition through understanding form the **Learning suite** (`acquirer`, `dissector`, `implementer`, `critic`, `tutor`, plus the backend `explainer`). They share the per-paper `status` lifecycle (`acquired → dissected → implemented → critiqued → tutored`) and write to `<vault>/<slug>/`. This is the counterpart to the multi-paper Experimenter suite below.
+
 - `acquirer` sets up the per-paper repo folder (`papers/<slug>/`) and vault folder (`<vault>/<slug>/`), downloads PDFs/supplements, clones upstream repos, and writes `paper-info.md` to the vault.
 - `dissector` reads the paper PDF and writes `spec.md` to the vault.
 - `implementer` maps paper concepts to official code and writes `code_map.md` to the vault; deep-dive mode writes `code_map__<slug>__<component>.md`.
