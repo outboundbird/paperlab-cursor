@@ -1,5 +1,12 @@
 # Stage 2 — Coder adapt-mode: kickoff & orientation
 
+> **SUPERSEDED 2026-06-04** by
+> [`log/2026-06-04-stage2-regime2-component-surgery-design.md`](./2026-06-04-stage2-regime2-component-surgery-design.md).
+> This file framed Stage 2 as black-box *wrapping* (Regime 1). The
+> redesign establishes that PaperLab's valuable comparisons need
+> *component-level surgery* (Regime 2) and reworks the Stage-2 design.
+> Kept for historical context and the Regime-1 contrast.
+
 **Status:** designed, not built. This file orients the Stage-2 work within
 the project and gathers the settled decisions + open questions so a build
 session can start without re-deriving context.

@@ -1,6 +1,6 @@
 ---
 name: ml-critique
-description: Defines the `critic_reviews.md` audit schema for calibrating trust in ML papers by reviewing claims, evidence, reproducibility, and paper-code alignment. `critic_reviews.md` lives at `vault_path(slug, "critic_reviews.md")`. Use when auditing, critiquing, reviewing, or trust-calibrating a PaperLab paper.
+description: Defines the `critic_reviews.md` audit schema for calibrating trust in ML papers by reviewing claims, evidence, reproducibility, and paper-code alignment. `critic_reviews.md` lives at `vault_path(slug, "critic_reviews.md")`. Two backend-only gate modes return PASS/FAIL without writing a file: blueprint-check (pre-emission, invoked by the implementer) and extraction-fidelity (pre-run, invoked by the experimenter for Stage-2 component surgery). Use when auditing, critiquing, reviewing, or trust-calibrating a PaperLab paper, or gating reconstructed/extracted code.
 ---
 
 # ML Critique Schema
@@ -282,3 +282,97 @@ Return, without writing a file:
 
 The implementer owns the retry loop (max 2) and the escalation to the
 user; the Critic only returns verdicts.
+
+## Extraction-fidelity mode
+
+A third, **backend-only** mode of the Critic, invoked by the
+`experimenter` during a Stage-2 experiment (the coder's component-surgery
+mode, `ml-experiment-code` § Stage 2). It audits **experiment code
+pre-run** — before the experiment is trusted — and returns a
+**PASS/FAIL verdict with findings**. It writes **no file**. Design:
+[`log/2026-06-04-stage2-regime2-component-surgery-design.md`](../../../log/2026-06-04-stage2-regime2-component-surgery-design.md).
+
+The Stage-2 experiment holds a shared **principle** fixed in a synthesized
+`scaffold.py` and swaps each paper's **divergent component**, extracted
+into `repo_experiments_dir(topic)/methods/<slug>/extracted.py`. Both the
+extracted components and the scaffold are agent-invented and must be
+checked. This mode has two checks.
+
+### Check A — extraction fidelity (per paper, the hard gate)
+
+For each `methods/<slug>/extracted.py`: does it still compute the paper's
+mechanism, or did the extraction/refactor alter it? This is the same
+firewall as the reconstructed-source audit — the Critic builds its **own**
+representation of the component from the paper, independently of the
+coder's extraction.
+
+- **Anchors:** `code_map.md` (primary — it points at the exact source
+  lines the component was lifted from) and `spec.md` (secondary — the
+  described mechanism). Resolve vault paths via the CLI first.
+- **What to check:** the extracted logic against the source it claims
+  (provenance header names the `code_map.md §` and lines). Confirm no
+  added terms, no dropped terms, no swapped distribution/op, no changed
+  constants or ordering. Allowed differences are only I/O reshaping to the
+  scaffold slot (rename, reshape, device).
+- Carry the `[A]`/`[B]` discipline; `[C]` field critique forbidden. Judge
+  the extraction against the paper's own math, not outside work.
+
+### Check B — scaffold fidelity
+
+For `scaffold.py`'s fixed part (encoder/readout/objective form): does it
+faithfully represent the **shared principle** the papers claim (e.g. is
+the IB objective $I(X;Z) - \beta I(Z;Y)$ rendered correctly)? A wrong
+scaffold measures every variant under a wrong objective, invalidating the
+whole comparison.
+
+### Behavioral-equivalence evidence (from the coder)
+
+When the coder was able to run a component in isolation, it passes a
+behavioral-equivalence result (original vs. extracted on seeded synthetic
+input). Treat a PASS as **corroborating** Check A and a FAIL as a
+`[CONTRADICTION]`. Its **absence is not a failure** (often infeasible) —
+fall back to the static audit. The Critic owns the verdict either way.
+
+### Verdict rules
+
+- **FAIL** — at least one of:
+  - `[EXTRACTION-DRIFT]`: an `extracted.py` adds/drops/swaps logic vs. its
+    cited source (Check A), or a behavioral-equivalence check the coder ran
+    failed.
+  - `[SCAFFOLD-DRIFT]`: `scaffold.py`'s fixed part misrepresents the shared
+    principle (Check B).
+- **WARN (does not flip the verdict)**:
+  - `[PROVENANCE-GAP]`: a provenance header is missing or its cited
+    `code_map.md §`/lines do not match what was extracted (makes the audit
+    harder; flag but do not fail on this alone).
+  - `[UNVERIFIABLE]`: the source could not be located to confirm fidelity
+    (e.g. `code_map.md` missing for that paper) — report so the
+    experimenter can resolve, but do not invent a verdict.
+- **PASS** — no `[EXTRACTION-DRIFT]` and no `[SCAFFOLD-DRIFT]`. Per-paper:
+  a single drifting component fails **that variant**, not the whole
+  experiment.
+
+### Scope: what this mode does NOT do
+
+- It does **not** judge whether the comparison is *interesting* or the
+  seam well-chosen — that is the experimenter + user's design decision.
+- It does **not** check that the experiment will produce good results —
+  only that the extracted components are faithful and the scaffold
+  represents the shared principle.
+- It does **not** run the experiment or write any file.
+- `[C]` field-level critique remains forbidden.
+
+### Reporting back (to the experimenter)
+
+Return, without writing a file:
+
+- **Verdict:** PASS or FAIL, **per paper** for Check A, plus the single
+  Check B verdict for the scaffold.
+- **Findings:** each tagged `[EXTRACTION-DRIFT]` / `[SCAFFOLD-DRIFT]`
+  (fail) or `[PROVENANCE-GAP]` / `[UNVERIFIABLE]` (warn), each naming the
+  file, the `code_map.md §`/spec reference, and what drifted — specific
+  enough for the coder to fix the extraction directly.
+
+The experimenter owns the retry loop (max 2, fix → re-audit), the
+escalation to the user, and the `findings.md` record of a blocked variant;
+the Critic only returns verdicts.

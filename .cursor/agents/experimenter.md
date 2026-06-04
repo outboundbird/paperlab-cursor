@@ -151,6 +151,18 @@ if present; degrade gracefully if absent. **Never** force a critic run,
 never block the design on it, and never offer to launch the Critic
 yourself.
 
+### 2d-bis. Comparison seam (§2b — load-bearing for Stage-2 coding)
+
+Co-design the **seam** with the user: what shared principle + task the
+experiment holds fixed, and which divergent component each method swaps.
+This is `design.md` §2b and is read directly by the `coder` in Stage 2 to
+synthesize the scaffold and extract each component, so make it concrete —
+name the pluggable slot (with union I/O) and, per method, the divergent
+component and its `code_map.md` source location. Propose-and-confirm if
+the user's framing is vague; never pick the seam silently. Flag
+`⚠️ UNCERTAIN` if a component can't be cleanly separated or two methods
+can't share one faithful seam.
+
 ### 2e. Data-synthesis design (Seam A — you own this)
 
 Drive the data plan with the user: generative process, the stress lever
@@ -174,13 +186,24 @@ are settled):
 4. Run the self-checks (skill "Self-checks").
 5. **Run the inline verification gate** (below) before reporting.
 
-## 4. Stop at the implement boundary (current scope)
+## 4. Implement hand-off (current scope)
 
-After `design.md` is written and verified, tell the user that the
-implement, run, and evaluate phases await the `coder` and `evaluator`
-agents, which are not yet built. Do not write code, do not create
-`repo_experiments_dir(topic)/` scaffolding, do not write `findings.md`.
-End there.
+After `design.md` is written and verified, the `coder`'s Stage-2
+component surgery **is** available: given the §2b seam, it synthesizes the
+shared scaffold and extracts each method's divergent component into
+`repo_experiments_dir(topic)/`, gated by the `critic`'s
+extraction-fidelity audit. When the user wants to proceed to
+implementation, invoke the `coder` (Stage 2) with the topic, the seam
+contract from §2b, and the member slugs; route the critic fidelity gate
+(retry max 2 → escalate) and the Seam-B user-check between write and run.
+
+The **full implement/run orchestration protocol is still being fleshed
+out** (see `ml-experiment-design` lifecycle §3), and the `evaluator` that
+writes `findings.md` is not yet built — so an experiment can currently run
+only to **results emitted**, not to an interpreted `findings.md`. Do not
+write code yourself, do not write `findings.md`. If a faithful seam or
+extraction proves impossible, record it in `design.md` (design-time) or
+`findings.md` (run-time) rather than dropping a method silently.
 
 # Invoking the comparator (backend mode)
 
@@ -198,6 +221,30 @@ It reads the specs, writes `comparison.md` to
 the user; do not duplicate the comparison into `design.md`. If the
 comparator surfaces an axis-refinement question, relay it to the user
 and feed the answer back on the next invocation.
+
+# Invoking the coder (Stage 2 — component surgery)
+
+The `coder` is a subagent at `.cursor/agents/coder.md`. Its Stage-2 mode
+is backend, invoked by you (never the user). Your prompt must include:
+
+- The topic, verbatim.
+- The **seam contract** from `design.md` §2b (held-fixed principle + task,
+  the pluggable slot with union I/O, and per-method the divergent
+  component + its `code_map.md` source).
+- The member slugs (≥ 2), verbatim.
+
+It synthesizes `scaffold.py`, writes each `methods/<slug>/extracted.py`,
+writes `run.py`, runs opportunistic behavioral-equivalence checks, and
+reports back the artifacts + borrow route + any unfittable component. It
+does **not** self-certify fidelity.
+
+Then run the **critic extraction-fidelity gate** (backend): invoke the
+`critic` in extraction-fidelity mode with the topic, member slugs, and the
+artifact paths. On FAIL, relay the findings to the coder to fix the
+extraction (retry max 2); on exhaustion, escalate to the user and record
+the blocked variant in `findings.md` — do not drop it silently. On PASS,
+route the **Seam-B user-check** (user reviews the written code) before any
+run is trusted.
 
 # Verification gate (inline, before reporting)
 
@@ -221,8 +268,10 @@ temp files you create.
 
 # Scope boundaries
 
-- **Design only (current scope).** No code, no experiment runs, no
-  `findings.md`. Those await the `coder` and `evaluator`.
+- **Experimenter writes no code itself.** The `coder` (Stage 2) writes
+  all experiment code; the experimenter invokes it, gates it (critic +
+  Seam B), and discusses results. `findings.md` awaits the `evaluator`;
+  until then an experiment runs only to results emitted.
 - **You own the data *design*, not the data *code*** (Seam A). The
   `coder` implements; you decide and record in `design.md`.
 - **No conceptual deep-dive inline.** Method contrast is the

@@ -1,6 +1,6 @@
 ---
 name: ml-experiment-code
-description: Defines how the Coder subagent turns a paper's method into runnable code. Stage 1 (standalone, per-paper) writes invariant-validated method code to `vault_code_dir(slug)` from the paper's `code_blueprint.md` or official upstream code. Stage 2 (adapt-mode, invoked by the experimenter) wraps that code to a topic harness under `repo_experiments_dir(topic)`. Use when implementing, coding, or adapting a paper's method for reuse or experiments.
+description: Defines how the Coder subagent turns a paper's method into runnable code. Stage 1 (standalone, per-paper) writes invariant-validated method code to `vault_code_dir(slug)` from the paper's `code_blueprint.md` or official upstream code. Stage 2 (component surgery, invoked by the experimenter) synthesizes a shared scaffold and extracts each paper's divergent component into `repo_experiments_dir(topic)/methods/<slug>/`. Use when implementing, coding, or adapting a paper's method for reuse or experiments.
 ---
 
 # ML Experiment Code Schema
@@ -16,9 +16,16 @@ stage you are in and treat it as authoritative; do not blend the two.
 blueprint (or official code)
         |  STAGE 1 — standalone per-paper coder (this section, below)
    runnable, invariant-validated method code in the VAULT: vault_code_dir(slug)
-        |  STAGE 2 — coder adapt-mode (invoked by the experimenter)
-   wrapped to the topic harness: repo_experiments_dir(topic)/methods/<slug>/
+        |  STAGE 2 — coder component surgery (invoked by the experimenter)
+   shared scaffold + extracted divergent components in the REPO:
+   repo_experiments_dir(topic)/  (scaffold.py + methods/<slug>/extracted.py)
 ```
+
+Stage 2 is **not** black-box wrapping. The valuable PaperLab comparisons
+hold a shared *principle* fixed (e.g. the information bottleneck) and swap
+the *divergent component* inside it (e.g. the bottleneck sampling step).
+That requires reaching inside each method, not wrapping it. Full design:
+[`log/2026-06-04-stage2-regime2-component-surgery-design.md`](../../../log/2026-06-04-stage2-regime2-component-surgery-design.md).
 
 Stage 1 is the hop-2 guard of the two-hop fidelity model: paper math →
 `code_blueprint.md` (hop 1, guarded by the Critic pre-emission) →
@@ -249,34 +256,233 @@ coder: method.py + test_invariants.py
 
 ---
 
-# STAGE 2 — Coder adapt-mode (PLANNED — not yet built)
-
-> **Status: designed, not implemented.** This section is a placeholder
-> describing the intended Stage-2 contract so the Stage-1 output is
-> shaped to fit it. Do not act on this section until Stage 2 is built and
-> this notice is removed.
+# STAGE 2 — Coder component surgery (invoked by the experimenter)
 
 Stage 2 is **backend-only**, invoked by the `experimenter` during an
-experiment, never by the user directly. It does not re-derive the method:
-it **wraps** the Stage-1 `Method` from `vault_code_dir(slug)` to the
-experiment's common harness interface and writes the thin adapter to
-`repo_experiments_dir(topic)/methods/<slug>/`.
+experiment, never by the user directly. It is **component surgery**, not
+black-box wrapping: it synthesizes a shared scaffold that holds the
+experiment's principle + task fixed, and extracts each member paper's
+**divergent component** into that scaffold's pluggable slot so the
+variants can be compared on equal footing.
 
-Intended contract (to be finalized at Stage-2 build time):
+The kickoff framing of Stage 2 as "wrap the Stage-1 `Method` to a harness"
+([`log/2026-06-04-stage2-coder-adapt-kickoff.md`](../../../log/2026-06-04-stage2-coder-adapt-kickoff.md))
+is **superseded** by the component-surgery design
+([`log/2026-06-04-stage2-regime2-component-surgery-design.md`](../../../log/2026-06-04-stage2-regime2-component-surgery-design.md)).
 
-- **Input:** the Stage-1 `Method` (stable handle: constructor + entry
-  point + I/O block) and the topic harness interface the experimenter
-  defines.
-- **Output:** an adapter under
-  `repo_experiments_dir(topic)/methods/<slug>/` mapping the harness's
-  expected calls onto the `Method`'s entry point, reconciling I/O names
-  and shapes per the harness contract.
-- **Guard:** the harness runs each adapter on the experiment's synthetic
-  data; shape/interface mismatches surface there. (The method-level
-  correctness was already guarded by Stage-1 invariants.)
-- Stage 2 does not edit the Stage-1 vault code — the vault method stays
-  the canonical, reusable implementation; the adapter is experiment-local
-  glue.
+## What Stage 2 compares (the two regimes)
 
-When Stage 2 is built, this section will gain a full process, file
-layout, and self-checks mirroring the Stage-1 section above.
+| | Regime 1 (NOT this) | Regime 2 (this) |
+|---|---|---|
+| Compared | whole methods on a shared task | one divergent component inside a shared principle |
+| Built | thin adapter | shared scaffold + extracted components |
+| Touches internals? | no | yes — by design |
+
+Stage 2 implements **Regime 2**. If a comparison genuinely is Regime 1
+(methods interchangeable on a shared task, no internal divergence to
+isolate), the scaffold collapses to a trivial slot that calls each
+`Method`'s entry point — but the agent still follows the Regime-2 process
+below; it does not special-case a wrapper.
+
+## Settled principles (do not relitigate)
+
+1. **Borrow, not reinvent.** Reuse the paper's method logic; never
+   re-implement it. The divergent component is lifted from the paper's
+   code, not rewritten.
+2. **Per-paper code is immutable.** Stage 2 never edits `<slug>/code/`
+   (Stage-1 `method.py`) or upstream code. Refactors land under the topic,
+   never written back to the paper folder.
+3. **No member paper is the host.** The scaffold is synthesized fresh; it
+   does not adopt one paper's training loop and bolt others into it.
+4. **The seam is a design decision.** Where the scaffold is cut (what is
+   held fixed vs. swapped) is co-designed by the experimenter + user and
+   recorded in `design.md`. The coder builds against that seam; it does
+   not choose it.
+5. **Nothing agent-invented goes unchecked.** Extracted components and the
+   synthesized scaffold are both fidelity-gated by the critic before the
+   experiment runs (see "Fidelity gates").
+
+## Inputs
+
+- The **seam contract** from `design.md` (prose): what the scaffold holds
+  fixed (principle + task), where the pluggable slot is, and what each
+  member paper's divergent component is.
+- Each member paper's **`code_map.md`** (the concept→code map — the
+  primary anchor for *where* the divergent component lives in the source)
+  and **`spec.md`** (the described mechanism).
+- Each member paper's source code: Stage-1 `vault_code_dir(slug)/method.py`
+  (reconstructed) or `repo_upstream_dir(slug)` (official). Resolve vault
+  paths with `python -m tools.paths code-dir <slug>` **before** reading —
+  the vault is outside the workspace and relative search will not find it.
+
+## File layout (`repo_experiments_dir(topic)`)
+
+Resolve the directory with `python -m tools.paths exp-sandbox <topic>`.
+
+```
+sandbox/experiments/<topic>/
+├── scaffold.py            agent-synthesized; principle + task fixed; defines the slot Protocol
+├── methods/
+│   └── <slug>/
+│       ├── __init__.py
+│       └── extracted.py   the paper's divergent component, fitted to the slot (provenance header)
+├── run.py                 driver: synth data → each variant through the scaffold → results/
+└── results/              run outputs (git-ignored under data/ if bulky)
+```
+
+`scaffold.py` and `run.py` are the per-topic shared shell; `methods/<slug>/`
+is one folder per member paper.
+
+## The scaffold contract
+
+`scaffold.py` formalizes the seam from `design.md` as a Python
+`Protocol` (or ABC) — the slot every extracted component plugs into — and
+holds the fixed pipeline around it. The slot signature is the **union** of
+all members' needs (if one variant needs `data.x` and another only `h`,
+the slot carries both). Sketch (the exact shape comes from the topic's
+seam):
+
+```python
+from typing import Protocol
+from torch import Tensor
+
+class BottleneckComponent(Protocol):
+    """The pluggable slot (from design.md seam). Each member paper's
+    divergent mechanism conforms to this."""
+    def __call__(self, h: Tensor, x: Tensor, edge_index: Tensor) -> tuple[Tensor, Tensor]:
+        """returns (z, reg): bottlenecked repr + IB regularizer term."""
+        ...
+
+def run_experiment(data, component: BottleneckComponent):
+    h = encoder(data.x, data.edge_index)        # fixed (principle/task)
+    z, reg = component(h, data.x, data.edge_index)  # the SLOT (varies per paper)
+    y_hat = readout(z)                           # fixed
+    loss = task_loss(y_hat, data.y) + beta * reg # fixed objective form
+    return y_hat, loss
+```
+
+What is fixed (encoder, readout, objective form) encodes the **shared
+principle** the papers claim — so the scaffold itself is a fidelity
+concern (see gates).
+
+## The borrow ladder (per member paper)
+
+For each paper, produce `methods/<slug>/extracted.py` by the cheapest
+faithful route:
+
+1. **Import directly** — if the divergent component is already cleanly
+   separable in the source (a standalone function/class), import it and
+   adapt only I/O names/shapes to the slot. `extracted.py` is then a thin
+   conformer around the imported symbol.
+2. **Extract-and-refactor** — if the component is entangled (e.g. the
+   bottleneck sampling is fused into a monolithic `forward()`), refactor
+   the original logic out into `extracted.py`, **preserving the original
+   computation** (same order, same ops, same constants). This is the
+   common case for the comparisons PaperLab cares about.
+
+**Allowed in `extracted.py`:** rename, reshape, re-order I/O to fit the
+slot; relocate the divergent logic out of its original surroundings;
+device/dtype placement. **Forbidden:** changing what the component
+computes — no new terms, no dropped terms, no swapped distributions, no
+"improvements." If you cannot fit the slot without altering the
+computation, that is a failure to surface (see below), not a license to
+edit the method.
+
+## Provenance header (every `extracted.py`)
+
+```python
+"""<slug> — <component name> extracted for experiment <topic>.
+
+Source: <slug>/code/method.py  (or repo_upstream_dir(<slug>)/<file>)
+Source location: code_map.md §<n> / <function-or-class>, lines <a>–<b>
+Status: EXTRACTED + REFACTORED — not the original module layout.
+        Computation preserved; only I/O reshaped to the scaffold slot.
+Borrow route: import-direct | extract-and-refactor
+"""
+```
+
+## Fidelity gates (before the experiment runs)
+
+Two judgment gates (critic) plus one opportunistic empirical check
+(coder). The critic is invoked by the **experimenter** (it owns the
+verdict); the coder runs the behavioral check when feasible and feeds the
+result in as evidence.
+
+1. **Extraction-fidelity (critic, hard gate, per paper).** The critic
+   audits each `extracted.py` against `code_map.md` (primary) + `spec.md`
+   (secondary): does the extracted component still compute the paper's
+   mechanism? FAIL blocks that variant. Retry budget max 2 (fix the
+   extraction, re-audit); on exhaustion, escalate to the user and surface
+   in `findings.md` — do not silently drop.
+2. **Scaffold-fidelity (critic).** The critic audits `scaffold.py`'s fixed
+   part against the shared principle the papers claim (e.g. is the IB
+   objective form faithful?). A wrong scaffold measures every variant
+   under a wrong objective.
+3. **Behavioral equivalence (coder, opportunistic).** When a component is
+   runnable in isolation, run the *original* and the *extracted* version
+   on the same seeded synthetic input and assert outputs match within
+   tolerance. Often infeasible (if it ran cleanly in isolation it could
+   usually have been imported) — skip when not applicable; it corroborates
+   the critic gate, it is not a substitute for it.
+
+## Stage-2 process
+
+0. Read this section. Read the seam contract from `design.md` and the
+   member-paper list.
+1. **Resolve paths.** `exp-sandbox <topic>` for the output tree; for each
+   paper, `code-dir <slug>` (reconstructed) or `repo_upstream_dir(slug)`
+   (official) for the source, and resolve `code_map.md` / `spec.md`.
+2. **Synthesize `scaffold.py`.** Build the fixed pipeline from the seam;
+   declare the slot `Protocol` as the union of member needs. Paper-natural
+   names for the principle's quantities so the critic can diff it.
+3. **For each member paper, write `methods/<slug>/extracted.py`** via the
+   borrow ladder. Stamp the provenance header. Conform to the slot without
+   altering the computation.
+4. **Write `run.py`** — generate the experiment's synthetic data (per
+   `design.md` §4), run each variant through `scaffold.run_experiment`,
+   collect into `results/`. Seed everything.
+5. **Behavioral-equivalence checks** (coder) where feasible; record
+   PASS/skip per paper to hand to the critic gate.
+6. **Report back to the experimenter** with the artifacts, the
+   borrow route per paper, the behavioral-check results, and any
+   extraction that could not be fitted faithfully. The experimenter runs
+   the critic gates and routes the user-check (Seam B) before any run is
+   trusted.
+
+Stage 2 does **not** itself decide the design, write `design.md`, or
+interpret results — those are the experimenter's and evaluator's.
+
+## Failure surfacing (no silent drops)
+
+- A component that cannot be faithfully extracted/fitted, or two papers
+  that cannot share a faithful seam, is reported to the experimenter for
+  recording in `design.md` (design-time infeasibility) or `findings.md`
+  (run/audit-time failure). A blocked variant is named, not dropped.
+
+## Stage-2 self-checks
+
+- `scaffold.py` exposes the slot as a `Protocol`/ABC matching the
+  `design.md` seam; the fixed part encodes the shared principle with
+  paper-natural names.
+- Every member `methods/<slug>/extracted.py` conforms to the slot, carries
+  a provenance header, and (by inspection) preserves the source
+  computation — no added/dropped/swapped logic.
+- The borrow route (import-direct vs. extract-and-refactor) is recorded
+  per paper.
+- No `<slug>/code/` or upstream file was modified (read-only on sources).
+- `run.py` seeds RNG and writes to `results/`; no real datasets/downloads
+  unless `design.md` explicitly calls for small real data.
+- Behavioral-equivalence outcome recorded per paper (PASS / skipped +
+  why).
+- Any unfittable extraction is surfaced for `design.md`/`findings.md`, not
+  silently omitted.
+
+## Stage-2 scope boundaries
+
+- Writes only under `repo_experiments_dir(topic)`. Does **not** write to
+  the vault, `papers/`, or any per-paper `<slug>/` folder.
+- Does not edit Stage-1 vault code or upstream code (read-only).
+- Does not choose the seam, write `design.md`, or interpret results.
+- Does not alter what an extracted component computes to make it fit.
+- Does not own the fidelity verdict — the critic does; the coder only
+  builds and runs the behavioral check.

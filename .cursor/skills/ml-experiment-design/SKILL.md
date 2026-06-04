@@ -42,9 +42,15 @@ The full experiment lifecycle is **design → implement → run → evaluate**:
    criterion, method set, and data-synthesis design; write `design.md`.
 2. **Method trade-offs** (on demand, design phase) — **shipped.**
    Invoke the `comparator` for a conceptual comparison; relay to user.
-3. **Implement + run** — **pending** the `coder` agent. The experimenter
-   will invoke the `coder` to scaffold synth + method code, with a
-   user-check gate (Seam B) between writing and running.
+3. **Implement + run** — the `coder`'s **Stage-2 component surgery** is
+   built (`ml-experiment-code` § Stage 2): given the §2b seam, it
+   synthesizes the shared scaffold and extracts each method's divergent
+   component, gated by the `critic`'s extraction-fidelity audit. The
+   experimenter invokes the `coder`, routes the critic gate and the
+   user-check (Seam B) between write and run, then runs to **results
+   emitted**. (The full implement/run orchestration protocol is still
+   being fleshed out; the §2b seam is the load-bearing input it depends
+   on.)
 4. **Evaluate** — **pending** the `evaluator` agent. The experimenter
    will invoke the `evaluator` to interpret run outputs and write
    `findings.md`.
@@ -120,6 +126,40 @@ sourced from each paper's `spec.md`; deep conceptual contrast belongs in
 
 If a `comparison.md` already exists for this topic, cross-reference it
 with a `[[wiki-link]]` rather than restating its content.
+
+### 2b. Comparison seam (load-bearing for Stage-2 coding)
+
+The **seam** is *where* the comparison cuts: what shared principle + task
+the experiment holds **fixed**, and which **divergent component** each
+method swaps in. It is the scientific claim of the experiment — fix too
+little and incidental differences contaminate the result; fix too much
+and you erase the difference you meant to measure. Co-design it with the
+user (propose-and-confirm if the user's framing is vague).
+
+This section is read directly by the `coder` in Stage 2 (component
+surgery) to synthesize the shared scaffold and extract each method's
+component, so it must be concrete. Record:
+
+- **Held fixed (the principle + task).** The shared mechanism every method
+  assumes (e.g. the information-bottleneck objective $I(X;Z) - \beta
+  I(Z;Y)$) and the common task (e.g. node classification on the synthetic
+  graphs of §4). This becomes the scaffold's fixed pipeline.
+- **The pluggable slot (what varies).** The one component being compared
+  (e.g. the bottleneck sampling/selection step), named precisely, with its
+  inputs and output — the **union** across methods (if one method's
+  component needs an input another ignores, list it; the slot carries
+  both).
+- **Per method, the divergent component + its source.** For each slug,
+  name the component and where it lives in that paper
+  (`code_map.md §`/function), so the coder can locate it to extract.
+- **⚠️ UNCERTAIN** if a method's component cannot be cleanly separated
+  from its surroundings, or two methods cannot share one faithful seam —
+  this is a known limitation of the comparison, recorded here at design
+  time (and, if it only surfaces during coding, later in `findings.md`).
+
+Keep it to one slot per experiment by default (clean attribution of the
+measured difference to the divergence point); only add a second slot with
+explicit rationale.
 
 ### 3. Hypotheses
 
@@ -270,6 +310,9 @@ Before reporting the design complete:
 
 - All seven `design.md` sections present and in order.
 - Criterion (§1) is falsifiable and every later section serves it.
+- Comparison seam (§2b) names the held-fixed principle + task, the one
+  pluggable slot (with union I/O), and per-method the divergent component
+  + its `code_map.md` source — concrete enough for the coder to extract.
 - Data design (§4) commits to a pinned seed and names the stress lever.
 - MVP (§5) names metrics, baselines, and seed count.
 - Hypotheses and rationale carry `[A]`/`[B]` prefixes; no unsourced
