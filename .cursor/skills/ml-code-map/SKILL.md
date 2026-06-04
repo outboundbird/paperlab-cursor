@@ -1,13 +1,35 @@
 ---
 name: ml-code-map
-description: Maps an ML paper's algorithmic concepts to its cloned official implementation and defines the `code_map.md` schema. Reads cloned code under `repo_upstream_dir(slug)` (in the repo) and writes `code_map.md` to `vault_path(slug, "code_map.md")` (in the vault). Use when mapping, annotating, or explaining a paper's upstream code.
+description: Maps an ML paper's algorithmic concepts to a concrete implementation and defines the `code_map.md` schema. The implementation is either the cloned official code under `repo_upstream_dir(slug)` (official source) OR the coder's reconstructed Stage-1 code under `vault_code_dir(slug)` (reconstructed source). Writes `code_map.md` to `vault_path(slug, "code_map.md")` (in the vault). Use when mapping, annotating, or explaining a paper's code — official or reconstructed.
 ---
 
 # ML Code Map Schema
 
 ## Purpose
 
-This file defines the schema for `code_map.md`, the structured mapping from a paper's algorithm to its official implementation. `code_map.md` is produced by the Implementer subagent and read by the user to understand how the paper translates to code. It lives at `vault_path(slug, "code_map.md")` (resolved via `tools/paths.py`); cloned code being annotated lives at `repo_upstream_dir(slug)`.
+This file defines the schema for `code_map.md`, the structured mapping from a paper's algorithm to a concrete implementation. `code_map.md` is produced by the Implementer subagent and read by the user to understand how the paper translates to code. It lives at `vault_path(slug, "code_map.md")` (resolved via `tools/paths.py`).
+
+## Two sources, one schema
+
+`code_map.md` maps one of two implementations of the same paper. The
+schema is identical; only the **source** differs:
+
+| Source | Code location | When | §1 "Source" value |
+|---|---|---|---|
+| **Official** | `repo_upstream_dir(slug)` | the paper shipped code | `official` |
+| **Reconstructed** | `vault_code_dir(slug)` | no official code; the `coder` built it from `code_blueprint.md` (Stage 1) | `reconstructed` |
+
+The implementer determines the source before mapping (see `implementer.md`).
+Every reference below to "the code" / "the repo" means **whichever source
+applies**. Differences between the two cases are called out inline; where
+nothing is said, the rule is identical.
+
+**Reconstructed-source firewall.** When mapping reconstructed code, build
+the walkthrough from `spec.md` + the vault `method.py` — **not** from the
+`code_blueprint.md` the same implementer may have authored. The map must
+re-derive the algorithm↔code correspondence from the paper, so it stays
+an independent check rather than a restatement of the blueprint. (The
+critic's audit is the firewalled second check; see `ml-critique`.)
 
 ## Reading the PDF
 
@@ -35,9 +57,9 @@ Global rules that apply to all sections:
 - **code block**: Code blocks must be verbatim except for inline clarifying comments that tie variables to paper notation. If Implementer adds a comment, mark it as Implementer-added (e.g., a trailing # [annot]).
 - **language tag convention**: based on the original code
 - **commit/date recording convention**: MM/DD/YYYY
-- **the read-only boundary**: The Implementer subagent reads and searches source files under `repo_upstream_dir(slug)`, but does not execute upstream code, modify files there, or produce new Python files. Its only writes are PaperLab annotation artifacts such as `vault_path(slug, "code_map.md")`.
-- **accuracy rule for line numbers**: Line numbers must reflect actual file contents at the annotated commit. Verify each line range by reading the file — do not infer line numbers from imports, class names, or file structure. Inline code snippets must exactly match the file content at those line ranges.
-- **what triggers re-annotation**: If the upstream repository has been updated since the commit recorded in the header, line numbers and code snippets may have drifted. Re-run Implementer to refresh code_map.md after any upstream update.
+- **the read-only boundary**: The Implementer subagent reads and searches the source files (under `repo_upstream_dir(slug)` for `official`, or `vault_code_dir(slug)` for `reconstructed`), but does not execute the code, modify files there, or produce new Python files. Its only writes are PaperLab annotation artifacts such as `vault_path(slug, "code_map.md")`. (For `reconstructed`, the `method.py` it maps is the `coder`'s — the implementer never edits it.)
+- **accuracy rule for line numbers**: Line numbers must reflect actual file contents as read. Verify each line range by reading the file — do not infer line numbers from imports, class names, or file structure. Inline code snippets must exactly match the file content at those line ranges.
+- **what triggers re-annotation**: If the source has been updated since the annotation date (the official repo was re-pulled, or the `coder` regenerated the reconstructed `method.py`), line numbers and code snippets may have drifted. Re-run Implementer to refresh code_map.md after any source update.
 
 
 ## Required sections
@@ -67,11 +89,22 @@ tags:
 
 **Paper:** <paper title>
 **Paper context:** one-sentence summary of what the paper does
-**Repo:** absolute path from `repo_upstream_dir(slug)` (record it explicitly so the link works from Obsidian), source URL (<URL>),
-**Annotation date:** MM/DD/YYYY. No commit hash required — Implementer records the date it read the repo. If the upstream updates, re-run to refresh
+**Source:** `official` or `reconstructed` (see "Two sources, one schema")
+**Code location:** for `official` — absolute path from `repo_upstream_dir(slug)` + source URL (<URL>); for `reconstructed` — absolute path from `vault_code_dir(slug)` (the `coder`'s Stage-1 output)
+**Annotation date:** MM/DD/YYYY. No commit hash required — Implementer records the date it read the code. If the source updates, re-run to refresh
 **Code language/framework:** <e.g., Python + PyTorch + PyTorch Geometric>
 
 ---
+```
+
+For a `reconstructed` source, add the disclaimer line directly under the
+`# Code Mapping — <slug>` heading:
+
+```markdown
+> **Maps reconstructed code** (the `coder`'s Stage-1 output from
+> `code_blueprint.md`), **not the authors' official implementation** — no
+> upstream repository exists. Mapped against `spec.md` as an independent
+> code↔algorithm check.
 ```
 
 Example (filled in for GEARS):
@@ -99,8 +132,9 @@ tags:
 perturbations with GEARS
 **Paper context:** GNN + GO-graph method for predicting transcriptional
 response to unseen gene perturbations.
-**Repo:** `C:/Users/<you>/Workspace/paperlab-cursor/papers/GEARS/upstream/GEARS/` (i.e. `repo_upstream_dir("GEARS")`), https://github.com/snap-stanford/GEARS,
-annotation date: 04/23/2026
+**Source:** `official`
+**Code location:** `C:/Users/<you>/Workspace/paperlab-cursor/papers/GEARS/upstream/GEARS/` (i.e. `repo_upstream_dir("GEARS")`), https://github.com/snap-stanford/GEARS
+**Annotation date:** 04/23/2026
 **Code language/framework:** Python + PyTorch + PyTorch Geometric
 
 ---
@@ -115,7 +149,7 @@ Specifically you will write up:
 
 - Provide the brief section title
 - Cite the paper formula from spec.md correspond to this section if available
-- Provide the code location as a path relative to `repo_upstream_dir(slug)` followed by line numbers: `<relative path inside upstream>:lines xx-xx`. The reader resolves the absolute path via `tools/paths.py`.
+- Provide the code location as a path relative to the **source root** (`repo_upstream_dir(slug)` for `official`, `vault_code_dir(slug)` for `reconstructed`) followed by line numbers: `<relative path>:lines xx-xx`. The reader resolves the absolute path via `tools/paths.py`. For reconstructed code the path is typically `method.py:lines xx-xx`.
 - The snippet of the that corresponding to the algorithm
 - **code snippet max length**:  20 lines
 - Annotation for this piece of code.
@@ -189,6 +223,11 @@ For example:
 Provide a markdown table that specify the layers used in the deep learning model if available.
 If the model does not concern deep learning model, leave 'Not applicable'.
 
+For `reconstructed` source, "How to override" points at the `Method`
+constructor keyword argument (from blueprint §2 / `method.py.__init__`)
+rather than a CLI flag or YAML key, since reconstructed code has no config
+layer.
+
 For example:
 
 | Hyperparameter (from spec.md §7) | Code location | Default | How to override |
@@ -202,11 +241,28 @@ For example:
 
 ### 5. Gotchas (bulleted list with paper-says / code-does / why-it-matters)
 
-Provide a list that the code is inconsistent with what paper stated. Provide the reason why it is importance to know this difference.
+List places where the code is inconsistent with what the paper stated, and why the difference matters.
 
-Only include genuine gotchas — discrepancies that would mislead a reader or affect reproduction. Do not include: different variable names, different formatting, different organization, or non-functional stylistic differences. If in doubt about whether something qualifies, omit it.
+**The framing depends on the source:**
 
-For example:
+- **`official`** — a gotcha is an **author choice**: the authors
+  implemented something differently from the paper's formula. The
+  "why it matters" weighs whether the code or the paper is the better
+  reference.
+- **`reconstructed`** — there is no third-party author; the `coder` built
+  the code from the paper (via the blueprint). A gotcha here is a
+  **fidelity finding**: a place where the reconstruction *drifts from the
+  paper* (an approximation, a pinned `⚠️ UNCERTAIN` quantity, a
+  simplification the blueprint introduced). Frame "why it matters" around
+  reconstruction fidelity, not author intent. Use **paper-says /
+  code-does / fidelity-note** instead of why-it-matters. If the
+  reconstruction is faithful with no drift, say so explicitly ("No
+  fidelity gaps found; the reconstruction follows the paper's math.") —
+  do not invent gotchas.
+
+Only include genuine gotchas — differences that would mislead a reader or affect reproduction. Do not include: different variable names, formatting, organization, or non-functional stylistic differences. If in doubt, omit it.
+
+For example (`official` source):
 
 - **Paper says:** $\mathbf{h}^{\text{post-pert}}_u = \text{MLP}(\mathbf{h}^{\text{gene}}_u + \mathbf{h}^z)$ (addition)
 - **Code does:** `torch.cat([h_gene, h_z], dim=-1)` followed by an MLP

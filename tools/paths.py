@@ -121,6 +121,21 @@ def vault_path(slug: str, filename: str) -> Path:
     return vault_slug_dir(slug) / filename
 
 
+def vault_code_dir(slug: str) -> Path:
+    """``<vault>/<slug>/code/`` — Stage-1 runnable method code for this paper.
+
+    Holds the per-paper, reusable implementation the ``coder`` writes in its
+    standalone (Stage-1) mode from the paper's ``code_blueprint.md`` (no
+    official code) or official upstream code: ``method.py`` (implementation),
+    optional ``test_invariants.py`` (the blueprint §4 invariants as runtime
+    assertions), and an optional ``README.md``. This is the one place runnable
+    ``.py`` lives in the vault rather than the repo — it is git-tracked and
+    user-reviewable. The ``experimenter`` suite's Stage-2 adapt-mode wraps this
+    code to a topic harness under :func:`repo_experiments_dir`.
+    """
+    return vault_slug_dir(slug) / "code"
+
+
 def vault_index_dir() -> Path:
     """``<vault>/.index/`` — the derived graph-index cache.
 
@@ -251,6 +266,7 @@ def _cli() -> None:
 
     - ``vault``  : prints ``vault_path(slug, name)``
     - ``vault-dir`` : prints ``vault_slug_dir(slug)``
+    - ``code-dir`` : prints ``vault_code_dir(slug)``
     - ``index-dir`` : prints ``vault_index_dir()``
     - ``pdf``    : prints ``repo_pdf_path(slug)``
     - ``paper-dir`` : prints ``repo_paper_dir(slug)``
@@ -293,6 +309,10 @@ def _cli() -> None:
         print(vault_path(slug, name))
     elif kind == "vault-dir":
         print(vault_slug_dir(slug))
+    elif kind == "code-dir":
+        if not slug:
+            raise SystemExit("usage: python -m tools.paths code-dir <slug>")
+        print(vault_code_dir(slug))
     elif kind == "index-dir":
         print(vault_index_dir())
     elif kind == "pdf":

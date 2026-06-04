@@ -100,6 +100,91 @@ blueprint (or official code)
   `<slug>/`; decide whether it should ignore `.py`, or whether Stage-1
   code needs any hook treatment.
 
+## Open items — RESOLVED 2026-06-04
+
+All seven resolved with the user before building Stage 1:
+
+1. **Vault Stage-1 code layout** — subfolder `<vault>/<slug>/code/`
+   holding `method.py` (implementation), optional `test_invariants.py`
+   (the §4 assertions), and optional `README.md`. **Multiple files
+   allowed.** Keeps runnable code visually separate from the paper
+   folder's markdown.
+2. **Hybrid `Method` contract** — a class exposing: a constructor taking
+   declared hyperparameters; **one** documented entry point
+   (`run(inputs)` / `forward(inputs)`); and a contract block declaring
+   input names + shapes and output name + shape, lifted from blueprint
+   §2. Paper-natural names inside; the wrapper is the stable handle
+   Stage-2 adapt-mode reads.
+3. **`ml-experiment-code` skill** — **one** skill, two clearly-marked
+   sections (Stage 1 generate, Stage 2 adapt). Must be written to avoid
+   Stage 1/2 confusion. Mirrors `ml-code-map` + `DEEP_DIVE`.
+4. **Non-learner methods** — the contract requires **only** constructor
+   + entry point + I/O declaration. `fit`/`predict` are **optional**,
+   added by a learner when natural, never forced. A simulator exposes
+   `run(params) -> trajectory`; a closed-form method exposes
+   `run(graph) -> scores`; both are fully compliant without
+   `fit`/`predict`. (GENI is a learner, so the smoke test won't exercise
+   the non-learner path, but the contract states it.)
+5. **`tools/paths.py` helper** — add `vault_code_dir(slug)` returning
+   `<vault>/<slug>/code/` + a CLI verb, consistent with `vault_path` /
+   `vault_index_dir`. Nothing hard-codes the path.
+6. **Stage-1 verifier gate** — **none for now.** The
+   invariants-as-assertions are executable (run on synthetic input
+   before done) and serve as the hop-2 guard; a separate critic-style
+   gate would duplicate them. Revisit after the GENI smoke test if the
+   asserts prove insufficient.
+7. **Post-hoc verifier hook** — scope it to `.md`, **ignore `.py`.** The
+   latex/citation verifiers are meaningless on code, so Stage-1 `.py`
+   writes must not trigger the hook.
+
+The contract change (runnable code in the vault) stays contained:
+dedicated subfolder (#1), dedicated path helper (#5), hook scoped to
+`.md` (#7).
+
+## Stage 1 — BUILT + smoke-tested 2026-06-04
+
+Built this session:
+
+- `tools/paths.py` — `vault_code_dir(slug)` (`<vault>/<slug>/code/`) + the
+  `code-dir` CLI verb.
+- `.cursor/skills/ml-experiment-code/SKILL.md` — Stage-1 section fully
+  specified (file layout, hybrid `Method` contract, process,
+  invariants-as-assertions hop-2 guard, self-checks, scope); Stage-2
+  section is a marked PLANNED placeholder.
+- `.cursor/agents/coder.md` — Stage-1 user-invokable (`/coder code <slug>`),
+  route detection (blueprint primary / official-code reimplementation),
+  prerequisites, 3-attempt invariant fix budget; Stage-2 stubbed as
+  not-built.
+- `tools/hooks/verify_on_vault_write.py` — documented the deliberate
+  `.py`-ignore (existing `.md`-only filter already covers it; no logic
+  change needed).
+- `AGENTS.md`, `ROADMAP.md`, `README.md` — updated to the two-stage
+  design (coder spans both suites; vault `code/` documented as the one
+  exception to the code-in-repo/notes-in-vault split).
+
+### GENI smoke-test result (PASS)
+
+Ran `/coder code GENI` (chat `1923966d-ed49-48a9-82d7-a6545e016167`). The
+agent wrote `method.py`, `test_invariants.py`, and `README.md` to
+`<vault>/GENI/code/`:
+
+- `method.py` — one `Method(nn.Module)` with the I/O contract block,
+  `forward` entry point, paper-natural names tied to blueprint §3.2–§3.6,
+  and optional `fit`/`predict` (GENI is a learner). Faithful to the
+  blueprint (predicate-aware score aggregation, head-average bridge,
+  log-in-degree centrality, MSE-on-labeled loss).
+- `test_invariants.py` — 12 test functions covering **24** §4 invariants
+  (shapes, row-stochastic + non-negative attention, aggregation
+  consistency, pre-aggregation-score dependence, head-average bridge,
+  `s* >= 0`, `loss >= 0`, log-in-degree centrality, single-neighbor
+  α = 1, softmax shift-invariance, final-head-average-before-ReLU, NDCG in
+  `[0,1]`).
+
+Independent run by hand (`python test_invariants.py`): **exit 0, all 12
+PASS, "24 §4 invariants covered."** The hop-2 guard works end-to-end:
+blueprint → vault code → invariants green. Stage 1 validated on a real
+paper.
+
 ## Build order (next session)
 
 1. (done this session) Capture this design log.

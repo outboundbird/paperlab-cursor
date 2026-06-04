@@ -12,7 +12,11 @@ Skip logic — the hook is a no-op when any of these is true:
 - File is not under ``vault_root() / <slug> / ...``.
 - File is under the ``experiments/<topic>/`` tree (multi-paper output
   from the experimenter suite; the ``comparator`` gates it inline).
-- File extension is not ``.md``.
+- File extension is not ``.md``. This deliberately excludes the Coder's
+  Stage-1 runnable code under ``<slug>/code/`` (``method.py``,
+  ``test_invariants.py``): the LaTeX and citation verifiers are
+  meaningless on Python, and that code is guarded instead by its own
+  invariant assertions (the hop-2 guard).
 - File lacks a YAML front-matter ``agent:`` field (legacy vault content).
 - ``agent: tutor`` (already gated inline by R10).
 - ``agent: explainer`` AND filename matches ``*-<slug>.md`` (backend

@@ -49,6 +49,18 @@ One entry per concept:
 - Aliases: GAT, graph attention networks
 - First seen: GNR (2026-06-02)
 
+### knowledge-graph
+- Aliases: KG, knowledge graphs, multi-relational graph
+- First seen: GENI (2026-06-02)
+
+### predicate-aware-attention
+- Aliases: predicate-aware attention mechanism, relation-aware attention
+- First seen: GENI (2026-06-02)
+
+### gravity-model
+- Aliases: gravity centrality, gravity law, multi-characteristics gravity model, MCGM
+- First seen: SIR (2026-06-02)
+
 ### graph-neural-network
 - Aliases: GNN, graph neural networks
 - First seen: GNR (2026-06-02)
@@ -60,3 +72,11 @@ One entry per concept:
 ### node-ranking
 - Aliases: node ranking, influential node identification
 - First seen: GNR (2026-06-02)
+
+### shannon-entropy
+- Aliases: Shannon entropy, node entropy, information entropy
+- First seen: EDDC (2026-06-02)
+
+### sir-epidemic-model
+- Aliases: SIR model, susceptible-infected-recovered, epidemic spreading dynamics
+- First seen: SIR (2026-06-02)

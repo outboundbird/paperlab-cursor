@@ -32,13 +32,24 @@ Before doing any audit work, read `.cursor/skills/ml-critique/SKILL.md` and foll
 
 # Prerequisites (audit mode)
 - `vault_path(slug, "spec.md")` must exist. If missing, respond: "I need `spec.md` for <slug> before I can audit. Use the dissector subagent first to create it." End turn.
-- `vault_path(slug, "code_map.md")` must exist. If missing, respond: "I need `code_map.md` for <slug> before I can audit. Use the implementer subagent first to map the code." End turn.
-- If `repo_upstream_dir(slug)` is missing and `code_map.md` does not exist, respond: "This paper has no cloned upstream code. Use the acquirer subagent first to clone the repo, then use the implementer subagent to map the code." End turn.
+- `vault_path(slug, "code_map.md")` must exist. If missing, respond: "I need `code_map.md` for <slug> before I can audit. Use the implementer subagent first to map the code (official or reconstructed)." End turn.
+- The `code_map.md` may map **either** source — `official` (upstream repo) or `reconstructed` (the coder's `vault_code_dir` `method.py`). Read its §1 **Source** field; the audit adapts (see "Audit source modes" below). You do **not** require `repo_upstream_dir(slug)` to exist — a reconstructed `code_map.md` is a valid audit target.
 
 # Process
 0. Before anything else, read `.cursor/skills/ml-critique/SKILL.md`.
 1. Read `vault_path(slug, "spec.md")`.
 2. Read `vault_path(slug, "code_map.md")`.
+   When §1 **Source** is `reconstructed`, also read the coder's
+   `method.py` (and `test_invariants.py`) to verify the §3 fidelity
+   findings and §4 rows against the actual code. These live in the vault,
+   **outside this workspace**, so resolve the absolute directory first —
+   do not Glob the workspace for them:
+
+   ```bash
+   python -m tools.paths code-dir <slug>
+   ```
+
+   Read `method.py` / `test_invariants.py` from that absolute path.
 3. Audit each section per the schema:
    - Section 2: extract claims from spec.md §1 and §7
    - Section 3: iterate over each gotcha in code_map.md §5
@@ -55,10 +66,30 @@ Before doing any audit work, read `.cursor/skills/ml-critique/SKILL.md` and foll
 6. Report back (per the Reporting back section below).
 
 
+# Audit source modes (official vs reconstructed)
+
+The `code_map.md` §1 **Source** field tells you which implementation you
+are auditing. The audit's §2 claims and the firewall discipline are the
+same either way; §3 and §4 adapt. See `ml-critique` §3 / §4 for the full
+schema.
+
+- **`official`** — the default. §3 weighs author choices (code-vs-paper);
+  §4 reproducibility checks upstream/dataset/seeds as written.
+- **`reconstructed`** — the code is the coder's, built from the paper via
+  the blueprint. §3 becomes a **fidelity** audit (does the reconstruction
+  drift from the paper?), not author-choice. §4 drops the
+  upstream/dataset/training rows (there are none) and substitutes
+  reconstruction-fidelity rows (invariants pass, seeds fixed in
+  `test_invariants.py`, every spec §6 component present in `method.py`).
+  This is the firewalled hop-2-vs-spec check: you re-read the spec
+  independently — you did **not** write the code or (in this mode) trust
+  the blueprint.
+
 # Self-check
 - All claims from spec.md §1 / §7 covered in Section 2
 - All gotchas from code_map.md §5 covered in Section 3
-- Section 4 has all 6 rows
+- Section 4 has all rows for the source (official: the 6 upstream rows; reconstructed: the fidelity rows)
+- §1 header reflects the code_map's Source (official/reconstructed)
 - No `[C]` field-level critiques present. Search for `[C]`; it should find none.
 - File written to `vault_path(slug, "critic_reviews.md")`
 

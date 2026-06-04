@@ -13,6 +13,24 @@ The audit covers two scopes: paper methodology (claims, evidence,
 unstated limitations) and paper-code alignment (what the implementation
 actually does vs. what the paper says).
 
+## Audit source: official vs reconstructed
+
+The audit reads `code_map.md`, which maps one of two code sources (see
+`ml-code-map` "Two sources, one schema"). Read its §1 **Source** field
+and adapt:
+
+- **`official`** — the implementation is the authors' upstream code. §3
+  audits **author choices**; §4 checks upstream/dataset/training
+  reproducibility. This is the original behavior.
+- **`reconstructed`** — the implementation is the `coder`'s Stage-1
+  `method.py`, built from the paper via `code_blueprint.md`. There is no
+  third-party author. §3 becomes a **fidelity** audit (does the
+  reconstruction drift from the paper's math?); §4 swaps the
+  upstream/dataset/training rows for reconstruction-fidelity rows. The
+  §2 claims audit and the independent-spec-reading firewall are
+  unchanged. This is the **hop-2-vs-spec firewall**: the critic re-reads
+  the spec independently to check code the critic did not write.
+
 ## Reading the PDF
 
 When the spec or code_map references the PDF ambiguously and you need to
@@ -65,7 +83,8 @@ tags:
 
 **Paper:** <paper title>
 **Paper context:** one-sentence summary of what the paper does
-**Repo:** absolute path from `repo_upstream_dir(slug)`, source URL (<URL>),
+**Source:** `official` or `reconstructed` (from `code_map.md` §1)
+**Code location:** for `official` — absolute path from `repo_upstream_dir(slug)` + source URL (<URL>); for `reconstructed` — absolute path from `vault_code_dir(slug)`
 **Audit date:** MM/DD/YYYY
 **Sources audited**: spec.md, code_map.md
 
@@ -104,8 +123,21 @@ For each major claim in the paper, populate this format:
 ### 3. Paper-code alignment
 
 For each gotcha listed in `code_map.md §5 Gotchas`, produce one
-Discrepancy entry. The gotcha itself (paper-says / code-does / why-it-
-matters) lives in code_map.md; this section adds two fields on top:
+Discrepancy entry. The gotcha itself lives in code_map.md; this section
+adds two fields on top.
+
+**Source-dependent framing:**
+
+- **`official`** — discrepancies are author choices (code-vs-paper). Use
+  the entry format below as-is.
+- **`reconstructed`** — discrepancies are **fidelity findings** (does the
+  coder's reconstruction drift from the paper's math?). Same two added
+  fields, but "Functional role" describes what the reconstructed block
+  does and "What would resolve uncertainty" points at the relevant
+  invariant in `test_invariants.py` or a spec re-check, not a re-run
+  against the authors' benchmark. If `code_map.md §5` reports no fidelity
+  gaps, state in §3 that the reconstruction is faithful and there are no
+  discrepancies to analyze — do not manufacture any.
 
 **Discrepancy N: [short label, matching the gotcha]**
 - **Source:** code_map.md §5 (link to the specific gotcha)
@@ -137,9 +169,9 @@ for example:
   the better architecture and the code is suboptimal.
 
 ### 4. Reproducibility checklist
-Each row is verifiable from spec.md §7 and code_map.md. Do not introduce status assessments that are not grounded in those files.
+Each row is verifiable from spec.md §7 and code_map.md. Do not introduce status assessments that are not grounded in those files. **The row set depends on the source.**
 
-A binary (yes / no / partial) check on each item, verifiable from files on disk, for example:
+**`official` source** — a binary (yes / no / partial) check on each item, verifiable from files on disk:
 
 | Item | Status | Notes |
 |------|--------|-------|
@@ -149,6 +181,19 @@ A binary (yes / no / partial) check on each item, verifiable from files on disk,
 | Random seeds fixed in training code | yes / no | grep result |
 | Train/val/test splits explicitly defined | yes / no | location in code |
 | Evaluation metrics clearly defined in code | yes / no | which file |
+
+**`reconstructed` source** — there is no upstream repo, dataset, or
+training run, so those rows do not apply. Substitute fidelity rows,
+verifiable from `vault_code_dir(slug)`:
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Reconstructed code present (`method.py`) | yes / no | `vault_code_dir(slug)` |
+| Invariant tests present and passing (`test_invariants.py`) | yes / no / partial | N invariants; any failing |
+| Every spec.md §6 component present in `method.py` | yes / no / partial | which are missing (cross-ref code_map coverage) |
+| All hyperparameters from spec.md §7 exposed in the `Method` constructor | yes / no / partial | which are missing |
+| Random seeds fixed in the invariant test | yes / no | grep result |
+| `⚠️ UNCERTAIN` quantities flagged (blueprint/code) | yes / no | which, and the default chosen |
 
 
 ### 5. Cross-references
