@@ -151,19 +151,20 @@ if present; degrade gracefully if absent. **Never** force a critic run,
 never block the design on it, and never offer to launch the Critic
 yourself.
 
-### 2d-bis. Comparison seam (§2b — load-bearing for Stage-2 coding)
+### 2e. Comparison seam (records `design.md` §2b — load-bearing for Stage-2 coding)
 
 Co-design the **seam** with the user: what shared principle + task the
 experiment holds fixed, and which divergent component each method swaps.
-This is `design.md` §2b and is read directly by the `coder` in Stage 2 to
-synthesize the scaffold and extract each component, so make it concrete —
+This is recorded as **§2b of `design.md`** (the schema section, not this
+subsection) and is read directly by the `coder` in Stage 2 to synthesize
+the scaffold and extract each component, so make it concrete —
 name the pluggable slot (with union I/O) and, per method, the divergent
 component and its `code_map.md` source location. Propose-and-confirm if
 the user's framing is vague; never pick the seam silently. Flag
 `⚠️ UNCERTAIN` if a component can't be cleanly separated or two methods
 can't share one faithful seam.
 
-### 2e. Data-synthesis design (Seam A — you own this)
+### 2f. Data-synthesis design (Seam A — you own this)
 
 Drive the data plan with the user: generative process, the stress lever
 that exercises the criterion, synthetic vs. small real, pinned seed,
