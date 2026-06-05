@@ -108,13 +108,39 @@ tags:
 completed design (distinct from the per-paper pipeline). Quote any
 YAML-special slug (see `AGENTS.md` front-matter rules).
 
+### 0.5 Problem setup and motivation (the spine — settle before criterion)
+
+Before any criterion, methods, or seam, establish — **with the user
+leading** — what the experiment is actually *for*. This section is
+authored from that conversation, not from a spec scan. Capture:
+
+- **Problem class / task.** What is the prediction problem? Be concrete
+  about granularity and target: node-level vs. graph-level vs.
+  edge-level; classification vs. regression vs. structure recovery;
+  transductive vs. inductive. This is the single most important thing to
+  pin down — it determines whether the methods are even comparable.
+- **Motivating question.** Why is the user running this experiment? What
+  do they want to *learn* or *decide*? One honest paragraph in the
+  user's framing.
+- **Why these methods.** For each candidate paper, what is it actually
+  *for* (its native task and the gap it fills), and why is it a
+  candidate here. Sourced from each `spec.md` §3 (problem setup), read
+  only once the user has named the candidates.
+- **Shared-task check.** State explicitly whether the candidate methods
+  address the **same** problem class. If they do not (e.g. one is
+  node-level, another graph-level), that is a first-class design issue —
+  see R0b. Record the resolution here.
+
+Every later section (criterion, seam, data) must serve the problem
+framed here. If the framing changes, revisit them.
+
 ### 1. Question and criterion
 
 State the empirical question precisely: *what property* of the methods
 is being tested (e.g. expressivity, sample efficiency, robustness to
 distribution shift), and *why it matters* for this problem class. One
-paragraph. This is the spine of the whole design — every later choice
-serves it.
+paragraph. This serves the problem framed in §0.5 — every later choice
+serves it in turn.
 
 ### 2. Methods under comparison
 
@@ -253,12 +279,40 @@ tags:
 The experimenter is **conversational and user-driven**, in the style of
 the `tutor` — a pair-designer, not a fire-and-forget scaffolder.
 
+- **R0 — Problem framing before design.** The first phase is
+  understanding, not designing. Before proposing a criterion, naming a
+  seam, or reading any spec in depth, establish with the user: the
+  problem class / task, their motivating question, and why each
+  candidate paper fits (`design.md` §0.5). Do **not** read specs in
+  depth, name a comparison axis, or propose a criterion until the
+  problem is shared understanding. Rushing to build before the problem is
+  understood is the primary failure mode this rule exists to prevent.
+- **R0a — Converse, don't railroad.** This is a pair-design session in
+  the style of the `tutor`, not a form to fill. Prefer open-ended
+  questions that invite the user to think; reserve discrete /
+  multiple-choice prompts for genuine forks where a small set of options
+  is exhaustive. After proposing something substantive, **pause and let
+  the user read and respond** — do not chain several decisions into one
+  turn, and do not force a choice when the user may want to reflect or
+  redirect. The user leads; the experimenter facilitates.
+- **R0b — Shared-task check (soft stop).** Before committing to a
+  criterion or seam, confirm the candidate methods address the same
+  problem class. If they do **not** (e.g. node-classification vs.
+  graph-classification methods), **stop and surface the mismatch to the
+  user**: explain that comparing them requires a contrived bridge
+  (re-labeling, pooling, task coercion) that will confound the result,
+  and **recommend** either reframing the question, swapping a method, or
+  narrowing to methods that share the task. Proceed with a bridged design
+  **only if the user explicitly insists**, and when you do, record the
+  bridge and its confounds prominently in §0.5 and §7. Never engineer the
+  bridge silently as if the tasks matched.
 - **R1 — User drives.** The user sets the topic and criterion. The
   experimenter proposes, surfaces trade-offs, and asks; it does not
   unilaterally fix the design.
 - **R2 — One decision at a time.** Walk the design sections in order
-  (criterion → methods → hypotheses → data → MVP). Do not dump a full
-  design and ask for blanket approval; build it collaboratively.
+  (problem framing → criterion → methods → seam → hypotheses → data →
+  MVP). Do not dump a full design and ask for blanket approval; build it
+  collaboratively.
 - **R3 — Propose-and-confirm for vague inputs.** If the criterion is
   vague or not cleanly testable, propose a sharpened version and let the
   user confirm or adjust. Never silently substitute.
@@ -308,7 +362,12 @@ the relevant gate.
 
 Before reporting the design complete:
 
-- All seven `design.md` sections present and in order.
+- §0.5 problem setup is present and was settled *before* the criterion;
+  the criterion and seam serve the framed problem.
+- The shared-task check (R0b) was performed; if the methods do not share
+  a task, the mismatch was surfaced to the user and the bridge (if any)
+  is recorded with its confounds, not silently engineered.
+- All `design.md` sections present and in order (§0.5 through §7).
 - Criterion (§1) is falsifiable and every later section serves it.
 - Comparison seam (§2b) names the held-fixed principle + task, the one
   pluggable slot (with union I/O), and per-method the divergent component

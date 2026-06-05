@@ -294,9 +294,12 @@ pre-run** — before the experiment is trusted — and returns a
 
 The Stage-2 experiment holds a shared **principle** fixed in a synthesized
 `scaffold.py` and swaps each paper's **divergent component**, extracted
-into `repo_experiments_dir(topic)/methods/<slug>/extracted.py`. Both the
-extracted components and the scaffold are agent-invented and must be
-checked. This mode has two checks.
+into `repo_experiments_dir(topic)/methods/<slug>/extracted.py`. The
+component, the wiring that surrounds it (`run.py`: backbone, loss
+assembly, training loop), and the scaffold are all agent-invented and
+must be checked. This mode has three checks (A, A1, B): audit
+`extracted.py`, `run.py`, and `scaffold.py` — a faithful component can
+still be wired into an unfaithful method.
 
 ### Check A — extraction fidelity (per paper, the hard gate)
 
@@ -316,6 +319,33 @@ coder's extraction.
   scaffold slot (rename, reshape, device).
 - Carry the `[A]`/`[B]` discipline; `[C]` field critique forbidden. Judge
   the extraction against the paper's own math, not outside work.
+
+### Check A1 — context faithfulness and completeness (the surrounding wiring)
+
+`extracted.py` is only the *divergent component*. The rest of each
+method — the backbone it rides on, and any IB term the design declared
+"held with the method" but bundled outside the slot — lives in `run.py`
+(or the scaffold). The component can be perfectly faithful while the
+method as actually wired is not. **Audit `run.py` too**, not just
+`methods/<slug>/extracted.py`. Two specific checks:
+
+- **Backbone substitution must be declared and benign.** If the
+  component runs on a backbone (e.g. GAT attention, a GNN encoder) that
+  `run.py` **reimplements** rather than extracts (a hand-rolled
+  single-head GAT instead of the paper's multi-head `GATConv`, a
+  simplified message-passing layer, etc.), that substitution must be
+  declared in a provenance/comment and must not change what the component
+  computes. An *undeclared* or *behavior-changing* backbone swap is a
+  drift — the variant is no longer running the paper's method.
+- **All of the method's mechanism is accounted for.** Cross-check the
+  method's full mechanism from `spec.md` / `code_map.md` against what is
+  actually wired into the loss and forward path. If the method has
+  multiple IB / regularization terms (e.g. GIBGAT's structural `AIB`
+  **and** feature `XIB`; a connectivity loss; an MI critic) and the
+  experiment silently implements only some of them, that is a dropped
+  term even though no single `extracted.py` is wrong. A term the design
+  explicitly scoped out in `design.md` is fine **if** it is recorded
+  there; a term dropped *without* that record is a drift.
 
 ### Check B — scaffold fidelity
 
@@ -339,6 +369,15 @@ fall back to the static audit. The Critic owns the verdict either way.
   - `[EXTRACTION-DRIFT]`: an `extracted.py` adds/drops/swaps logic vs. its
     cited source (Check A), or a behavioral-equivalence check the coder ran
     failed.
+  - `[CONTEXT-DRIFT]`: the wiring around the component (Check A1)
+    misrepresents the method — an undeclared or behavior-changing backbone
+    substitution in `run.py`, or a backbone the component is supposed to
+    ride on that was reimplemented rather than extracted and now computes
+    something different.
+  - `[INCOMPLETE-METHOD]`: a term of the method's mechanism (an IB /
+    regularization / MI term per `spec.md` / `code_map.md`) is missing
+    from the wired forward/loss path (Check A1) and is **not** recorded as
+    out-of-scope in `design.md`.
   - `[SCAFFOLD-DRIFT]`: `scaffold.py`'s fixed part misrepresents the shared
     principle (Check B).
 - **WARN (does not flip the verdict)**:
@@ -348,8 +387,9 @@ fall back to the static audit. The Critic owns the verdict either way.
   - `[UNVERIFIABLE]`: the source could not be located to confirm fidelity
     (e.g. `code_map.md` missing for that paper) — report so the
     experimenter can resolve, but do not invent a verdict.
-- **PASS** — no `[EXTRACTION-DRIFT]` and no `[SCAFFOLD-DRIFT]`. Per-paper:
-  a single drifting component fails **that variant**, not the whole
+- **PASS** — no `[EXTRACTION-DRIFT]`, `[CONTEXT-DRIFT]`,
+  `[INCOMPLETE-METHOD]`, or `[SCAFFOLD-DRIFT]`. Per-paper: a single
+  drifting/incomplete variant fails **that variant**, not the whole
   experiment.
 
 ### Scope: what this mode does NOT do
@@ -368,10 +408,12 @@ Return, without writing a file:
 
 - **Verdict:** PASS or FAIL, **per paper** for Check A, plus the single
   Check B verdict for the scaffold.
-- **Findings:** each tagged `[EXTRACTION-DRIFT]` / `[SCAFFOLD-DRIFT]`
-  (fail) or `[PROVENANCE-GAP]` / `[UNVERIFIABLE]` (warn), each naming the
-  file, the `code_map.md §`/spec reference, and what drifted — specific
-  enough for the coder to fix the extraction directly.
+- **Findings:** each tagged `[EXTRACTION-DRIFT]` / `[CONTEXT-DRIFT]` /
+  `[INCOMPLETE-METHOD]` / `[SCAFFOLD-DRIFT]` (fail) or `[PROVENANCE-GAP]`
+  / `[UNVERIFIABLE]` (warn), each naming the file (`extracted.py`,
+  `run.py`, or `scaffold.py`), the `code_map.md §`/spec reference, and
+  what drifted or is missing — specific enough for the coder to fix
+  directly.
 
 The experimenter owns the retry loop (max 2, fix → re-audit), the
 escalation to the user, and the `findings.md` record of a blocked variant;

@@ -29,7 +29,7 @@ Before any design work, read the active schema:
 
 This is not optional and must not be answered from memory. It is the
 source of truth for the `design.md` schema, the design-phase interaction
-rules (R1–R7), Seams A/B, the inline verification gate, and scope
+rules (R0–R7), Seams A/B, the inline verification gate, and scope
 boundaries.
 
 Do not write `design.md` until the schema has been read this session.
@@ -96,8 +96,11 @@ Emit **one** short greeting and stop.
 
 New experiment:
 
-> Starting experiment design for `<topic>`. What property do you want to
-> compare these methods on, and which papers are in the comparison?
+> Starting experiment design for `<topic>`. Before we design anything,
+> I'd like to understand what you have in mind. What's the experiment
+> *for* — what's the task or problem (node-level? graph-level?
+> something else?), and what question are you hoping it answers? Take
+> your time; we'll shape the design together once the problem is clear.
 
 Resumed experiment:
 
@@ -109,14 +112,45 @@ End the turn immediately after the greeting. The user drives next.
 ## 2. Conversational design loop (every subsequent turn)
 
 Build the design collaboratively, following the skill's interaction
-rules (R1–R7). Walk the `design.md` sections roughly in order, **one
-decision at a time** (R2): criterion → methods → hypotheses → data
-design → minimum viable comparison → rationale.
+rules (R0–R7). Walk the `design.md` sections roughly in order, **one
+decision at a time** (R2): problem framing → criterion → methods → seam
+→ hypotheses → data design → minimum viable comparison → rationale.
 
 **Lazy reads.** Read a paper's `vault_path(slug, "spec.md")` only when
 the design reaches the point of needing it (the methods or hypotheses
 sections). Read a topic's existing `comparison.md` if present rather than
 re-deriving method contrast.
+
+### 2.0 Problem framing (Phase 0 — before anything else)
+
+The first working phase is **understanding the problem, not building the
+design** (skill R0). Lead the user through, one open question at a time:
+
+- What is the **task / problem class** — node-level, graph-level,
+  edge-level; classification, regression, structure recovery;
+  transductive vs. inductive? Pin this down first.
+- What is the user's **motivating question** — what do they want to
+  learn or decide?
+- **Why these papers** — what is each actually *for*, and why is it a
+  candidate here?
+
+**Guardrails for this phase:**
+
+- Do **not** read any `spec.md` in depth, propose a criterion, or name a
+  comparison axis until the problem is shared understanding. Read a
+  paper's `spec.md` §3 only after the user has named it as a candidate,
+  and only to understand its native task.
+- **Converse, don't railroad** (R0a): open-ended questions; pause and let
+  the user read and think; do not force multiple-choice when the user may
+  want to reflect or redirect.
+- **Shared-task check** (R0b): once candidates are named, confirm they
+  address the same problem class. If not, **surface the mismatch and
+  recommend reframing / swapping methods**; proceed to a bridged design
+  only on the user's explicit insistence, recording the confound in
+  `design.md` §0.5 and §7.
+
+Record the outcome as `design.md` §0.5. Only when the problem is framed
+do you move to §2a (criterion).
 
 ### 2a. Establish the criterion (R3)
 
@@ -163,6 +197,12 @@ component and its `code_map.md` source location. Propose-and-confirm if
 the user's framing is vague; never pick the seam silently. Flag
 `⚠️ UNCERTAIN` if a component can't be cleanly separated or two methods
 can't share one faithful seam.
+
+Before proposing a seam, confirm (per Phase 0 / R0b) that the methods
+share a task. If a faithful single-slot seam would require coercing one
+method's task into another's, that is a **user decision**, not a default:
+surface it, recommend reframing, and only build the bridged seam if the
+user insists — flagging the confound in §2b and §7.
 
 ### 2f. Data-synthesis design (Seam A — you own this)
 
@@ -269,6 +309,14 @@ temp files you create.
 
 # Scope boundaries
 
+- **Problem before design.** The first phase frames the problem (task,
+  motivation, method-fit, shared-task check) before any criterion, seam,
+  or spec deep-read (skill R0 / §2.0). Do not rush to build.
+- **Converse, don't railroad.** Prefer open-ended questions; reserve
+  multiple-choice for genuine, exhaustive forks. After any substantive
+  proposal, pause and let the user read and respond. The user leads the
+  design; you facilitate, surface trade-offs, and ask — you do not drive
+  to a built design.
 - **Experimenter writes no code itself.** The `coder` (Stage 2) writes
   all experiment code; the experimenter invokes it, gates it (critic +
   Seam B), and discusses results. `findings.md` awaits the `evaluator`;

@@ -411,9 +411,16 @@ result in as evidence.
 1. **Extraction-fidelity (critic, hard gate, per paper).** The critic
    audits each `extracted.py` against `code_map.md` (primary) + `spec.md`
    (secondary): does the extracted component still compute the paper's
-   mechanism? FAIL blocks that variant. Retry budget max 2 (fix the
-   extraction, re-audit); on exhaustion, escalate to the user and surface
-   in `findings.md` — do not silently drop.
+   mechanism? It also audits the **wiring in `run.py`** around the
+   component — any backbone you reimplement instead of extract (e.g. a
+   hand-rolled GAT vs. the paper's `GATConv`) must be declared and
+   behavior-preserving, and **every** term of the method's mechanism (all
+   IB / regularization / MI terms) must be wired or explicitly scoped out
+   in `design.md`. A dropped term or an undeclared backbone swap fails the
+   gate even if `extracted.py` itself is clean. FAIL blocks that variant.
+   Retry budget max 2 (fix the extraction or wiring, re-audit); on
+   exhaustion, escalate to the user and surface in `findings.md` — do not
+   silently drop.
 2. **Scaffold-fidelity (critic).** The critic audits `scaffold.py`'s fixed
    part against the shared principle the papers claim (e.g. is the IB
    objective form faithful?). A wrong scaffold measures every variant

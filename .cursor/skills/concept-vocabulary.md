@@ -49,6 +49,14 @@ One entry per concept:
 - Aliases: GAT, graph attention networks
 - First seen: GNR (2026-06-02)
 
+### information-bottleneck
+- Aliases: IB, information bottleneck principle, graph information bottleneck, GIB
+- First seen: GIBGAT (2026-06-05)
+
+### mutual-information
+- Aliases: MI, I(X;Y), mutual information estimation
+- First seen: GIBGAT (2026-06-05)
+
 ### knowledge-graph
 - Aliases: KG, knowledge graphs, multi-relational graph
 - First seen: GENI (2026-06-02)

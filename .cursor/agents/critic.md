@@ -158,12 +158,13 @@ Return to the implementer (no file written):
 # Extraction-fidelity mode (backend, pre-run gate)
 
 Invoked by the `experimenter` with the topic, the member slugs, and the
-paths to the Stage-2 artifacts (`scaffold.py`, each
+paths to the Stage-2 artifacts (`scaffold.py`, `run.py`, each
 `methods/<slug>/extracted.py`). You audit them against your own
 independent reading of each paper and return a verdict. **You write no
 file.** Read `.cursor/skills/ml-critique/SKILL.md` § "Extraction-fidelity
 mode" for the authoritative protocol; the summary here is the control
-flow.
+flow. A faithful `extracted.py` can still be wired into an unfaithful
+method, so the audit surface includes `run.py`, not just the components.
 
 ## Process
 
@@ -177,29 +178,45 @@ flow.
    adds / drops / swaps no logic — only I/O reshaping to the slot is
    allowed. If the coder passed a behavioral-equivalence result, fold it
    in (PASS corroborates; FAIL is a contradiction).
-3. **Check B — scaffold fidelity.** Read `scaffold.py`'s fixed part and
+3. **Check A1 — context faithfulness & completeness (read `run.py`).**
+   The component is only part of the method. Audit the surrounding wiring:
+   (a) any backbone the component rides on that `run.py` **reimplements**
+   instead of extracting (e.g. a hand-rolled single-head GAT vs. the
+   paper's multi-head `GATConv`) must be declared and must not change the
+   computation; (b) cross-check the method's **full** mechanism from
+   `spec.md` / `code_map.md` against what is actually wired into the
+   forward/loss path — a dropped IB / regularization term (e.g. structural
+   `AIB` present but feature `XIB` missing) is a drift unless `design.md`
+   records it as out-of-scope.
+4. **Check B — scaffold fidelity.** Read `scaffold.py`'s fixed part and
    check that it faithfully renders the shared principle the papers claim
    (e.g. the IB objective form). Build the expected principle from the
    members' specs independently.
-4. **Verdict.**
+5. **Verdict.**
    - **FAIL** on `[EXTRACTION-DRIFT]` (a component alters its source, or a
-     behavioral check failed) or `[SCAFFOLD-DRIFT]` (the scaffold
-     misrepresents the principle). Check A is **per paper** — one drifting
-     component fails that variant, not the whole experiment.
+     behavioral check failed), `[CONTEXT-DRIFT]` (an undeclared /
+     behavior-changing backbone substitution in `run.py`),
+     `[INCOMPLETE-METHOD]` (a mechanism term missing from the wired path
+     and not scoped out in `design.md`), or `[SCAFFOLD-DRIFT]` (the
+     scaffold misrepresents the principle). Checks A / A1 are **per
+     paper** — one drifting or incomplete variant fails that variant, not
+     the whole experiment.
    - **WARN (does not fail)** on `[PROVENANCE-GAP]` (missing/mismatched
      provenance header) or `[UNVERIFIABLE]` (source could not be located).
-   - **PASS** when no drift findings.
+   - **PASS** when no drift / incompleteness findings.
 
 ## Reporting back (extraction-fidelity mode)
 
 Return to the experimenter (no file written):
 
-- **Verdict:** PASS/FAIL **per paper** (Check A) plus the single scaffold
-  verdict (Check B).
-- **Findings**, each tagged `[EXTRACTION-DRIFT]` / `[SCAFFOLD-DRIFT]`
-  (fail) or `[PROVENANCE-GAP]` / `[UNVERIFIABLE]` (warn), each naming the
-  file, the `code_map.md §` / spec reference, and what drifted — specific
-  enough for the coder to fix the extraction directly.
+- **Verdict:** PASS/FAIL **per paper** (Checks A / A1) plus the single
+  scaffold verdict (Check B).
+- **Findings**, each tagged `[EXTRACTION-DRIFT]` / `[CONTEXT-DRIFT]` /
+  `[INCOMPLETE-METHOD]` / `[SCAFFOLD-DRIFT]` (fail) or `[PROVENANCE-GAP]`
+  / `[UNVERIFIABLE]` (warn), each naming the file (`extracted.py`,
+  `run.py`, or `scaffold.py`), the `code_map.md §` / spec reference, and
+  what drifted or is missing — specific enough for the coder to fix
+  directly.
 
 The experimenter owns the retry loop (max 2) and escalation; you only
 return verdicts.
