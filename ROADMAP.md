@@ -79,9 +79,9 @@ Living table of all subagents in the project. Update whenever an agent ships, is
 | `critic` | Shipped (+ blueprint-check 2026-06-03; reconstructed-source audit 2026-06-04; extraction-fidelity 2026-06-04) | `ml-critique` | Audit claims, reproducibility, paper↔code alignment; write `critic_reviews.md`. **Source-adaptive:** `official` → author-choice + upstream/dataset reproducibility; `reconstructed` → fidelity audit (reconstruction-drifts-from-paper) + fidelity reproducibility rows = the firewalled **hop-2-vs-spec** check (re-reads spec independently to audit code it didn't write). **Blueprint-check mode** (backend, invoked by `implementer`): audits a draft `code_blueprint.md` pre-emission; PASS/FAIL, no file = the **hop-1** guard. **Extraction-fidelity mode** (backend, invoked by `experimenter`): pre-run gate on Stage-2 component surgery — Check A audits each `extracted.py` vs. its `code_map.md` source (per-paper hard gate), Check B audits `scaffold.py` vs. the shared principle; PASS/FAIL, no file. | User: "audit / critique / review `<slug>`" (either source); (backend) invoked by `implementer` (blueprint-check) or `experimenter` (extraction-fidelity) |
 | `tutor` | **Shipped (2026-05-27)** | `ml-tutor` (+ `ml-explanation`, `ml-synthesis` when writing concept / synthesis files) | User-facing conversational tutor. Anchored to one paper at a time; paper-grounded + field-grounded; persistent memory via `tutor_log.md`. Invokes `explainer` in the background when paper-bound content is missing. Writes `tutor_log.md` (every turn), and on explicit user request `tutor_notes.md`, `<concept>.md`, `synth__<a>__<b>.md`. | User: `/tutor <slug>` or `/tutor` to resume the most recent session |
 | `explainer` | **Backend-only (2026-05-27)** | `ml-explanation`, `ml-synthesis` | Invoked by `tutor`, not by the user. Writes paper-bound intermediates `<concept>-<slug>.md` and `synth__<a>__<b>-<slug>.md` for the tutor to consume. | (Internal — invoked by `tutor`) |
-| `visualizer` | **On hold (2026-05-27)** | (archived) | Concept-picture generator. Four implementation iterations did not reach the hand-drawn quality bar. Code, skills, dictionary, and renderers archived on branch `visualizer` and tag `archive-visualizer-2026-05-27`; removed from `main`. See `visualizer-todo.md` for the full chronicle and a research-flavored side-project spec. | (On hold — do not invoke) |
-| `figure-verifier` | **On hold (2026-05-27)** | (never authored) | Three-layer pass/fail check on `(concept_text, picture_spec, rendered_png)`. Coupled to the visualizer's retry loop; on hold for the same reason. | (On hold — do not invoke) |
-| `prerequisite` | Planned | `ml-prerequisites` (planned) | Scan `spec.md`; detect assumed background; cross-check vault coverage; produce prereq graph + on-demand primers (delegates to `tutor`) | User: "what do I need to know first / check prereqs for `<slug>`" |
+| ♻️ ~~`visualizer`~~ | **Exported to independent project (2026-06-05)** | (archived) | ~~Concept-picture generator.~~ Spun out of PaperLab as a standalone project; archived on branch `visualizer` and tag `archive-visualizer-2026-05-27`. See `visualizer-todo.md`. | (Not in this project) |
+| ♻️ ~~`figure-verifier`~~ | **Exported to independent project (2026-06-05)** | (never authored) | ~~Pass/fail check on rendered figures.~~ Part of the exported visualizer project. | (Not in this project) |
+| `prerequisite` | **Parked (2026-06-05)** | `ml-prerequisites` (parked) | Scan `spec.md`; detect assumed background; cross-check vault coverage; produce prereq graph + on-demand primers (delegates to `tutor`) | (Parked — do not invoke) |
 | `experimenter` | **Design-phase shipped (2026-06-02)**; **Stage-2 coder hand-off wired (2026-06-04, minimal)** | `ml-experiment-design` | User-facing **orchestrator** for multi-paper empirical comparisons. Holds the interactive session; owns experiment + data-synthesis *design* incl. the **§2b comparison seam** (load-bearing for Stage-2 coding); discusses results. Invokes `comparator` / `coder` / `evaluator`. Notes → `<vault>/experiments/<topic>/`; code/data → `sandbox/experiments/<topic>/`. **Shipped scope:** full design phase + invoke `coder` Stage 2 (component surgery) with the §2b seam, route the critic extraction-fidelity gate + Seam-B user-check, run to **results emitted**. Full implement/run orchestration protocol still being fleshed out; `findings.md` awaits the `evaluator`. Writes only `design.md` (inline gate). | User: `/experimenter <topic>` |
 | `comparator` | **Shipped (2026-05-29)** | `ml-comparison` | **Conceptual** cross-method comparison from `spec.md` (+ `code_map.md` / PDF when needed) along a user-chosen axis; may refine a vague axis via propose-and-confirm. **Dual-mode:** standalone (user) or design-phase input (invoked by `experimenter`). Writes `comparison.md` under `<vault>/experiments/<topic>/`, verified by an inline LaTeX + citation gate. Carries the critic's `[A]`/`[B]` inference discipline. | User: "compare methods for `<topic>`" or (backend) invoked by `experimenter` |
 | `coder` | **Stage 1 shipped 2026-06-04**; **Stage 2 shipped 2026-06-04** | `ml-experiment-code` (both sections shipped) | The only agent that writes **runnable code**, two stages (design [`log/2026-06-03-two-stage-coder-design.md`](./log/2026-06-03-two-stage-coder-design.md)). **Stage 1 (user-invokable):** for one paper, write reusable method code to `vault_code_dir(slug)` (`<vault>/<slug>/code/`: `method.py` + `test_invariants.py`) from `code_blueprint.md` (primary, no code) or a reimplementation of mapped upstream code. Hybrid `Method` interface (paper-natural guts + one documented entry point + I/O contract block); runs the blueprint's §4 invariants as runtime asserts on synthetic input = **hop-2-vs-blueprint guard**. Does **not** write a walkthrough — the implementer maps `method.py` into `code_map.md` afterward, critic audits it (hop-2-vs-spec). **Stage 2 (component surgery, backend, invoked by `experimenter`):** from the `design.md` §2b seam, synthesize a shared scaffold (principle + task fixed, pluggable slot `Protocol`) and extract each paper's divergent component into `repo_experiments_dir(topic)/methods/<slug>/extracted.py` via the borrow ladder (import-direct / extract-and-refactor), preserving the source computation. NOT black-box wrapping. Gated by the critic's extraction-fidelity audit + opportunistic behavioral-equivalence. Design: [`log/2026-06-04-stage2-regime2-component-surgery-design.md`](./log/2026-06-04-stage2-regime2-component-surgery-design.md). | User: `/coder code <slug>` (Stage 1); (backend) invoked by `experimenter` (Stage 2) |
@@ -110,22 +110,7 @@ Anti-pattern: building a subagent for a deterministic transformation. Use a hook
 
 Build order is top-to-bottom. Each unit lists the primitive(s) it requires.
 
-### 1. `tools.tikz` — pre-render TikZ to portable SVG
-
-- **What:** new helper (likely `tools/tikz.py`, or an extension of `tools/figures.py`) that takes a TikZ source string, compiles it to SVG via a TeX engine, caches by content hash under `papers/<slug>/.cache/tikz/<hash>.svg`, and exposes `extract_tikz_to_vault(slug, source)` returning a vault-relative path (mirroring `extract_figure_to_vault`). The visualizer, when the waterfall picks TikZ, embeds `![](figures/diagramN.svg)` instead of a raw ```` ```tikz ```` fence.
-- **Why:** SVG renders everywhere — Obsidian (any renderer), Marp preview, marp-cli PPTX / PDF / HTML, GitHub markdown preview, browsers. Raw `tikz` fences only render in Obsidian Reading view with marp-tikz-plus (see Known limitations).
-- **Open design question:** where the TeX engine comes from. Either vendor the marp-tikz-plus WASM bundle (portable, ~6 MB in repo) called via a Node bridge, or require a local `tectonic` / `pdflatex` + `dvisvgm` install (simpler code, heavier user setup). Decide when work starts.
-- **Acceptance:** the existing VAE concept deck re-emits with SVG embeds and renders correctly in (a) Obsidian Reading view without marp-tikz-plus enabled, (b) `marp-cli` HTML export, (c) PPTX export. The "TikZ only renders in Obsidian Reading view" Known-limitations entry can be deleted once shipped.
-- **Why subagent / skill / tool?** Pure deterministic transformation — `tool` per the decision framework, not a subagent.
-- **Coupling to visualizer pivot:** previously a blocker if TikZ became the v2 backend. With the visualizer on hold (2026-05-27, see `visualizer-todo.md`), this coupling is dormant. The original slide-deck portability motivation also dissolves with slide decks themselves — re-evaluate whether the unit is still needed before scheduling work.
-
-### 2. `prerequisite` subagent + `ml-prerequisites` skill
-
-- **What:** scans `spec.md`, identifies assumed background concepts, cross-references existing `<vault_paperlab_path>/*/` and the curated `obsidian_vault_root` for coverage, produces a prerequisite graph + on-demand primers for gaps.
-- **Interaction model:** detect → check → ask. Presents the unknown list as a checklist; the user picks what to learn. Generated primers delegate to `explainer`.
-- **Why subagent + skill:** detecting assumed knowledge needs judgment; the prereq-graph schema is reference.
-
-### 3. Experimenter suite — `experimenter` + `comparator` + `coder` + `evaluator`
+### 1. Experimenter suite — `experimenter` + `comparator` + `coder` + `evaluator`
 
 **Designed 2026-05-29; `comparator` shipped 2026-05-29.** Full decision
 log and rationale in
@@ -149,12 +134,12 @@ The previously-parked `comparator` is un-parked and folded in here.
 - **Blueprint bridge (designed 2026-06-03, [`log`](./log/2026-06-03-implementer-coder-blueprint-design.md)).** When a paper has no official code, the `implementer`'s blueprint mode writes `code_blueprint.md` (a framework-agnostic contract, gated pre-emission by the `critic`'s blueprint-check); the `coder` consumes it. Two-hop fidelity: hop-1 (math → blueprint) guarded by the firewalled critic; hop-2 (blueprint → code) guarded by invariants-as-assertions. The **harness interface** (the common `fit`/`predict`-style plug all methods conform to) is owned at design time in `design.md`. Implementer blueprint mode + critic blueprint-check **shipped 2026-06-03**; coder's two modes + harness await the `coder` build.
 - **Build order:** `comparator` first (dual-mode, reads only durable specs, independently testable) ✅ **done** → `experimenter` shell (design phase) ✅ **done 2026-06-02** → `coder` Stage 1 (standalone, unblocks the per-paper hop-2 smoke test) ✅ **done 2026-06-04** → `coder` Stage 2 (**component surgery, not wrapping** — scaffold synthesis + component extraction + critic extraction-fidelity gate; see [`log/2026-06-04-stage2-regime2-component-surgery-design.md`](./log/2026-06-04-stage2-regime2-component-surgery-design.md)) ✅ **done 2026-06-04**, experimenter hand-off wired (minimal); full implement/run orchestration + smoke test still to do → `evaluator`.
 
-### 4. External-data access
+### 2. External-data access
 
 - **MCP:** reuse `firecrawl` (already configured). Add a thin `arxiv` MCP only if structured metadata becomes a recurring need.
 - **Rule:** `external-fetch-budget.mdc` — max ~5 external fetches per concept; prefer arXiv abstract + 1 blog + author page; never crawl whole sites. Threshold to be tuned.
 
-### 5. `tools.reindex` — graph index over the vault
+### 3. `tools.reindex` — graph index over the vault
 
 **v1 shipped 2026-06-02.** Deterministic tool (`tools/reindex.py`) that walks the vault, parses each artifact's YAML front-matter (`paper`/`topic` + `papers`, `agent`, `status`, `sources`, `concepts`) and body `[[wiki-links]]`, and emits a queryable graph (`graph.json`) under `vault_index_dir()` (`<vault>/.index/`, a dotfolder so Obsidian ignores it). The index is a **derived cache** — rebuilt from the markdown, never hand-edited; if lost, rerun.
 
@@ -169,20 +154,14 @@ The previously-parked `comparator` is un-parked and folded in here.
 - **v2b — Agents consult the graph.** Generators query `graph.json` before reading raw files (tutor: "what concepts here, and where else do they appear"; comparator: "which papers share this concept"). Graph as a generation *input*, not just output.
 - **v2c — Lifecycle queries.** "Which papers are dissected but not critiqued" as a CLI/dashboard, or driving auto-chain logic.
 - **v2d — `_index.md` rollup.** Human-facing per-paper or global summary generated from the graph.
-- **Bigger leap — two-memory critic loop (design captured 2026-06-02):** generators share a structured-spec working memory; critics hold a *complementary* representation (consequence lists: limits, signs, types/shapes, invariants, Markov/independence, monotonicity) and gate the working memory **pre-emission** (critic checks → retry ×2 → escalate to user; no disk write/rewrite loop). The graph's `derived_from` / `mentions` edges are the substrate a pre-emission critic needs. Larger effort; not scheduled.
+- **Bigger leap — two-memory critic loop (design captured 2026-06-02):** generators share a structured-spec working memory; critics hold a *complementary* representation (consequence lists: limits, signs, types/shapes, invariants, Markov/independence, monotonicity) and gate the working memory **pre-emission** (critic checks → retry ×2 → escalate to user; no disk write/rewrite loop). The graph's `derived_from` / `mentions` edges are the substrate a pre-emission critic needs.
+  - **Partially realized (2026-06-04).** The **firewall / generator-discriminator pattern** — a critic that builds an *independent* representation and gates a generator's output pre-emission — has now shipped in **three concrete gates**: `blueprint-check` (vs. the implementer's draft blueprint), the `reconstructed`-source audit (hop-2-vs-spec), and Stage-2 `extraction-fidelity` (vs. `code_map.md` + scaffold-vs-principle). What remains **unbuilt** is the loop's distinctive *architecture*: a **persistent, standing complementary representation** (the consequence-list memory as a durable data structure) and its **wiring to the reindex graph** as substrate. The shipped gates re-derive their independent reading ad hoc per invocation and are not graph-backed. Remaining effort gated on a larger corpus; not scheduled.
 
-## On hold
+## Exported to a separate project
 
-Units that were started or shipped and are now paused after running into a quality ceiling that further iteration inside PaperLab is unlikely to clear. Distinct from **Parked** (deferred without trying) and **Planned** (designed, not started). Each on-hold entry points at a postmortem document so the work can be resumed (or respun as a side project) without losing context.
+Work that has left PaperLab to live as a standalone project.
 
-### Visualizer + figure-verifier (on hold 2026-05-27)
-
-The `visualizer` and `figure-verifier` subagents are on hold and archived
-(branch `visualizer`, tag `archive-visualizer-2026-05-27`; removed from
-`main`). The full chronicle — why it stalled, the four iterations, what
-was learned, current limitations, and a research-flavored side-project
-spec — lives in [`visualizer-todo.md`](./visualizer-todo.md). Do not
-re-derive it here.
+The `visualizer` and `figure-verifier` are now an **independent project**, exported out of PaperLab; see [`visualizer-todo.md`](./visualizer-todo.md).
 
 ## Parked
 
@@ -239,8 +218,6 @@ Things the system can't do, with workarounds where they exist.
 
 Small refinements to existing schemas that aren't urgent but are worth remembering. These tend to surface during use.
 
-- **Reconsider slide-deck structure** — the current schema (title / headline / one-per-component / results / limitations) is generic. Tweak it to track paper content more faithfully: e.g., split "method" into problem-setup vs. solution slides, surface the loss/objective as its own slide when central, and let `spec.md` §6 grouping drive section count rather than a fixed 8–12 budget. May require enriching `spec.md` fields the dissector currently extracts (e.g., explicit "core contribution" vs. "supporting machinery" tags on §6.1 entries).
-
 ## Completed work
 
 The roadmap is forward-looking. Completed-work history has moved to
@@ -251,7 +228,6 @@ decision narratives live in the dated logs under `log/`.
 
 - **Subagents (user-facing):** `acquirer`, `dissector`, `implementer`, `critic`, `tutor`, `comparator`, `experimenter` (design phase + Stage-2 coder hand-off), `coder` (Stage 1, `/coder code <slug>`).
 - **Subagents (backend-only):** `explainer` (invoked by `tutor` since 2026-05-27); `latex-verifier`, `citation-verifier` (inline gate + post-hoc hook); `coder` Stage 2 (component surgery, invoked by `experimenter`); `critic` extraction-fidelity mode (invoked by `experimenter`).
-- **Subagents (on hold, 2026-05-27):** `visualizer` (archived to branch `visualizer` and tag `archive-visualizer-2026-05-27`; removed from `main` — see `visualizer-todo.md`).
 - **Skills (active):** `ml-acquisition`, `ml-paper-spec`, `ml-code-map` (+ `DEEP_DIVE`), `ml-blueprint`, `ml-critique`, `ml-tutor`, `ml-explanation`, `ml-synthesis`, `ml-comparison`, `ml-experiment-design`, `ml-experiment-code` (Stage-1 + Stage-2 sections).
 - **Rules:** `paperlab-config-bootstrap`, `paperlab-regenerate-prompt`.
 - **Helpers:** `tools/paths.py`, `tools/figures.py` (requires `pymupdf`).

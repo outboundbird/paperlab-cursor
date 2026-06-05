@@ -71,7 +71,7 @@ The `experimenter` suite (see Cursor Subagents) writes outside the per-paper fol
 - `findings.md` — results write-up.
 - `comparison.md` — standalone conceptual comparison from the `comparator` (filename to be finalized in the build phase).
 
-> The `visualizer` subagent (`slides.md`, `*.tldr`, `*.svg`, `*.png`) is **on hold** as of 2026-05-27. See [`visualizer-todo.md`](./visualizer-todo.md) and the archive branch `visualizer` for the previous implementation.
+> The `visualizer` subagent is now an **independent project**, exported out of PaperLab; see [`visualizer-todo.md`](./visualizer-todo.md) and the archive branch `visualizer`.
 
 ### Unified file convention
 
