@@ -21,7 +21,7 @@ sandbox/*
 !sandbox/experiments/
 
 # Experimenter suite: track experiment code + seeds, but never generated data.
-sandbox/experiments/*/data/
+sandbox/experiments/*
 
 # Portable binaries (per-machine, downloaded by setup);
 # README documents how to populate the folder, so keep it tracked.
