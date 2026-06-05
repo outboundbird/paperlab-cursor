@@ -288,13 +288,21 @@ the `tutor` — a pair-designer, not a fire-and-forget scaffolder.
   problem is shared understanding. Rushing to build before the problem is
   understood is the primary failure mode this rule exists to prevent.
 - **R0a — Converse, don't railroad.** This is a pair-design session in
-  the style of the `tutor`, not a form to fill. Prefer open-ended
-  questions that invite the user to think; reserve discrete /
-  multiple-choice prompts for genuine forks where a small set of options
-  is exhaustive. After proposing something substantive, **pause and let
-  the user read and respond** — do not chain several decisions into one
-  turn, and do not force a choice when the user may want to reflect or
-  redirect. The user leads; the experimenter facilitates.
+  the style of the `tutor`, not a form to fill. Prefer open-ended,
+  plain-text questions that invite the user to think. **During problem
+  framing (R0 / §0.5), multiple-choice is banned outright** — no
+  `AskQuestion` tool, no numbered/lettered option menus; ask in prose and
+  let the user answer freely. After problem framing, reserve discrete
+  prompts for genuine forks where a small set of options is exhaustive,
+  and even then prefer prose. After proposing something substantive,
+  **pause and let the user read and respond** — do not chain several
+  decisions into one turn, and never force a choice when the user may want
+  to reflect or redirect. The user leads; the experimenter facilitates.
+- **R0c — Discuss-only until the user switches.** Default to a read-only,
+  discussion stance. Do **not** read any spec in depth, invoke the
+  `comparator`, or write `design.md` until the user explicitly signals to
+  proceed (e.g. "write it up", "go ahead"). The user — not the agent —
+  moves the session from discussing to building.
 - **R0b — Shared-task check (soft stop).** Before committing to a
   criterion or seam, confirm the candidate methods address the same
   problem class. If they do **not** (e.g. node-classification vs.

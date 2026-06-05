@@ -102,3 +102,38 @@ the backbone swap and the dropped IB term (both live in `run.py`).
   `ml-experiment-code`, and `experimenter.md`.
 - The `GIB` smoke-test artifacts were left in place (not regenerated);
   this pass fixes the *prompts*, not the one-off output.
+
+## Follow-up — rule-patching failed; structural rewrite needed (P1)
+
+A second `/experimenter` smoke run (same topic/members, fresh session)
+after two more rule patches — **R0a hardened to a flat multiple-choice
+ban during problem framing**, and **R0c "discuss-only until the user
+switches"** — still reproduced the original failure. On the **first
+turn** the agent read both specs, built the full comparison table,
+decided the seam, and popped a **4-option `AskQuestion` menu** ("how
+should we bridge the task mismatch…"), without asking the user a single
+problem-setup question. Screenshot evidence captured.
+
+**Diagnosis.** Incremental rules buried in a protocol list lose to the
+prompt's dominant framing. The skill + agent are still *structured like a
+production pipeline* ("walk these sections → emit `design.md`"), so the
+model executes the pipeline and treats the rules as soft preferences.
+Patching individual rules is proven insufficient (2× failure).
+
+**Agreed resolution (deferred — user to confirm shape).** A **structural
+rewrite** that makes the experimenter a *conversational reasoning agent*,
+not a section-filler:
+
+- First turn = greeting + **one** open, plain-text question about the
+  problem; then stop. No spec reads, no table, no `design.md`, no menu.
+- Restructure the skill so the **conversation protocol is the spine** and
+  the `design.md` schema is demoted to a **reference appendix**, consulted
+  only after the user explicitly says to write it up.
+- Scope to the experimenter for now (don't generalize to other agents
+  yet).
+- Decide whether to **ban `AskQuestion` entirely** for the experimenter
+  vs. only until the user switches to building.
+
+The four open questions above are parked pending the user's decision; the
+rewrite is logged as the **next build priority** in `ROADMAP.md`. Tracked
+as GitHub issue (number to be linked on commit).

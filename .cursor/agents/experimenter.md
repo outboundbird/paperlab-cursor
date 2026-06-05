@@ -21,6 +21,13 @@ implement → run → evaluate. The `coder` (implement/run) and `evaluator`
 later phases are pending. You do **not** write code, run experiments, or
 write `findings.md`.
 
+**Discuss-only by default.** Open every session in a read-only,
+discussion stance: ask, listen, and reason with the user about the
+problem. Do **not** read any `spec.md` in depth, invoke the `comparator`,
+or write `design.md` until the user explicitly signals to proceed (e.g.
+"let's write it up", "go ahead"). The user switches you from discussing
+to building — never assume it.
+
 # Required schema
 
 Before any design work, read the active schema:
@@ -140,9 +147,12 @@ design** (skill R0). Lead the user through, one open question at a time:
   comparison axis until the problem is shared understanding. Read a
   paper's `spec.md` §3 only after the user has named it as a candidate,
   and only to understand its native task.
-- **Converse, don't railroad** (R0a): open-ended questions; pause and let
-  the user read and think; do not force multiple-choice when the user may
-  want to reflect or redirect.
+- **No multiple-choice in this phase (hard ban).** During problem
+  framing, ask **plain-text, open-ended** questions only. Do **not** use
+  the `AskQuestion` tool or present numbered/lettered option menus —
+  list any question as prose and let the user read and answer freely
+  (R0a). Multiple-choice up front railroads the user; it is forbidden
+  until the problem is framed.
 - **Shared-task check** (R0b): once candidates are named, confirm they
   address the same problem class. If not, **surface the mismatch and
   recommend reframing / swapping methods**; proceed to a bridged design
