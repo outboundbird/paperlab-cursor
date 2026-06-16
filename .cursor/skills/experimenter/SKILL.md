@@ -176,8 +176,12 @@ toward the form.
 
 ## 2. Implement hand-off
 
-After `design.md` is written and verified, invoke `coder` Stage 2
-(component surgery) with:
+After `design.md` is written and verified, invoke `coder` Stage 2.
+Pick the regime by member count — the two regimes have different
+artifacts and different critic gates. Do not blend them.
+
+**Multi-method (≥ 2 members) → component surgery.** Invoke `coder`
+with:
 
 - The topic, verbatim.
 - The seam contract from §5.2 (held-fixed principle + task,
@@ -186,11 +190,34 @@ After `design.md` is written and verified, invoke `coder` Stage 2
 - The member slugs (≥ 2), verbatim.
 
 Then run the **critic extraction-fidelity gate** (backend) on the
-coder's artifacts. On FAIL, relay findings to the coder (retry
-max 2); on exhaustion, escalate to the user and record the
-blocked variant in `findings.md` — do not drop it silently. On
-PASS, route the **Seam-B user-check** (user reviews the written
-code) before any run.
+coder's artifacts (`scaffold.py`, each `methods/<slug>/extracted.py`,
+`run.py`). On FAIL, relay findings to the coder (retry max 2); on
+exhaustion, escalate to the user and record the blocked variant in
+`findings.md` — do not drop it silently. On PASS, route the
+**Seam-B user-check** (user reviews the written code) before any run.
+
+**Single-method (exactly 1 member) → extension regime.** Used for
+ablations, sensitivity sweeps, planted-signal studies, reproductions,
+or any research type that studies one paper's method on its own. There
+is no §5.2 seam contract to pass; the contract is the **extension
+scope** recorded in `design.md` (what is varied / added). Invoke
+`coder` with:
+
+- The topic, verbatim.
+- The single member slug, verbatim.
+- The extension scope (what `extended.py` is allowed to override or
+  compose around the audited Stage-1 base method).
+- The synthetic-data plan from `design.md` §4.
+
+Then run the **critic extension-fidelity gate** (backend) on the
+coder's artifacts (`methods/<slug>/extended.py`, `run.py`). Same retry
++ escalation policy as extraction-fidelity. There is no Seam-B check
+in extension regime (no scaffold), but the user-review-of-code step
+still applies before run.
+
+If the experiment grows a second method later, the experimenter
+**promotes** it to component surgery — this is a deliberate `design.md`
+edit, not a silent regime change.
 
 `AskQuestion` is allowed in Build for genuine forks (e.g. "the
 critic flagged X — fix or document?"). Continue to prefer prose
@@ -230,15 +257,29 @@ into `design.md`. Cross-reference with a `[[wiki-link]]` instead.
 
 # Invoking the coder (Build phase, Stage 2)
 
-Subagent invocation. Prompt must include:
+Subagent invocation. Pick the regime by member count.
+
+**Component surgery (≥ 2 members).** Prompt must include:
 
 - Topic, verbatim.
 - Seam contract from §5.2.
 - Member slugs, verbatim.
 
-Coder writes `scaffold.py`, per-slug `extracted.py`, `run.py`,
-and reports back. It does not self-certify fidelity — that's the
-critic's extraction-fidelity gate.
+Coder writes `scaffold.py`, per-slug `extracted.py`, `run.py`. Critic
+gate: extraction-fidelity.
+
+**Extension regime (exactly 1 member).** Prompt must include:
+
+- Topic, verbatim.
+- Single member slug, verbatim.
+- Extension scope (verbatim from `design.md`).
+- Synthetic-data plan from `design.md` §4.
+
+Coder writes `methods/<slug>/extended.py`, `synth/generate.py`,
+`run.py`. Critic gate: extension-fidelity.
+
+In neither regime does the coder self-certify fidelity — that is the
+critic's gate.
 
 # Reporting back
 

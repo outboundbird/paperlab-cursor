@@ -1,6 +1,6 @@
 ---
 name: ml-experiment-code
-description: Defines how the Coder subagent turns a paper's method into runnable code. Stage 1 (standalone, per-paper) writes invariant-validated method code to `vault_code_dir(slug)` from the paper's `code_blueprint.md` or official upstream code. Stage 2 (component surgery, invoked by the experimenter) synthesizes a shared scaffold and extracts each paper's divergent component into `repo_experiments_dir(topic)/methods/<slug>/`. Use when implementing, coding, or adapting a paper's method for reuse or experiments.
+description: Defines how the Coder subagent turns a paper's method into runnable code. Stage 1 (standalone, per-paper) writes invariant-validated method code to `vault_code_dir(slug)` from the paper's `code_blueprint.md` or official upstream code. Stage 2 has two regimes, both invoked by the experimenter and written under `repo_experiments_dir(topic)`: **component surgery** (multi-method) synthesizes a shared scaffold and extracts each paper's divergent component into `methods/<slug>/extracted.py`; **extension regime** (single-method) inherits/composes the audited Stage-1 `method.py` into `methods/<slug>/extended.py` for ablations, sensitivity sweeps, or planted-signal studies of one paper. Use when implementing, coding, extending, or adapting a paper's method.
 ---
 
 # ML Experiment Code Schema
@@ -493,3 +493,162 @@ interpret results — those are the experimenter's and evaluator's.
 - Does not alter what an extracted component computes to make it fit.
 - Does not own the fidelity verdict — the critic does; the coder only
   builds and runs the behavioral check.
+
+---
+
+# STAGE 2 — Extension regime (single-method, invoked by the experimenter)
+
+The component-surgery sections above assume **two or more** member
+papers — the comparison's whole point is to swap a divergent component
+across them. A growing class of PaperLab experiments studies **one**
+paper's method on its own (component contributions, sensitivity sweeps,
+robustness checks, planted-signal recovery against the paper's own
+mechanism). For these, there is no shared principle to render and no
+divergent component to slot, so building a `scaffold.py` is dead weight
+and the extraction-fidelity gate has nothing to compare across.
+
+Extension regime handles this case. It is still **Stage 2**
+(experimenter-invoked, written under `repo_experiments_dir(topic)`,
+fidelity-gated by the critic before run) — only the artifact set and the
+gate change.
+
+## When to use extension regime
+
+Use extension when **all** are true:
+
+- The experiment touches exactly one paper.
+- `design.md` records a research type that is single-method by
+  construction (ablation, sensitivity, reproduction, exploration of one
+  method's behavior, or `custom` where the user makes the same scope
+  call).
+- The Stage-1 `method.py` exists for that paper (so there is something
+  audited to extend).
+
+If the experiment grows a second method later, the experimenter promotes
+it to component surgery — extension is not a forever home.
+
+## File layout (`repo_experiments_dir(topic)`)
+
+```
+sandbox/experiments/<topic>/
+├── methods/
+│   └── <slug>/
+│       ├── __init__.py
+│       └── extended.py    inherits/composes Stage-1 method.py; adds the experiment's modification
+├── synth/
+│   └── generate.py        synthetic data + planted signal per design.md §4
+├── run.py                 driver: synth → conditions on extended → results/
+└── results/              run outputs
+```
+
+No `scaffold.py`, no shared principle, no slot `Protocol`. The base
+method is the audited Stage-1 `method.py` (or, for an `official`-source
+paper, the upstream code referenced through `code_map.md`); `extended.py`
+is its experiment-specific extension.
+
+## What `extended.py` may and may not do
+
+The base method is **immutable** — `extended.py` must not silently
+re-implement it. Allowed shapes, in preference order:
+
+1. **Subclass.** `class ExtendedMethod(Method): ...` overriding only the
+   pieces the experiment varies (the bottleneck step, a regularizer
+   weight, an attention head count). The base computation runs through
+   the parent class, which is the audited code.
+2. **Compose.** Hold a `Method` instance as an attribute and wrap its
+   entry point. Use this when the experiment needs to interpose around
+   the call (e.g. perturb inputs before forward, post-process outputs)
+   rather than swap an internal step.
+
+**Forbidden:** copying `method.py` into `extended.py` and editing it,
+hand-rolling a "simpler" version of the base method "for the experiment",
+or otherwise routing around the audited code. If the experiment cannot
+be expressed by override / composition, surface that to the experimenter
+— do not duplicate the method.
+
+Every override or composition wrapper carries a provenance comment
+naming the `code_map.md §` (or `method.py` symbol) it extends and what
+the experiment varies.
+
+## Provenance header (every `extended.py`)
+
+```python
+"""<slug> — extended for experiment <topic>.
+
+Base method: <slug>/code/method.py  (or repo_upstream_dir(<slug>)/<file>)
+Base reference: code_map.md §<n> / <symbol>
+Extension scope (per design.md §<n>): <one-line description of what is varied / added>
+Status: EXTENDED — base computation runs through the audited base method.
+        Overrides are limited to the scope above.
+"""
+```
+
+## Fidelity gate (extension-fidelity, critic)
+
+Replaces the multi-method extraction-fidelity gate. The critic audits
+`extended.py` and `run.py` against the paper's mechanism per
+`.cursor/skills/ml-critique/SKILL.md` § "Extension-fidelity mode":
+
+- **Check A — extension fidelity.** Each override is either authorized
+  by `design.md` or consistent with the spec; nothing silently rewrites
+  the base method.
+- **Check A1 — context faithfulness.** `run.py` instantiates the
+  extended class (which composes / inherits the audited base) — not a
+  hand-rolled stand-in — and wires every in-scope mechanism term per
+  `spec.md` / `code_map.md`.
+
+There is no Check B (no scaffold). Behavioral-equivalence checks remain
+opportunistic — when the experiment varies a single attribute, it is
+often natural to assert that with that attribute set to the base value
+the extended method matches the base method's outputs on seeded input.
+
+Retry budget and escalation are the same as extraction-fidelity (max 2,
+escalate on exhaustion, record in `findings.md`).
+
+## Extension-regime process
+
+0. Read this section. Read the experiment's `design.md` (research type,
+   the single member slug, the extension scope, `synth` plan §4).
+1. **Resolve paths.** `exp-sandbox <topic>` for the output tree;
+   `code-dir <slug>` (reconstructed) or `repo_upstream_dir(slug)`
+   (official) for the base method; `code_map.md` / `spec.md` for the
+   anchors.
+2. **Write `methods/<slug>/extended.py`** as a subclass or composition
+   of the base `Method`. Override only what `design.md` authorizes.
+   Stamp the provenance header.
+3. **Write `synth/generate.py`** per `design.md` §4 — synthetic data and
+   planted signal. Seed deterministically.
+4. **Write `run.py`** — instantiate `ExtendedMethod` (or the wrapper),
+   run each condition on synthetic data, write to `results/`. No real
+   datasets unless `design.md` explicitly calls for small real data.
+5. **Behavioral-equivalence check** (opportunistic) where the design
+   permits a "neutral" setting that should reproduce the base method.
+   Record PASS / skipped+why.
+6. **Report back to the experimenter** — artifacts, the override / compose
+   choice, behavioral-check outcome, and any extension that could not be
+   expressed without duplicating the base. The experimenter runs the
+   extension-fidelity gate before any run is trusted.
+
+## Extension-regime self-checks
+
+- `extended.py` subclasses or composes the base `Method`; it does not
+  copy or hand-reimplement it.
+- Every override is named in the provenance header and authorized by
+  `design.md` (or is a tightening consistent with `spec.md`).
+- `run.py` instantiates `ExtendedMethod` (no silent base-method
+  stand-in) and wires every in-scope mechanism term per `spec.md` /
+  `code_map.md`.
+- No `<slug>/code/` or upstream file was modified.
+- Behavioral-equivalence outcome recorded (PASS / skipped + why).
+- Any unexpressible extension is surfaced for `design.md`/`findings.md`,
+  not silently rewritten.
+
+## Extension-regime scope boundaries
+
+Same as Stage-2 component-surgery scope boundaries (vault is read-only,
+fidelity verdict is the critic's, etc.) plus:
+
+- Does **not** synthesize a `scaffold.py` or define a slot `Protocol`.
+- Does **not** introduce a second member paper. If a comparison is
+  needed, surface that to the experimenter for promotion to component
+  surgery — extension does not silently grow a peer method.

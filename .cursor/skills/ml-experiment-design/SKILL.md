@@ -232,19 +232,33 @@ measured difference to the divergence point); only add a second with
 explicit rationale.
 
 **Research-type variants** (replace §5.2 when the experiment is not a
-methods comparison):
+methods comparison). Single-method variants double as the **extension
+scope** the experimenter passes to the coder's Stage-2 extension regime
+— the contract that says what `extended.py` is allowed to override or
+compose around the audited Stage-1 base method (`ml-experiment-code`
+§ Stage 2 — Extension regime). Be specific: the coder will refuse to
+copy or hand-reimplement the base method, so anything the experiment
+needs to vary must be expressible as an override or composition.
 
 - **Ablation table.** Name each component being ablated and what
-  removing it tests.
+  removing it tests. The ablated components are the override surface.
 - **Reproduction success criteria.** Specify the reported numbers
   being matched and the tolerance for "matches" (e.g. accuracy
-  within 1%, rank order preserved).
+  within 1%, rank order preserved). The override surface is typically
+  empty (run the base method as-is); name it explicitly.
 - **Sensitivity sweep table.** Name the parameter swept and its
-  range.
+  range. The swept parameter must be exposed by the base `Method`
+  constructor (or a thin override that forwards it).
+- **Planted-signal / probing study.** Name the planted signal in
+  `synth/generate.py` § (i.e. §6 generative process) and the
+  attribute of the method that is supposed to recover it. The
+  override surface is whatever instrumentation the probe needs (e.g.
+  exposing intermediate masks).
 - **Custom research type.** If the experiment doesn't fit the types
   above, the agent proposes a new section structure during Plan
   phase, captures the user-confirmed structure here, and flags the
-  schema as novel in §8.
+  schema as novel in §8. For single-method customs, also state the
+  extension scope in the same form as the variants above.
 
 #### §5.3 Minimum viable comparison
 
@@ -294,12 +308,12 @@ kit needs assembled for each research type.
 
 | Research type | §5.1 framing | §5.2 (conditional) | Notes |
 |---|---|---|---|
-| Methods comparison | Per-paper method | Comparison seam | Multi-paper. |
-| Ablation | Variants of one method | Ablation table | One paper. §3 hypotheses predict per-component contribution. |
-| Reproduction | The model under reproduction | Reproduction success criteria | One paper. §3 hypotheses are "matches reported numbers within tolerance". |
-| Sensitivity sweep | Method(s) under sweep | Sensitivity sweep table | One or more methods. §3 hypotheses predict the response curve. |
-| Exploratory probe | Method whose behavior is probed | (often none) | One method. §3 hypotheses are looser — predict a phenomenon, not a number. |
-| Custom | User-defined | User-defined | Agent proposes structure mid-conversation; flag novel schema in §8. |
+| Methods comparison | Per-paper method | Comparison seam | Multi-paper. Coder regime: **component surgery**; critic gate: extraction-fidelity. |
+| Ablation | Variants of one method | Ablation table | One paper. §3 hypotheses predict per-component contribution. Coder regime: **extension**; critic gate: extension-fidelity. |
+| Reproduction | The model under reproduction | Reproduction success criteria | One paper. §3 hypotheses are "matches reported numbers within tolerance". Coder regime: **extension** (often empty override surface). |
+| Sensitivity sweep | Method(s) under sweep | Sensitivity sweep table | One or more methods. §3 hypotheses predict the response curve. Coder regime: extension if 1 method, component surgery if ≥ 2. |
+| Exploratory probe | Method whose behavior is probed | Planted-signal / probing study (often) | One method. §3 hypotheses are looser — predict a phenomenon, not a number. Coder regime: **extension**. |
+| Custom | User-defined | User-defined | Agent proposes structure mid-conversation; flag novel schema in §8. Coder regime follows member count. |
 
 If the user proposes a research type not on this list, the agent
 sketches a section structure with the user during Plan phase, gets
