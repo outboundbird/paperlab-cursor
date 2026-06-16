@@ -1,13 +1,18 @@
 ---
 name: ml-critique
-description: Defines the `critic_reviews.md` audit schema for calibrating trust in ML papers by reviewing claims, evidence, reproducibility, and paper-code alignment. `critic_reviews.md` lives at `vault_path(slug, "critic_reviews.md")`. Two backend-only gate modes return PASS/FAIL without writing a file: blueprint-check (pre-emission, invoked by the implementer) and extraction-fidelity (pre-run, invoked by the experimenter for Stage-2 component surgery). Use when auditing, critiquing, reviewing, or trust-calibrating a PaperLab paper, or gating reconstructed/extracted code.
+description: Defines the audit schema the Critic uses to calibrate trust in ML papers — claims, evidence, reproducibility, and paper-code alignment. The audit writes to `vault_path(slug, "critic_reviews.md")` when the `code_map.md` source is `official`, or `vault_path(slug, "code_review.md")` when the source is `reconstructed` (sibling file, same schema). Three backend-only gate modes return PASS/FAIL without writing a file: blueprint-check (pre-emission, invoked by the implementer), extraction-fidelity (pre-run, invoked by the experimenter for Stage-2 component surgery, multi-method), and extension-fidelity (pre-run, invoked by the experimenter for Stage-2 extension mode, single-method). Use when auditing, critiquing, reviewing, or trust-calibrating a PaperLab paper, or gating reconstructed/extracted/extended code.
 ---
 
 # ML Critique Schema
 
 ## Purpose
 
-This file defines the schema for `critic_reviews.md`, the structured audit that helps the user calibrate trust in a paper. `critic_reviews.md` is produced by the Critic subagent and lives at `vault_path(slug, "critic_reviews.md")` (resolved via `tools/paths.py`).
+This file defines the schema for the Critic's structured audit that helps the user calibrate trust in a paper. The same schema serves two output files (siblings, never one overwriting the other), keyed off the `code_map.md` §1 **Source** field:
+
+- **`official` source** → `vault_path(slug, "critic_reviews.md")`. The original paper-claim + author-choice audit.
+- **`reconstructed` source** → `vault_path(slug, "code_review.md")`. The fidelity audit of the coder's reconstructed `method.py` (the firewalled hop-2-vs-spec check). Pairs with `code_map.md` (the implementer's walkthrough of the same code).
+
+Both are resolved via `tools/paths.py`. A paper may end up with both files when it is audited under both sources — they do not overwrite each other. The regenerate-prompt rule (`.cursor/rules/paperlab-regenerate-prompt.mdc`) applies only to the *target* file (the one the current source maps to).
 
 The audit covers two scopes: paper methodology (claims, evidence,
 unstated limitations) and paper-code alignment (what the implementation
@@ -67,7 +72,9 @@ python -m tools.pdf extract <slug> [--refresh]
 
 ### 1. Paper context (header)
 
-Every critic_reviews.md must begin with a header in this format:
+Every audit file must begin with a header in this format. The H1 title differs by source so the file is self-identifying when read in Obsidian; the `category` tag also differs (`model` for the original audit; `model-review` for the reconstructed-code audit).
+
+For `official` source — `critic_reviews.md`:
 
 ```markdown
 ---
@@ -80,7 +87,26 @@ tags:
 ---
 
 # Critic Reviews — <slug>
+```
 
+For `reconstructed` source — `code_review.md`:
+
+```markdown
+---
+paper: <slug>
+category: model-review
+agent: critic
+tags:
+- AI-guided-paper-reading
+- code-review
+---
+
+# Code Review — <slug>
+```
+
+After the H1, both files share the same context block:
+
+```markdown
 **Paper:** <paper title>
 **Paper context:** one-sentence summary of what the paper does
 **Source:** `official` or `reconstructed` (from `code_map.md` §1)
@@ -418,3 +444,104 @@ Return, without writing a file:
 The experimenter owns the retry loop (max 2, fix → re-audit), the
 escalation to the user, and the `findings.md` record of a blocked variant;
 the Critic only returns verdicts.
+
+## Extension-fidelity mode
+
+A fourth, **backend-only** mode of the Critic, invoked by the
+`experimenter` during a Stage-2 **extension** experiment (the coder's
+single-method extension mode, `ml-experiment-code` § Stage 2 — Extension
+mode). It audits **single-method experiment code pre-run** and returns a
+**PASS/FAIL verdict with findings**. It writes **no file**.
+
+The extension regime applies when a Stage-2 experiment studies **one**
+paper's method rather than comparing several. There is no shared
+principle to render and no divergent component to slot, so there is no
+synthesized `scaffold.py`. The audit surface is just the extended
+method file plus the wiring that runs it: typically
+`repo_experiments_dir(topic)/methods/<slug>/extended.py` (a class that
+inherits from or composes the Stage-1 `method.py`, adding the
+experiment's modification) and `run.py` (the loop that wires it to the
+synthetic data and metrics).
+
+The principle is the same as extraction-fidelity: the Critic builds its
+**own** representation of the paper's method from `spec.md` /
+`code_map.md` and checks the experiment code against *that*. The
+generator/discriminator firewall is preserved.
+
+### Check A — extension fidelity (the hard gate)
+
+Audit `extended.py` against the paper's method:
+
+- **Anchors:** `code_map.md` (primary, when source is `official`) **or**
+  the Stage-1 `vault_code_dir(slug)/method.py` (primary, when source is
+  `reconstructed`); `spec.md` is secondary either way. The extended class
+  must inherit from / compose the Stage-1 `method.py` (or the paper's
+  `Method` interface) — it must not silently re-implement the base
+  method, because that re-implementation would not have been audited.
+- **What to check:** anything the extended class **overrides** or
+  **adds**. Each override must be either (a) a declared experiment
+  modification recorded in `design.md` § research-type / extension scope
+  (allowed), or (b) consistent with the paper's math (a tightening that
+  preserves what the spec asserts). Anything that contradicts the spec
+  or silently changes a base-method computation is drift.
+- **Scope guard:** if the extension claims to study an attribute of the
+  method (e.g. component contribution, robustness to a perturbation),
+  confirm the extended class actually exposes that attribute through its
+  `__init__` / forward signature, and that `run.py` varies it across
+  conditions. An extension that hard-codes the variable it claims to
+  sweep is a `[SCOPE-DRIFT]`.
+
+### Check A1 — context faithfulness (the wiring)
+
+Same as extraction-fidelity Check A1, applied to the extension's
+`run.py`:
+
+- **No silent base-method substitution.** `run.py` must instantiate the
+  extended class (which composes / inherits the audited Stage-1
+  `method.py`) — not a hand-rolled simplification of the base method.
+  An undeclared replacement is `[CONTEXT-DRIFT]`.
+- **Mechanism completeness.** Every term of the paper's mechanism that
+  is in scope per `design.md` must be wired into the forward / loss
+  path. A silently-dropped term that `design.md` did not scope out is
+  `[INCOMPLETE-METHOD]`.
+
+### No Check B in extension mode
+
+Extension mode has no scaffold and no shared principle, so there is no
+Check B. Skip it.
+
+### Verdict rules
+
+- **FAIL** — at least one of:
+  - `[EXTENSION-DRIFT]`: an `extended.py` override contradicts the
+    paper's math or alters a base-method computation that `design.md`
+    did not authorize.
+  - `[SCOPE-DRIFT]`: the extension does not actually expose / vary the
+    attribute it claims to study.
+  - `[CONTEXT-DRIFT]`: `run.py` substitutes a hand-rolled stand-in for
+    the audited base method, or otherwise alters its computation in an
+    undeclared way.
+  - `[INCOMPLETE-METHOD]`: a mechanism term required by `spec.md` /
+    `code_map.md` and not scoped out in `design.md` is missing from the
+    wired path.
+- **WARN (does not flip the verdict)**:
+  - `[PROVENANCE-GAP]`: a provenance comment is missing or its cited
+    `code_map.md §` / `method.py` reference does not match what was
+    extended.
+  - `[UNVERIFIABLE]`: the source could not be located (e.g. `code_map.md`
+    missing for an `official`-source paper).
+- **PASS** — none of the FAIL findings.
+
+### Reporting back (to the experimenter)
+
+Return, without writing a file:
+
+- **Verdict:** PASS or FAIL.
+- **Findings:** each tagged `[EXTENSION-DRIFT]` / `[SCOPE-DRIFT]` /
+  `[CONTEXT-DRIFT]` / `[INCOMPLETE-METHOD]` (fail) or `[PROVENANCE-GAP]`
+  / `[UNVERIFIABLE]` (warn), each naming the file (`extended.py` or
+  `run.py`), the `code_map.md §` / `spec.md §` / `method.py` reference,
+  and what drifted — specific enough for the coder to fix directly.
+
+The experimenter owns the retry loop (max 2) and escalation; the Critic
+only returns verdicts.
