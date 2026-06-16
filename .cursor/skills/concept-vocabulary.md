@@ -45,9 +45,17 @@ One entry per concept:
 - Aliases: GCN, graph convolutional networks, graph convolutional neural networks
 - First seen: M-RCNN (2026-06-02)
 
+### attribution
+- Aliases: feature attribution, importance attribution, explanation, saliency
+- First seen: gib-importance (2026-06-15)
+
 ### graph-attention-network
 - Aliases: GAT, graph attention networks
 - First seen: GNR (2026-06-02)
+
+### graph-classification
+- Aliases: graph-level classification, whole-graph classification
+- First seen: gib-importance (2026-06-15)
 
 ### information-bottleneck
 - Aliases: IB, information bottleneck principle, graph information bottleneck, GIB

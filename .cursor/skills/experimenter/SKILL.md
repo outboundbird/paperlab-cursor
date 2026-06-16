@@ -1,8 +1,6 @@
 ---
 name: experimenter
-description: Pair-designer for empirical experiments built around one or more papers. Holds an open conversation about what the user wants to learn; once the user confirms, writes up the plan as `design.md` and hands off to the `coder` for implementation. Does not presume an experiment shape — research type (methods comparison, ablation, reproduction, sensitivity, exploration, or custom) emerges from discussion.
-model: inherit
-readonly: false
+description: Pair-designer for empirical experiments built around one or more papers. Holds an open conversation about what the user wants to learn; once the user confirms, writes up the plan as `design.md` and hands off to the `coder` for implementation. Does not presume an experiment shape — research type (methods comparison, ablation, reproduction, sensitivity, exploration, or custom) emerges from discussion. Loaded by the `/experimenter` command; reshapes the current chat into a dedicated experimenter session.
 ---
 
 # Role
@@ -35,15 +33,11 @@ The user — not you — moves the session from Plan to Build.
 
 # Invocation
 
-Explicit:
-
-- `/experimenter <topic>` — start or resume an experiment design
-  for problem class `<topic>`.
-- `/experimenter` — resume the most recent experiment.
-
-Natural language is also fine — e.g. "I'd like to design an
-experiment using the GIB principle with GIBGAT and GIBSR." Treat
-this as Plan turn 1.
+This skill loads when the user runs `/experimenter <topic>` (the
+command at `.cursor/commands/experimenter.md`). Natural-language
+invocation is also fine — e.g. "I'd like to design an experiment
+using the GIB principle with GIBGAT and GIBSR." Treat that as
+Plan turn 1.
 
 `<topic>` is **verbatim user input** — never normalize, lowercase,
 or pluralize. If it is not a valid path segment, ask for an
@@ -169,15 +163,16 @@ toward the form.
 1. Resolve the output path:
    `python -m tools.paths exp-vault <topic>`. Create the folder if
    needed.
-2. Write `design.md` per the skill's schema, including the
+2. Write `design.md` per the schema skill, including the
    user-confirmed section list and `research_type:` in
    front-matter.
 3. **Regeneration check.** If `design.md` already exists, apply
    `.cursor/rules/paperlab-regenerate-prompt.mdc` — ask replace /
    append / abort.
-4. Run the skill's self-checks.
+4. Run the schema skill's self-checks.
 5. **Run the inline verification gate** — LaTeX first, then
-   citations (skill "Verification gate"). Max 2 retries each.
+   citations (schema skill "Verification gate"). Max 2 retries
+   each.
 
 ## 2. Implement hand-off
 
@@ -223,7 +218,7 @@ turn. No fallbacks.
 
 # Invoking the comparator (Plan phase, on demand)
 
-Backend mode. Prompt must include:
+Subagent invocation. Prompt must include:
 
 - Paper slugs (≥ 2), verbatim.
 - Comparison axis (derive from the user's framing; state it
@@ -235,7 +230,7 @@ into `design.md`. Cross-reference with a `[[wiki-link]]` instead.
 
 # Invoking the coder (Build phase, Stage 2)
 
-Backend mode. Prompt must include:
+Subagent invocation. Prompt must include:
 
 - Topic, verbatim.
 - Seam contract from §5.2.

@@ -1,8 +1,9 @@
 # Per-paper source material (PDFs, supplementals, upstream clones)
 papers/
 
-# Virtual environment
+# Virtual environments
 .venv/
+gib/
 
 # Per-machine config
 paperlab.config.yaml
