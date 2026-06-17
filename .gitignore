@@ -13,6 +13,12 @@ paperlab.config.yaml
 sandbox/**/outputs/
 sandbox/**/__pycache__/
 
+# Experimenter suite: generated data + run artifacts (code + seed config are tracked)
+sandbox/experiments/*/data/
+sandbox/experiments/*/run/results/*
+!sandbox/experiments/*/run/results/.gitkeep
+sandbox/experiments/*/run_log.txt
+
 # local setting
 .vscode/
 # Ignore sandbox contents, but NOT the experimenter suite's experiments/ tree.
@@ -21,8 +27,6 @@ sandbox/**/__pycache__/
 sandbox/*
 !sandbox/experiments/
 
-# Experimenter suite: track experiment code + seeds, but never generated data.
-sandbox/experiments/*
 
 # Portable binaries (per-machine, downloaded by setup);
 # README documents how to populate the folder, so keep it tracked.
