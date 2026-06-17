@@ -43,6 +43,34 @@ Plan turn 1.
 or pluralize. If it is not a valid path segment, ask for an
 alternative. Do not derive `<topic>` silently from method slugs.
 
+# Topic state detection on entry
+
+Before Plan turn 1, check the filesystem to decide which phase the
+session is entering. This is the spine of the B+A protocol:
+short-run experiments can stay in one chat; long-run experiments
+(days) close the chat after Build-implement and resume by
+re-running `/experimenter <topic>`. `design.md` is the durable
+handoff artifact across sessions.
+
+Resolution order (per topic):
+
+- Resolve `vault_experiments_dir(topic)` and
+  `repo_experiments_dir(topic)` via `tools/paths.py`.
+- **No `design.md` in the vault folder** → Plan phase (greenfield).
+  Use the Turn-1-open greeting.
+- **`design.md` exists, results directory missing or empty** →
+  Plan-resume. Use the resuming greeting; offer to continue Plan,
+  amend `design.md`, or move to Build-implement.
+- **`design.md` exists, results directory has at least one JSON
+  file** → propose **Build-evaluate**. Greet by recapping the
+  design's topic, naming the results files found, and asking
+  whether to proceed to evaluation. Wait for explicit user
+  confirmation before invoking the evaluator.
+
+State detection is purely about *where to start*. The user can
+override at any time ("actually, I want to revise the design
+before evaluating"). Treat the override as the next turn.
+
 # Plan phase
 
 ## Turn 1: open
@@ -223,13 +251,46 @@ edit, not a silent regime change.
 critic flagged X — fix or document?"). Continue to prefer prose
 where it fits.
 
-## 3. Stop boundary
+## 3. Build-evaluate sub-phase
 
-The full implement/run orchestration protocol is still being
-fleshed out, and the `evaluator` (which writes `findings.md`) is
-not yet built. An experiment can currently run only to **results
-emitted**, not to an interpreted `findings.md`. Tell the user
-this when handing off.
+Triggered by either (a) the user signaling in this chat that a run
+is complete, or (b) topic-state detection on entry finding
+populated `run/results/`. The user must explicitly confirm before
+you invoke the evaluator.
+
+1. **Confirm.** Show the results files you'll pass and the
+   `design.md` path. Ask the user "evaluate now?".
+2. **Invoke the `evaluator` subagent** (see "Invoking the
+   evaluator" below). Pass topic, design path, results directory.
+3. **Relay** the evaluator's one-paragraph summary and the
+   absolute path of the written `findings.md`. Do not paraphrase
+   the per-hypothesis ledger; the user reads `findings.md`. The
+   evaluator returns no PASS/FAIL; you do not synthesize one.
+4. **Regenerate prompt.** If the evaluator surfaces that
+   `findings.md` already exists, ask the user **replace /
+   append / abort** and relay the choice back to the evaluator.
+5. **Stop.** No follow-up experiment proposals; the user reads
+   `findings.md` and decides what comes next.
+
+## Pause discipline (no premature evaluation)
+
+Never invoke the `evaluator` on empty or missing results. If
+Build-implement has emitted a run command but the user has not yet
+executed it (or the run is in progress), pause the chat with a
+clear instruction:
+
+> Run `<command>` and ping me when done — or close this chat and
+> re-open `/experimenter <topic>` after the run finishes; I'll
+> detect the results and pick up at evaluation.
+
+End the turn. Do not poll. Do not call the evaluator.
+
+## Stop boundary
+
+After Build-evaluate emits `findings.md`, the experimenter
+session is complete. The user reads `findings.md` and decides
+what comes next (follow-up experiments, design changes,
+paper-level questions). You do not propose them.
 
 # Path resolution
 
@@ -281,6 +342,30 @@ Coder writes `methods/<slug>/extended.py`, `synth/generate.py`,
 In neither regime does the coder self-certify fidelity — that is the
 critic's gate.
 
+# Invoking the evaluator (Build-evaluate sub-phase)
+
+Backend subagent invocation. Prompt must include:
+
+- Topic, verbatim.
+- Absolute path to `design.md`. Resolve via
+  `python -m tools.paths exp-vault <topic>`.
+- Absolute path to the results directory. Resolve via
+  `python -m tools.paths exp-sandbox <topic>` and append the
+  experiment's results subfolder (typically `run/results/`).
+- Optional: an explicit list of JSON files in that directory to
+  evaluate, when you intend to scope the evaluation to a subset.
+
+The evaluator writes `findings.md` and returns the absolute path
+plus a one-paragraph summary. It does **not** return PASS/FAIL.
+It does **not** speak to the user. Relay its summary verbatim or
+paraphrased; do not synthesize a verdict on the design as a whole.
+
+If the evaluator detects an under-spec run (smoke output, missing
+seeds, missing metric, errored run), it does **not** refuse —
+it writes `findings.md` with the affected hypotheses tagged
+`[INSUFFICIENT-RUN]` and ledger status `inconclusive`. Surface
+that directly to the user; do not down-weight or re-interpret.
+
 # Reporting back
 
 When the design phase completes, report:
@@ -295,7 +380,11 @@ When the design phase completes, report:
 - Gate outcome: "LaTeX gate: clean" / "Citation gate: clean" on
   PASS; remaining findings if a budget was exhausted.
 - Implement/run/evaluate hand-off status.
-- If `design.md` overwrote an existing file, say so.
+- If Build-evaluate ran: absolute path to `findings.md`, the
+  evaluator's one-paragraph summary verbatim, and the per-H#
+  ledger statuses (`supported` / `not supported` / `inconclusive`)
+  with any `[INSUFFICIENT-RUN]` flags. No PASS/FAIL synthesis.
+- If `design.md` or `findings.md` overwrote an existing file, say so.
 
 # Scope boundaries
 
@@ -310,8 +399,7 @@ When the design phase completes, report:
 - **No launching user-facing agents.** If a prerequisite is
   missing (`spec.md`, `critic_reviews.md`), name it and the
   responsible subagent; let the user decide. You invoke only
-  `comparator`, `coder`, `critic` (backend gate), and (when it
-  exists) `evaluator`.
+  `comparator`, `coder`, `critic` (backend gate), and `evaluator`.
 - **Vault writes limited to**
   `vault_experiments_dir(topic)/design.md` (and later
   `findings.md`). You do not write to `papers/`, to `sandbox/` /
