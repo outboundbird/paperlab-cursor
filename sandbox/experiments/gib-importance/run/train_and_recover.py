@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import shutil
 import sys
 import time
 from dataclasses import dataclass, field
@@ -353,7 +354,17 @@ def run_experiment(config: TrainConfig) -> Dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train extended GIBGAT and evaluate recovery.")
-    parser.add_argument("--smoke", action="store_true", help="5 epochs on 10 graphs.")
+    parser.add_argument(
+        "--smoke",
+        action="store_true",
+        help=(
+            "Smoke run for the coder smoke gate (`ml-experiment-code` "
+            "§ STAGE 2 — Smoke gate): one seed, smallest dataset, "
+            "5 epochs. Scratch output goes to `results/.smoke/` and is "
+            "removed before exit. Exit 0 on success, non-zero on any "
+            "unhandled exception."
+        ),
+    )
     parser.add_argument("--max-epochs", type=int, default=MAX_EPOCHS)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--seeds", type=int, nargs="*", default=DEFAULT_SEEDS)
@@ -367,7 +378,11 @@ def main() -> None:
     )
 
     results = run_experiment(config)
-    out_dir = EXP_DIR / "run" / "results"
+    base_results_dir = EXP_DIR / "run" / "results"
+    if config.smoke:
+        out_dir = base_results_dir / ".smoke"
+    else:
+        out_dir = base_results_dir
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / ("smoke_results.json" if config.smoke else "results.json")
     with out_path.open("w", encoding="utf-8") as f:
@@ -377,6 +392,10 @@ def main() -> None:
     if config.smoke:
         acc = results["per_seed"][0]["test_accuracy"]
         print(f"smoke test_accuracy={acc:.3f}")
+        # Spec compliance: smoke must not pollute results/ proper.
+        # The .smoke/ scratch folder is removed before exit so the
+        # evaluator never picks up smoke output as a real run result.
+        shutil.rmtree(out_dir, ignore_errors=True)
 
 
 if __name__ == "__main__":
