@@ -229,7 +229,10 @@ Before returning to the experimenter, verify:
 - Every hypothesis declared in `design.md` §3 has a row in the ledger.
 - Every claim outside the front-matter and Header carries `[A]`, `[B]`, or `[E]`.
 - Every `[INSUFFICIENT-RUN]` flag in the ledger is repeated in Threats to validity.
-- Every `[GATED-OFF]` flag in the ledger names the upstream hypothesis it depends on; the upstream hypothesis's status is consistent with the gated row's status (gating chain checks out).
+- Every `[GATED-OFF]` flag in the ledger names a valid upstream hypothesis (one that has its own row), and:
+  - The upstream hypothesis's status is **not** `supported` — a `[GATED-OFF]` flag on a row whose upstream is `supported` is a bug (when upstream is `supported`, the gated row must be evaluated normally with no flag).
+  - The gated row's status is `inconclusive` — `[GATED-OFF]` is incompatible with `supported` or `not supported`.
+  - Conversely: every gated hypothesis (declared as such in `design.md` §3) whose upstream resolved to `not supported` or `inconclusive` carries the `[GATED-OFF]` flag and `inconclusive` status — the flag is not optional.
 - The "What the user can conclude" section does not announce a verdict on the design as a whole.
 - No PASS/FAIL anywhere. No "the experiment shows that ..." absolutism — keep claims tagged.
 - The inline LaTeX gate ran (or was correctly skipped — no math) and its outcome is in the return summary.
