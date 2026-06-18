@@ -128,8 +128,8 @@ this file; the dated logs in `log/` carry the full narrative.
 
 ### 2. External-data access
 
-- **MCP:** reuse `firecrawl` (already configured). Add a thin `arxiv` MCP only if structured metadata becomes a recurring need.
-- **Rule:** `external-fetch-budget.mdc` — max ~5 external fetches per concept; prefer arXiv abstract + 1 blog + author page; never crawl whole sites. Threshold to be tuned.
+- **MCP:** `firecrawl` already configured (zero work). A thin `arxiv` MCP remains conditional — add only if structured metadata becomes a recurring need (no trigger yet).
+- **Rule: `external-fetch-budget.mdc` — shipped 2026-06-18.** Caps per-session (≤ 20) and per-paper-bound-task (≤ 7) external fetches for budget-bearing agents (`tutor`, `explainer`, `comparator`, `critic`); soft reset-on-confirm checkpoint, not a hard cap. Pipeline agents (`acquirer`, `dissector`, `experimenter`, `coder`, `evaluator`) are not budget-bearers. Preferred fetch order: paper text + `spec.md` first (free), then arXiv abstract, one blog, author/lab page; never crawl whole sites. See `log/2026-06-18-external-fetch-budget.md`.
 
 ### 3. `tools.reindex` — graph index over the vault
 
@@ -228,6 +228,6 @@ decision narratives live in the dated logs under `log/`.
 - **Skills + commands (user-facing, inline — no subagent relay):** `experimenter` (skill at `.cursor/skills/experimenter/`, loaded by `/experimenter <topic>` command).
 - **Subagents (backend-only):** `explainer` (invoked by `tutor` since 2026-05-27); `latex-verifier`, `citation-verifier` (inline gate + post-hoc hook); `coder` Stage 2 (component surgery and extension regime, invoked by `experimenter`); `critic` extraction-fidelity and extension-fidelity modes (invoked by `experimenter`); `critic` blueprint-check mode (invoked by `implementer`); `evaluator` (Build-evaluate sub-phase, invoked by `experimenter`).
 - **Skills (active):** `ml-acquisition`, `ml-paper-spec`, `ml-code-map` (+ `DEEP_DIVE`), `ml-blueprint`, `ml-critique`, `ml-tutor`, `ml-explanation`, `ml-synthesis`, `ml-comparison`, `ml-experiment-design`, `ml-experiment-code` (Stage-1 + Stage-2 sections), `ml-evaluation`.
-- **Rules:** `paperlab-config-bootstrap`, `paperlab-regenerate-prompt`.
+- **Rules:** `paperlab-config-bootstrap`, `paperlab-regenerate-prompt`, `external-fetch-budget`.
 - **Helpers:** `tools/paths.py`, `tools/figures.py` (requires `pymupdf`).
 - **Papers:** `Memento` (legacy, in repo), `WorldModel`, `VAE`, `GIB-DS`, `GIB`, `GraphVarBound`, `Dreamer`, `MIbound` (new layout, vault + repo).

@@ -1,0 +1,90 @@
+---
+description: External fetch budget for paperlab agents. Caps web fetches per session and per paper-bound task to keep latency predictable and prevent fetch-heavy spirals.
+alwaysApply: true
+---
+
+# External fetch budget
+
+Applies to budget-bearing PaperLab subagents when fetching external
+content during a chat. Goal: keep tutor / explainer / comparator /
+critic turns from spiraling into open-ended literature crawls
+without proportional value.
+
+## Who carries the budget
+
+- **Budget-bearers:** `tutor`, `explainer`, `comparator`, `critic`.
+- **Not budget-bearers:** `acquirer`, `dissector`, `experimenter`,
+  `coder`, `evaluator`. These work from already-gated upstream
+  artifacts; their external fetches (if any) are deterministic, not
+  exploratory.
+
+## What counts as a fetch
+
+- ✅ **Counts:** `firecrawl` MCP calls, `WebSearch`, `WebFetch`.
+- ❌ **Does not count:** cache hits (e.g.
+  `papers/<slug>/.cache/citations/`), local file reads,
+  `tools/pdf.extract_pdf_text` (extracts a local PDF).
+
+## Budget
+
+- **Per session:** ≤ 20 external fetches across all budget-bearers.
+- **Per paper-bound task:** ≤ 7. A task is one durable artifact —
+  one `<concept>-<slug>.md` write, one `<concept>.md`, one
+  `comparison.md`, one `critic_reviews.md` / `code_review.md`, one
+  tutor concept turn, one synthesis.
+
+The agent **self-tracks** both counters. There is no hook
+enforcement (rules are advisory in Cursor); this is honest
+self-discipline.
+
+## What to do at a threshold
+
+When either counter reaches its cap, **stop before the next fetch**
+and ask the user:
+
+> "I've used `<N>` external fetches on this task / `<M>` this
+> session, hitting the `<task|session>` budget. Continue with more,
+> or stop here and answer from what we have?"
+
+Wait for explicit confirmation. On confirmation, **both counters
+reset** to zero — this is a checkpoint, not a hard cap. Without
+confirmation, the agent stops fetching and answers from what it
+already has.
+
+The checkpoint exists to surface the cost to the user, not to
+forbid further work.
+
+## Preferred fetch order
+
+In priority order, prefer the cheapest sufficient source. Walk the
+list top-to-bottom; only escalate when the previous tier is
+insufficient for the current claim.
+
+1. **For paper claims:** the paper's text (`tools/pdf.extract_pdf_text`)
+   and `spec.md` first. The dissector's extraction is the canonical
+   source for *that paper*; do not fetch external blogs to re-explain
+   content `spec.md` already covers. (These reads do **not** count
+   against the budget — see "What counts as a fetch.")
+2. **arXiv abstract** (cheap, structured) — for background or
+   general field framing.
+3. **One blog or tutorial** — accessible general framing, only when
+   the paper / spec is insufficient.
+4. **Author or lab page** — for canonical metadata or links.
+
+**Never crawl whole sites.** No "fetch all pages on the lab's docs
+subdomain" sprees, no recursive link-following.
+
+## Reporting
+
+When a budget-bearer reports back to the user (or to the calling
+agent for backend invocations), include the fetch counts in the
+report when any external fetch happened — e.g. *"Fetches: 3 task / 8
+session."* When zero external fetches were made, omit the line.
+
+## Rationale
+
+Tutor and explainer turns can spiral into fetch-heavy explorations
+that cost latency without proportional value. The per-task cap
+protects individual turns; the per-session cap protects the chat as
+a whole. A soft, reset-on-confirm checkpoint lets the user steer
+without imposing a hard ceiling.
