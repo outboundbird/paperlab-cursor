@@ -37,6 +37,20 @@ Settled in chat before writing the rule:
    then arXiv abstract, then one blog, then author/lab page. Never
    crawl whole sites.
 
+## Task-definition fix (same-day, post-confirmation)
+
+A second post-write review surfaced a related bug: the original
+task list included `<concept>-<slug>.md` (an explainer-written
+backend intermediate per `AGENTS.md`) alongside `<concept>.md`
+(the tutor's user-facing artifact). Since both `tutor` and
+`explainer` are budget-bearers, treating each intermediate as its
+own task could spend 2 × 7 = 14 task fetches on a single user
+request "explain concept X." Fix: **a task is one user-facing
+artifact or one user-facing turn**; backend intermediates roll
+into the parent task's counter (same applies to
+`synth__<a>__<b>-<slug>.md`). Rule updated; explainer fetches now
+count toward the parent tutor task counter explicitly.
+
 ## Implementation choice — rule only, no agent edits
 
 The rule uses `alwaysApply: true`, so it loads in every chat

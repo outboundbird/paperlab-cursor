@@ -28,10 +28,22 @@ without proportional value.
 ## Budget
 
 - **Per session:** ≤ 20 external fetches across all budget-bearers.
-- **Per paper-bound task:** ≤ 7. A task is one durable artifact —
-  one `<concept>-<slug>.md` write, one `<concept>.md`, one
-  `comparison.md`, one `critic_reviews.md` / `code_review.md`, one
-  tutor concept turn, one synthesis.
+- **Per paper-bound task:** ≤ 7. A **task is one user-facing
+  durable artifact or one user-facing turn**:
+  - one `<concept>.md` (tutor, user-facing)
+  - one `synth__<a>__<b>.md` (tutor, user-facing)
+  - one `comparison.md` (comparator)
+  - one `critic_reviews.md` or one `code_review.md` (critic)
+  - one tutor concept turn that does not produce a durable artifact
+  - one critic deep-dive
+
+**Backend intermediates are not their own tasks.** When the tutor
+invokes the explainer to write a `<concept>-<slug>.md` or
+`synth__<a>__<b>-<slug>.md`, the explainer's fetches roll into the
+**parent tutor task's counter** — they are part of the same
+user-facing task, not a new one. This prevents double-counting
+(otherwise a single user request could spend 2 × 7 = 14 task
+fetches by splitting across tutor + explainer).
 
 The agent **self-tracks** both counters. There is no hook
 enforcement (rules are advisory in Cursor); this is honest
