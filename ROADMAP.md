@@ -227,6 +227,17 @@ Things the system can't do, with workarounds where they exist.
 
 Small refinements to existing schemas that aren't urgent but are worth remembering. These tend to surface during use.
 
+### Gating-hypothesis rule in `ml-evaluation` — shipped 2026-06-18
+
+- **What:** explicit handling for hypotheses whose interpretability is conditional on another being supported (e.g. recovery numbers gated by accuracy ≥ threshold). Distinct from `[INSUFFICIENT-RUN]`: the run can be spec-compliant while the chain of inference is broken upstream.
+- **Why surfaced:** GIBGAT validation run during the evaluator build (2026-06-17). The existing `[INSUFFICIENT-RUN]` rule did not cover the case.
+- **Status:** **shipped 2026-06-18.** New `[GATED-OFF]` flag and `### Gating hypotheses` subsection added to `ml-evaluation/SKILL.md`; self-check entry added; description updated. See `log/2026-06-17-evaluator-experimenter-gaps.md` § Gap 4 and `log/2026-06-18-evaluator-schema-followups.md`.
+
+### Table-cell tagging convention in `ml-evaluation` — shipped 2026-06-18
+
+- **What:** the "every claim past the header carries `[A]`/`[B]`/`[E]`" rule did not distinguish *claim-bearing* cells (e.g. `Observed`) from *structural* ledger cells (`Status` is controlled vocabulary, `Notes` carries flags). Tagging structural cells produced visual noise and weakened the discipline elsewhere.
+- **Status:** **shipped 2026-06-18.** Structural-cell exception added to `ml-evaluation/SKILL.md` § Inference discipline; description updated.
+
 ## Completed work
 
 The roadmap is forward-looking. Completed-work history has moved to

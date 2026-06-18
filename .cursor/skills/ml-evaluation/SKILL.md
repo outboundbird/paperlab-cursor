@@ -1,6 +1,6 @@
 ---
 name: ml-evaluation
-description: Authoritative schema for `findings.md` — the empirical write-up the Evaluator produces from a Stage-2 experiment's run outputs. Defines the five fixed sections (header, hypothesis ledger, results, threats to validity, what the user can conclude), six variant runbooks for the Results section by `research_type` (methods comparison, ablation, reproduction, sensitivity, exploration, custom), the `[A]` / `[B]` / `[E]` inference tagging discipline, the `[INSUFFICIENT-RUN]` flag rule for under-spec runs, and the process the Evaluator follows. The Evaluator writes no PASS/FAIL — the user reads `findings.md` and judges. Use when an Evaluator subagent is invoked to write `findings.md`, or when reading / hand-editing one.
+description: Authoritative schema for `findings.md` — the empirical write-up the Evaluator produces from a Stage-2 experiment's run outputs. Defines the five fixed sections (header, hypothesis ledger, results, threats to validity, what the user can conclude), six variant runbooks for the Results section by `research_type` (methods comparison, ablation, reproduction, sensitivity, exploration, custom), the `[A]` / `[B]` / `[E]` inference tagging discipline (with structural-cell exception for ledger `Status` / `Notes`), the `[INSUFFICIENT-RUN]` flag for under-spec runs, the `[GATED-OFF]` flag for hypotheses gated on another's outcome, and the process the Evaluator follows. The Evaluator writes no PASS/FAIL — the user reads `findings.md` and judges. Use when an Evaluator subagent is invoked to write `findings.md`, or when reading / hand-editing one.
 ---
 
 # ML Evaluation Schema
@@ -148,6 +148,8 @@ Mixing types in one sentence is forbidden. Split it.
 
 The Results section is mostly `[E]`. Threats to validity is mostly `[B]`. The "What the user can conclude" section is `[E]`-claims filtered by `[A]` / `[B]` scope.
 
+**Structural cells.** The Hypothesis ledger's `Status` and `Notes` cells are structural, not claim-bearing — `Status` is a controlled vocabulary (`supported` / `not supported` / `inconclusive`) and `Notes` carries flags (`[INSUFFICIENT-RUN]`, `[GATED-OFF]`, `[UNREADABLE]`, scope qualifiers). Do **not** tag these cells with `[A]` / `[B]` / `[E]`. The "every claim past the header" rule applies to *claim-bearing* prose and numerical cells (e.g. the `Observed` cell, which is by construction `[E]`).
+
 ## `[INSUFFICIENT-RUN]` flag rule
 
 A hypothesis is `[INSUFFICIENT-RUN]` when the executed run does not let you decide it. Triggers:
@@ -165,6 +167,25 @@ When triggered:
 - The Results section still reports the numbers that exist, prefixed with the flag.
 
 You do **not** refuse to write `findings.md`. Refusal is the experimenter's job, pre-invocation.
+
+### Gating hypotheses ([GATED-OFF])
+
+A hypothesis is **gated** when its interpretability is conditional on another hypothesis being supported first. Concrete example: H3 "recovery quality indicates IB compression" gated by H1 "test accuracy ≥ 0.75" — without H1, H3's recovery numbers exist but cannot be interpreted as compression evidence. Gating is declared in `design.md` §3 as part of the hypothesis statement (e.g. "Conditional on H1 being supported, ...").
+
+Gating is **distinct from `[INSUFFICIENT-RUN]`**: the run can be fully spec-compliant (correct seeds, correct config, full epochs) while the chain of inference is broken because an upstream hypothesis failed. A separate flag `[GATED-OFF]` keeps the threats-to-validity narrative honest.
+
+When the gating hypothesis (the upstream one) ends with status:
+
+- `not supported` → the gated hypothesis's status becomes `inconclusive`; Notes cell carries `[GATED-OFF]: depends on H<n>, which is not supported`.
+- `inconclusive` (e.g. `[INSUFFICIENT-RUN]` or another `[GATED-OFF]`) → the gated hypothesis inherits `inconclusive`; Notes cell carries `[GATED-OFF]: depends on H<n>, which is inconclusive`. (Chains transitively.)
+- `supported` → the gated hypothesis is evaluated normally; no `[GATED-OFF]` flag.
+
+In all `[GATED-OFF]` cases:
+
+- The ledger row's `Observed` cell still reports the numerical value the run produced (`[E]`-tagged) — for transparency, not as evidence.
+- The Threats-to-validity section repeats the flag with the affected hypothesis number and the upstream hypothesis it depended on.
+- The Results section reports the gated numbers but prefixes them with the flag and explicitly says they cannot be read as evidence for the gated hypothesis.
+- The "What the user can conclude" section does not draw conclusions from a gated-off hypothesis.
 
 ## Process
 
@@ -208,6 +229,7 @@ Before returning to the experimenter, verify:
 - Every hypothesis declared in `design.md` §3 has a row in the ledger.
 - Every claim outside the front-matter and Header carries `[A]`, `[B]`, or `[E]`.
 - Every `[INSUFFICIENT-RUN]` flag in the ledger is repeated in Threats to validity.
+- Every `[GATED-OFF]` flag in the ledger names the upstream hypothesis it depends on; the upstream hypothesis's status is consistent with the gated row's status (gating chain checks out).
 - The "What the user can conclude" section does not announce a verdict on the design as a whole.
 - No PASS/FAIL anywhere. No "the experiment shows that ..." absolutism — keep claims tagged.
 - The inline LaTeX gate ran (or was correctly skipped — no math) and its outcome is in the return summary.
