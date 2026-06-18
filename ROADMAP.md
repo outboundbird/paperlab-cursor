@@ -129,7 +129,7 @@ this file; the dated logs in `log/` carry the full narrative.
 ### 2. External-data access
 
 - **MCP:** `firecrawl` already configured (zero work). A thin `arxiv` MCP remains conditional — add only if structured metadata becomes a recurring need (no trigger yet).
-- **Rule: `external-fetch-budget.mdc` — shipped 2026-06-18.** Caps per-session (≤ 20) and per-paper-bound-task (≤ 7) external fetches for budget-bearing agents (`tutor`, `explainer`, `comparator`, `critic`); soft reset-on-confirm checkpoint, not a hard cap. Pipeline agents (`acquirer`, `dissector`, `experimenter`, `coder`, `evaluator`) are not budget-bearers. Preferred fetch order: paper text + `spec.md` first (free), then arXiv abstract, one blog, author/lab page; never crawl whole sites. See `log/2026-06-18-external-fetch-budget.md`.
+- **Rule: `external-fetch-budget.mdc` — shipped 2026-06-18.** Caps per-session (≤ 20) and per-paper-bound-task (≤ 7) external fetches for budget-bearing agents (`tutor`, `explainer`, `comparator`, `critic`); soft reset-on-confirm checkpoint with **asymmetric resets** (task-threshold confirmation resets only the task counter; session-threshold confirmation resets both — preserves the session cap as a real constraint). Pipeline agents (`acquirer`, `dissector`, `experimenter`, `coder`, `evaluator`) are not budget-bearers. Preferred fetch order: paper text + `spec.md` first (free), then arXiv abstract, one blog, author/lab page; never crawl whole sites. See `log/2026-06-18-external-fetch-budget.md`.
 
 ### 3. `tools.reindex` — graph index over the vault
 

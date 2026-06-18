@@ -46,13 +46,29 @@ and ask the user:
 > session, hitting the `<task|session>` budget. Continue with more,
 > or stop here and answer from what we have?"
 
-Wait for explicit confirmation. On confirmation, **both counters
-reset** to zero — this is a checkpoint, not a hard cap. Without
-confirmation, the agent stops fetching and answers from what it
-already has.
+Wait for explicit confirmation. **Reset rules differ by which cap
+fired** — this is deliberate, so the session cap stays meaningful
+across many tasks:
 
-The checkpoint exists to surface the cost to the user, not to
-forbid further work.
+- **Task threshold hit, user confirms** → reset **only the task
+  counter** to zero. The session counter keeps rising (past
+  fetches still count toward the global session budget).
+- **Session threshold hit, user confirms** → reset **both
+  counters** to zero. This is the global "I want to keep going"
+  override and matches the original spirit of the checkpoint.
+- **No confirmation in either case** → the agent stops fetching
+  for that scope and answers from what it already has.
+
+There is no hard ceiling on the number of session resets. If the
+user keeps confirming, that is an explicit choice. The checkpoint
+exists to surface the cost to the user, not to forbid further
+work.
+
+**Why the asymmetry?** If a task-level confirmation reset the
+session counter too, the session cap would be a no-op: tasks of
+≤ 7 fetches each would never accumulate toward the session limit.
+The asymmetric reset preserves the session budget as a real
+constraint that only the user (not the agent) can lift.
 
 ## Preferred fetch order
 

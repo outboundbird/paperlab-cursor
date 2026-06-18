@@ -20,10 +20,19 @@ Settled in chat before writing the rule:
    counters tracked.
 4. **Threshold + enforcement.** Soft cap, self-tracked, no hook.
    **Per session: 20.** **Per task: 7.** On either threshold, the
-   agent stops and asks the user; on confirmation, **both counters
-   reset** (checkpoint model — not a hard cap). User chose
-   "more generous" budget over the roadmap's original "max ~5 per
-   concept" guess.
+   agent stops and asks the user. **Reset rules are asymmetric**
+   (revised after a same-day post-write review surfaced a bug in
+   the original symmetric design):
+   - Task threshold confirmation → only task counter resets;
+     session counter keeps rising.
+   - Session threshold confirmation → both reset (global
+     override).
+   The original "both reset on any confirmation" design defeated
+   the session cap entirely (k tasks × 7 fetches each could never
+   trigger session=20 if every task confirmation reset session to
+   0). The asymmetric reset keeps the session budget as a real
+   constraint only the user can lift. User chose "more generous"
+   budget over the roadmap's original "max ~5 per concept" guess.
 5. **Preferred fetch order.** Paper text + `spec.md` first (free),
    then arXiv abstract, then one blog, then author/lab page. Never
    crawl whole sites.
