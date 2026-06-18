@@ -96,11 +96,13 @@ def vault_root() -> Path:
     return Path(load_config()["vault_paperlab_path"]).resolve()
 
 
-def coder_smoke_timeouts() -> tuple[int, int]:
-    """Per-machine timeouts for the coder's smoke gates, in seconds.
+def coder_runtime_timeouts() -> tuple[int, int]:
+    """Per-machine runtime budgets for the coder's gates, in seconds.
 
-    Returns ``(stage1, stage2)``: the budget for Stage-1
-    ``test_invariants.py`` and the budget for Stage-2 ``run.py --smoke``.
+    Returns ``(stage1, stage2)``: the budget for the Stage-1 invariant
+    check (``test_invariants.py``) and for the Stage-2 smoke run
+    (``run.py --smoke``). Stage 1 is an invariant check, not strictly a
+    "smoke" run — hence the runtime/timeout naming.
 
     Configurable in ``paperlab.config.yaml`` under the ``coder_smoke_timeout``
     key (both subkeys optional, with defaults below). The keys are

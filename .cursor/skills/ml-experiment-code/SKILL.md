@@ -203,7 +203,7 @@ coder: method.py + test_invariants.py
    Use a numerical tolerance for value checks. Seed the RNG.
 5. **Run `test_invariants.py`** (this is the hop-2 guard). It must pass.
    - **Timeout.** Cap each invocation at the Stage-1 timeout from
-     `tools.paths.coder_smoke_timeouts()` (default 30s; user-configurable
+     `tools.paths.coder_runtime_timeouts()` (default 30s; user-configurable
      in `paperlab.config.yaml` under `coder_smoke_timeout.stage1` for
      slower hardware). A run that exceeds the budget counts as a FAIL,
      not a skip — bump the config and re-run rather than disabling the
@@ -511,7 +511,7 @@ will run. Specifically:
 ### Timeout (per-machine)
 
 Cap the run at the Stage-2 timeout from
-`tools.paths.coder_smoke_timeouts()` (default 60s; user-configurable in
+`tools.paths.coder_runtime_timeouts()` (default 60s; user-configurable in
 `paperlab.config.yaml` under `coder_smoke_timeout.stage2` for slower
 hardware). On exceeding the budget, kill the process and report
 TIMEOUT. The user fixes by either bumping the config (slow hardware)
