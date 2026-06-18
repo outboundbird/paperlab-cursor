@@ -202,6 +202,12 @@ coder: method.py + test_invariants.py
    every normalization / sign / range / conservation property §4 lists.
    Use a numerical tolerance for value checks. Seed the RNG.
 5. **Run `test_invariants.py`** (this is the hop-2 guard). It must pass.
+   - **Timeout.** Cap each invocation at the Stage-1 timeout from
+     `tools.paths.coder_smoke_timeouts()` (default 30s; user-configurable
+     in `paperlab.config.yaml` under `coder_smoke_timeout.stage1` for
+     slower hardware). A run that exceeds the budget counts as a FAIL,
+     not a skip — bump the config and re-run rather than disabling the
+     check.
    - On failure: fix `method.py` (the code is wrong, not the invariant —
      the invariant came from the critic-approved blueprint). Re-run.
    - **Budget: 3 fix attempts.** If still failing, do not claim success:
@@ -450,14 +456,77 @@ result in as evidence.
    collect into `results/`. Seed everything.
 5. **Behavioral-equivalence checks** (coder) where feasible; record
    PASS/skip per paper to hand to the critic gate.
-6. **Report back to the experimenter** with the artifacts, the
-   borrow route per paper, the behavioral-check results, and any
-   extraction that could not be fitted faithfully. The experimenter runs
-   the critic gates and routes the user-check (Seam B) before any run is
-   trusted.
+6. **Smoke gate.** After the experimenter's critic gates (extraction-
+   fidelity Check A + scaffold-fidelity Check B) have passed, run
+   `python run.py --smoke` as the end-to-end execution check (see
+   "Stage-2 smoke gate" below). PASS / FAIL / TIMEOUT is reported
+   verbatim to the experimenter; FAIL or TIMEOUT blocks the build,
+   1 retry allowed.
+7. **Report back to the experimenter** with the artifacts, the
+   borrow route per paper, the behavioral-check results, the smoke-gate
+   outcome, and any extraction that could not be fitted faithfully. The
+   experimenter runs the critic gates and routes the user-check
+   (Seam B) before any run is trusted.
 
 Stage 2 does **not** itself decide the design, write `design.md`, or
 interpret results — those are the experimenter's and evaluator's.
+
+## Stage-2 smoke gate (`run.py --smoke`)
+
+The fidelity gates (critic) cover the static question "does the code
+faithfully implement what the paper says". They cannot tell you that
+`run.py` actually executes end-to-end on the synthetic inputs `design.md`
+describes. The smoke gate is that runtime check, ordered **after** the
+critic's gates pass and **before** the coder reports back — so a smoke
+run is never wasted on code the critic will reject.
+
+### What `--smoke` must mean
+
+`run.py` must accept a `--smoke` flag whose code path is the smallest
+end-to-end execution that still touches every variant the experiment
+will run. Specifically:
+
+- **One condition per variant** (component-surgery: one slug per
+  `methods/<slug>/extracted.py`; extension regime: the single extended
+  variant plus the base condition if `design.md` calls for one).
+- **One seed**, **one batch**, **one epoch** (or whatever the smallest
+  semantically valid unit is for this design).
+- **No checkpointing, no plotting, no large-file I/O.** The smoke run
+  must not write to `results/` proper. If intermediate scratch output
+  is unavoidable, write to `results/.smoke/` and remove that folder
+  before `run.py` exits.
+- **Exits non-zero on any unhandled exception**, including a CUDA OOM
+  or a shape mismatch from the slot Protocol.
+- **Deterministic** — the seed is the same one `design.md` §4 names.
+
+### Timeout (per-machine)
+
+Cap the run at the Stage-2 timeout from
+`tools.paths.coder_smoke_timeouts()` (default 60s; user-configurable in
+`paperlab.config.yaml` under `coder_smoke_timeout.stage2` for slower
+hardware). On exceeding the budget, kill the process and report
+TIMEOUT. The user fixes by either bumping the config (slow hardware)
+or fixing the hang (real bug).
+
+### Verdict + retry
+
+| Outcome | Reported as | Action |
+|---|---|---|
+| Exit 0 within budget | `Smoke gate: PASS (Ns)` | Proceed to report-back. |
+| Exit non-zero | `Smoke gate: FAIL (...)` | 1 retry: fix and re-run. Second FAIL → report and end the turn; do not claim success. Leave the failing code in place. |
+| Hit timeout | `Smoke gate: TIMEOUT (Ns)` | 1 retry (with caveat: a real hang will TIMEOUT again). Second TIMEOUT → report and end the turn; suggest bumping `coder_smoke_timeout.stage2` if hardware-bound, or inspecting for an infinite loop. |
+
+On FAIL or TIMEOUT, include a stderr excerpt (last ~20 lines) in the
+report so the user can read the failure without re-running.
+
+### When the gate is skipped
+
+The default is to run the smoke gate for both regimes. It is skipped
+only when `design.md` explicitly says so (a rare case where the
+opportunistic behavioral-equivalence check covers the same ground —
+typical for some single-attribute extension experiments). Record the
+skip with `Smoke gate: SKIPPED — <reason from design.md §N>` in the
+report-back.
 
 ## Failure surfacing (no silent drops)
 
@@ -483,6 +552,11 @@ interpret results — those are the experimenter's and evaluator's.
   why).
 - Any unfittable extraction is surfaced for `design.md`/`findings.md`, not
   silently omitted.
+- `run.py` accepts `--smoke` (one condition per variant, one seed, one
+  batch, no checkpointing/plotting, deterministic, exits non-zero on
+  any error). The smoke gate ran after the critic's gates and reported
+  PASS / FAIL / TIMEOUT to the experimenter (or SKIPPED with a
+  `design.md` reason).
 
 ## Stage-2 scope boundaries
 
@@ -624,10 +698,17 @@ escalate on exhaustion, record in `findings.md`).
 5. **Behavioral-equivalence check** (opportunistic) where the design
    permits a "neutral" setting that should reproduce the base method.
    Record PASS / skipped+why.
-6. **Report back to the experimenter** — artifacts, the override / compose
-   choice, behavioral-check outcome, and any extension that could not be
-   expressed without duplicating the base. The experimenter runs the
-   extension-fidelity gate before any run is trusted.
+6. **Smoke gate.** After the experimenter's extension-fidelity gate
+   passes, run `python run.py --smoke` per "Stage-2 smoke gate" above
+   (same semantics: one condition, one seed, one batch, no
+   checkpointing/plotting; same per-machine timeout
+   `coder_smoke_timeout.stage2`; same 1-retry policy on FAIL or
+   TIMEOUT).
+7. **Report back to the experimenter** — artifacts, the override / compose
+   choice, behavioral-check outcome, smoke-gate outcome, and any
+   extension that could not be expressed without duplicating the base.
+   The experimenter runs the extension-fidelity gate before any run
+   is trusted.
 
 ## Extension-regime self-checks
 
@@ -642,6 +723,10 @@ escalate on exhaustion, record in `findings.md`).
 - Behavioral-equivalence outcome recorded (PASS / skipped + why).
 - Any unexpressible extension is surfaced for `design.md`/`findings.md`,
   not silently rewritten.
+- `run.py --smoke` was run after the extension-fidelity gate passed
+  and reported PASS / FAIL / TIMEOUT to the experimenter (or SKIPPED
+  with a `design.md` reason). On FAIL/TIMEOUT after one retry, the
+  failing code is left in place and success is not claimed.
 
 ## Extension-regime scope boundaries
 
