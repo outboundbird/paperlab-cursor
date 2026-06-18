@@ -364,22 +364,24 @@ tags:
 ## Verification gate (inline, before writing `design.md`)
 
 `design.md` lives under `experiments/<topic>/`, which the post-hoc
-verifier hook skips. The experimenter runs the gate inline before
-declaring the design complete.
+verifier hook skips. The experimenter runs an inline **LaTeX gate**
+before declaring the design complete.
 
-Run **LaTeX first, then citations**, each with retry budget max 2:
+**LaTeX gate.** `latex-verifier` Mode A on the resolved `design.md`
+path. PASS → continue. FAIL → fix each named error, rewrite,
+re-verify. Max 2 cycles; if still failing, disclose remaining
+errors in the report. Drafts with no math skip the gate.
 
-1. **LaTeX gate.** `latex-verifier` Mode A on the resolved
-   `design.md` path. PASS → continue. FAIL → fix each named error,
-   rewrite, re-verify. Max 2 cycles; if still failing, disclose
-   remaining errors in the report.
-2. **Citation gate.** `citation-verifier` Mode A on the same file,
-   passing `--slug <first paper slug>` (cache key). PASS (no
-   `mismatched`) → done; surface any `unresolved` warnings without
-   blocking. FAIL → fix, rewrite, re-verify. Max 2 cycles; disclose
-   remaining mismatches if exhausted.
-
-Drafts with no math/citations skip the relevant gate.
+**No citation gate.** Unlike the comparator, the experimenter does
+not run a citation gate on `design.md`. Rationale: `design.md`
+composes material from upstream agents whose external citations are
+already gated (`spec.md` LaTeX-gated by the dissector;
+`comparison.md` inline-gated by the comparator). Novel external
+citations introduced in `design.md` itself are rare in practice, and
+the artifact is reviewed conversationally with the user before
+write. Revisit this decision if a hallucinated citation lands in
+`design.md` in practice (`AGENTS.md` § Verifier system records the
+trigger).
 
 ## Self-checks
 
@@ -405,5 +407,5 @@ Before reporting the design complete:
   component + `code_map.md` source — concrete enough for the coder.
 - §6 commits to a pinned seed and names the stress lever.
 - §5.3 names metrics, baselines, and seed count.
-- The inline LaTeX + citation gates ran (or were correctly skipped).
+- The inline LaTeX gate ran (or was correctly skipped — no math).
 - The user was told the implement / evaluate hand-off status.

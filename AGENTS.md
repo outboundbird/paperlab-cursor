@@ -157,31 +157,66 @@ acts on.
 
 ### Two trigger paths
 
-1. **Inline gate (Tutor, Explainer, Dissector, Comparator) — primary
-   path.** Runs *before* emission / before declaring output complete.
-   LaTeX first, citations second, with **separate retry budgets**
-   (max 2 each). The Tutor's gate is the reference spec
-   (`ml-tutor/SKILL.md` § R10 / R11); the Dissector gates `spec.md`
-   (LaTeX only via the post-hoc hook for citations) and the Comparator
-   gates `comparison.md` (both, since the post-hoc hook skips its
-   `experiments/` tree).
-   Outcomes are logged per-row in `tutor_log.md` (Tutor) or returned
-   via the report-back to the Tutor (Explainer). Failed citations
-   only fail the gate when `mismatched`; `unresolved` warnings are
-   reported via a disclosure block but do not block emission, because
-   transient resolver issues (proxy, rate limit, quota) commonly
-   affect valid citations.
+1. **Inline gate (Tutor, Explainer, Dissector, Comparator,
+   Experimenter, Evaluator) — primary path.** Runs *before* emission /
+   before declaring output complete. LaTeX first, citations second,
+   with **separate retry budgets** (max 2 each). The Tutor's gate is
+   the reference spec (`ml-tutor/SKILL.md` § R10 / R11); the
+   Dissector gates `spec.md` (LaTeX only via the post-hoc hook for
+   citations) and the Comparator gates `comparison.md` (both, since
+   the post-hoc hook skips its `experiments/` tree). The
+   **Experimenter** (`design.md`) and **Evaluator** (`findings.md`)
+   gate **LaTeX only** — see "Asymmetry on the experiments tree"
+   below. Outcomes are logged per-row in `tutor_log.md` (Tutor) or
+   returned via the report-back to the Tutor (Explainer). Failed
+   citations only fail the gate when `mismatched`; `unresolved`
+   warnings are reported via a disclosure block but do not block
+   emission, because transient resolver issues (proxy, rate limit,
+   quota) commonly affect valid citations.
 2. **Post-hoc hook — backstop for non-gated agents.** When any agent
    other than `tutor` or `explainer-intermediate` writes a `.md`
    file under a per-paper `<slug>/` vault folder, `.cursor/hooks.json`
    fires `tools/hooks/verify_on_vault_write.py`. The hook skips the
    `experiments/<topic>/` tree (multi-paper files have no single
-   `<slug>` and are gated inline by the comparator). The hook runs both
-   verifiers sequentially on the saved file, appends two blocks
-   (one per verifier) to `vault_path(slug, "verifier_log.md")`, and
-   returns a combined `additional_context` message so the calling
-   agent sees the result in chat. The hook fails open: any crash is
-   logged to stderr and the file write is never blocked.
+   `<slug>` and are gated inline by the comparator, experimenter, and
+   evaluator — see "Asymmetry on the experiments tree" below). The
+   hook runs both verifiers sequentially on the saved file, appends
+   two blocks (one per verifier) to
+   `vault_path(slug, "verifier_log.md")`, and returns a combined
+   `additional_context` message so the calling agent sees the result
+   in chat. The hook fails open: any crash is logged to stderr and
+   the file write is never blocked.
+
+### Asymmetry on the experiments tree (LaTeX yes, citations no for `design.md` / `findings.md`)
+
+The post-hoc hook skips `experiments/<topic>/`, so its three
+artifacts are inline-gated. They split LaTeX vs. citation coverage:
+
+| Artifact | Writer | LaTeX gate | Citation gate |
+|---|---|---|---|
+| `comparison.md` | `comparator` | inline | inline |
+| `design.md` | `experimenter` (Build-implement) | inline | **none** |
+| `findings.md` | `evaluator` (Build-evaluate) | inline | **none** |
+
+**Rationale for omitting the citation gate on `design.md` and
+`findings.md`** (decision recorded 2026-06-18, see
+`log/2026-06-18-experimenter-evaluator-latex-gate.md` and
+`log/2026-06-17-evaluator-experimenter-gaps.md` for the gaps that
+prompted it). Both files compose material from upstream agents
+whose external citations are already gated: `spec.md` (LaTeX-gated
+by the dissector), `comparison.md` (inline-gated by the
+comparator), and `code_map.md` / `critic_reviews.md` (post-hoc
+hooked). Novel external citations introduced inside `design.md` or
+`findings.md` themselves are rare in practice — `[A]`-tagged claims
+resolve to upstream references; the experimenter constructs
+`design.md` conversationally with the user before write; and
+`findings.md` is anchored in run-output JSON, not literature. The
+LaTeX surface is non-trivial in both files (metric formulas,
+hypothesis math, restated equations), so LaTeX is gated.
+
+**Revisit trigger.** If a hallucinated arXiv ID, DOI, or URL — or a
+mismatched citation metadata — lands in either file in practice,
+add a citation gate to the offending writer and update this table.
 
 ### What flips a verdict
 

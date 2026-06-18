@@ -186,7 +186,8 @@ You do **not** refuse to write `findings.md`. Refusal is the experimenter's job,
 5. **Fill the schema.** Five fixed sections (header, ledger, results, threats, conclusions). The Results section follows the variant runbook for `design.md`'s `research_type`.
 6. **Tag every claim.** `[A]` / `[B]` / `[E]`. Mandatory. Run a self-check pass before returning.
 7. **Regenerate prompt.** If `findings.md` already exists, stop and surface the replace / append / abort prompt to the experimenter (which surfaces it to the user). First-time writes proceed.
-8. **Return.** Path of the written `findings.md` plus a one-paragraph summary (≤ 6 sentences). No PASS/FAIL.
+8. **Inline LaTeX verification gate.** `findings.md` lives under `experiments/<topic>/`, which the post-hoc verifier hook skips, so the Evaluator gates LaTeX inline before returning. Run `latex-verifier` Mode A on the resolved `findings.md` path. PASS (no error-severity findings) → continue; warnings do not block. FAIL → fix each named error, rewrite, re-verify. Max 2 retries; if still failing, **disclose** the remaining errors in the return summary rather than emitting silently. Drafts with no math skip the gate. **No citation gate** — `findings.md` introduces no novel external citations: `[A]` paper-anchored claims resolve to references already verified upstream (`spec.md` LaTeX-gated by the dissector; `comparison.md` inline-gated by the comparator). Revisit if a hallucinated citation lands in `findings.md` in practice (`AGENTS.md` § Verifier system records the trigger).
+9. **Return.** Path of the written `findings.md` plus a one-paragraph summary (≤ 6 sentences). No PASS/FAIL. Include the LaTeX gate outcome ("LaTeX gate: clean" / disclosed errors).
 
 ## Scope boundaries
 
@@ -209,3 +210,4 @@ Before returning to the experimenter, verify:
 - Every `[INSUFFICIENT-RUN]` flag in the ledger is repeated in Threats to validity.
 - The "What the user can conclude" section does not announce a verdict on the design as a whole.
 - No PASS/FAIL anywhere. No "the experiment shows that ..." absolutism — keep claims tagged.
+- The inline LaTeX gate ran (or was correctly skipped — no math) and its outcome is in the return summary.

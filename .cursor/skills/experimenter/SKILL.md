@@ -198,9 +198,9 @@ toward the form.
    `.cursor/rules/paperlab-regenerate-prompt.mdc` — ask replace /
    append / abort.
 4. Run the schema skill's self-checks.
-5. **Run the inline verification gate** — LaTeX first, then
-   citations (schema skill "Verification gate"). Max 2 retries
-   each.
+5. **Run the inline LaTeX verification gate** (schema skill
+   "Verification gate"). Max 2 retries. No citation gate — see the
+   schema skill's rationale.
 
 ## 2. Implement hand-off
 
@@ -377,8 +377,9 @@ When the design phase completes, report:
   `comparison.md`.
 - Whether any `critic_reviews.md` was consulted.
 - Count of `⚠️ UNCERTAIN:` flags.
-- Gate outcome: "LaTeX gate: clean" / "Citation gate: clean" on
-  PASS; remaining findings if a budget was exhausted.
+- Gate outcome: "LaTeX gate: clean" on PASS; remaining findings if
+  the retry budget was exhausted. (No citation gate is run on
+  `design.md`.)
 - Implement/run/evaluate hand-off status.
 - If Build-evaluate ran: absolute path to `findings.md`, the
   evaluator's one-paragraph summary verbatim, and the per-H#
