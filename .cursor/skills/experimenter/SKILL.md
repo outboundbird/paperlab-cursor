@@ -255,14 +255,28 @@ where it fits.
 
 ### Smoke gate (after critic gate, both regimes)
 
-After the critic's fidelity gate passes, the `coder` runs `python
-run.py --smoke` as the end-to-end execution check
-(`ml-experiment-code` § "Stage-2 smoke gate") and reports a single
-line in its hand-back: `Smoke gate: PASS (Ns)`,
-`Smoke gate: FAIL (...)`, `Smoke gate: TIMEOUT (Ns)`, or
-`Smoke gate: SKIPPED — <reason from design.md §N>`.
+The smoke gate is a **second coder invocation**, not part of the
+build invocation. The full Stage-2 sequence is:
 
-The experimenter's job is to **gate Build-evaluate on this line**:
+1. **Coder invocation #1 (build).** You invoke the coder; it writes
+   the artifacts and hands back (the coder's Phase-1 hand-back per
+   `ml-experiment-code` § Stage 2).
+2. **Critic fidelity gate** (you run it on the artifacts). FAIL →
+   relay to coder, retry max 2, escalate on exhaustion. PASS →
+   continue.
+3. **Coder invocation #2 (smoke gate only).** You re-invoke the
+   coder explicitly for the smoke gate. The coder runs `python
+   run.py --smoke` (`ml-experiment-code` § "Stage-2 smoke gate"),
+   retries once on FAIL/TIMEOUT per its own policy, and reports a
+   single line in its Phase-2 hand-back: `Smoke gate: PASS (Ns)`,
+   `Smoke gate: FAIL (...)`, `Smoke gate: TIMEOUT (Ns)`, or
+   `Smoke gate: SKIPPED — <reason from design.md §N>`.
+
+Two invocations, not one — so a smoke run is never wasted on code
+the critic rejects, and the coder never gets to vouch for its own
+output (the firewall).
+
+Your job is to **gate Build-evaluate on the Phase-2 line**:
 
 - **PASS or SKIPPED** — proceed normally; route the user-review-of-code
   step (and Seam-B in component surgery) before the user kicks off
