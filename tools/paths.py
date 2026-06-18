@@ -96,6 +96,33 @@ def vault_root() -> Path:
     return Path(load_config()["vault_paperlab_path"]).resolve()
 
 
+def coder_smoke_timeouts() -> tuple[int, int]:
+    """Per-machine timeouts for the coder's smoke gates, in seconds.
+
+    Returns ``(stage1, stage2)``: the budget for Stage-1
+    ``test_invariants.py`` and the budget for Stage-2 ``run.py --smoke``.
+
+    Configurable in ``paperlab.config.yaml`` under the ``coder_smoke_timeout``
+    key (both subkeys optional, with defaults below). The keys are
+    per-machine because the same code runs in seconds on a workstation and
+    minutes on a CPU-only laptop. Defaults assume a workstation:
+
+    .. code-block:: yaml
+
+        coder_smoke_timeout:
+          stage1: 30
+          stage2: 60
+
+    A smoke run that exceeds the budget is treated as FAIL by the coder
+    (per ``ml-experiment-code`` skill); bump the config and re-run on slow
+    hardware rather than disabling the gate.
+    """
+    cfg = load_config().get("coder_smoke_timeout") or {}
+    stage1 = int(cfg.get("stage1", 30))
+    stage2 = int(cfg.get("stage2", 60))
+    return stage1, stage2
+
+
 def obsidian_vault_root() -> Path | None:
     """Absolute path to the curated Obsidian vault root, if configured.
 

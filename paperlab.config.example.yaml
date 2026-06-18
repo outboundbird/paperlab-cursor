@@ -27,3 +27,16 @@ vault_paperlab_path: "C:/Users/<your-user>/path/to/Obsidian/Vault/.../PaperLab"
 # `prerequisite` and `explainer` agents may read from here to check whether you
 # have prior notes on assumed concepts. Read-only.
 obsidian_vault_root: "C:/Users/<your-user>/path/to/Obsidian/Vault"
+
+# (Optional) Per-machine timeouts in seconds for the coder's smoke gates.
+# These are PER-MACHINE because the same synthetic-input run takes seconds
+# on a workstation but several minutes on a low-RAM CPU-only laptop. Bump
+# both values on slow hardware; the coder treats timeout as FAIL, not skip.
+#
+# Defaults (used if this key or its subkeys are omitted) assume a
+# workstation-class machine:
+#   stage1 = 30   # `python test_invariants.py` (Stage 1 hop-2 guard)
+#   stage2 = 60   # `python run.py --smoke`     (Stage 2 end-to-end smoke)
+coder_smoke_timeout:
+  stage1: 30
+  stage2: 60
