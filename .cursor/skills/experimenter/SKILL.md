@@ -251,6 +251,34 @@ edit, not a silent regime change.
 critic flagged X — fix or document?"). Continue to prefer prose
 where it fits.
 
+### Smoke gate (after critic gate, both regimes)
+
+After the critic's fidelity gate passes, the `coder` runs `python
+run.py --smoke` as the end-to-end execution check
+(`ml-experiment-code` § "Stage-2 smoke gate") and reports a single
+line in its hand-back: `Smoke gate: PASS (Ns)`,
+`Smoke gate: FAIL (...)`, `Smoke gate: TIMEOUT (Ns)`, or
+`Smoke gate: SKIPPED — <reason from design.md §N>`.
+
+The experimenter's job is to **gate Build-evaluate on this line**:
+
+- **PASS or SKIPPED** — proceed normally; route the user-review-of-code
+  step (and Seam-B in component surgery) before the user kicks off
+  the real run.
+- **FAIL or TIMEOUT** — do **not** route the user-review-of-code step
+  yet, and do **not** transition to Build-evaluate. Relay the
+  smoke-gate line and stderr excerpt verbatim to the user, surface
+  whether the cause looks like a code bug or a hardware-bound
+  timeout (suggest bumping `coder_smoke_timeout.stage2` in
+  `paperlab.config.yaml` for the latter), and end the turn. The
+  coder has already retried once per its own policy — the
+  experimenter does not retry; the user fixes and re-invokes the
+  Build-implement step.
+
+The smoke gate is the runtime sibling of the critic's static gate;
+together they are why a Build-evaluate transition is trustworthy. Do
+not skip either.
+
 ## 3. Build-evaluate sub-phase
 
 Triggered by either (a) the user signaling in this chat that a run
@@ -274,10 +302,13 @@ you invoke the evaluator.
 
 ## Pause discipline (no premature evaluation)
 
-Never invoke the `evaluator` on empty or missing results. If
-Build-implement has emitted a run command but the user has not yet
-executed it (or the run is in progress), pause the chat with a
-clear instruction:
+Never invoke the `evaluator` on empty or missing results, **or on a
+build whose smoke gate did not PASS / SKIP** (a FAIL or TIMEOUT means
+`run.py` does not actually execute end-to-end on the design's
+synthetic inputs, so any results in `run/results/` are stale or
+invalid). If Build-implement has emitted a run command but the user
+has not yet executed it (or the run is in progress), pause the chat
+with a clear instruction:
 
 > Run `<command>` and ping me when done — or close this chat and
 > re-open `/experimenter <topic>` after the run finishes; I'll
