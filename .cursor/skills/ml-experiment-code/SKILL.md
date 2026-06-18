@@ -456,17 +456,26 @@ result in as evidence.
    collect into `results/`. Seed everything.
 5. **Behavioral-equivalence checks** (coder) where feasible; record
    PASS/skip per paper to hand to the critic gate.
-6. **Smoke gate.** After the experimenter's critic gates (extraction-
-   fidelity Check A + scaffold-fidelity Check B) have passed, run
-   `python run.py --smoke` as the end-to-end execution check (see
-   "Stage-2 smoke gate" below). PASS / FAIL / TIMEOUT is reported
-   verbatim to the experimenter; FAIL or TIMEOUT blocks the build,
-   1 retry allowed.
-7. **Report back to the experimenter** with the artifacts, the
-   borrow route per paper, the behavioral-check results, the smoke-gate
-   outcome, and any extraction that could not be fitted faithfully. The
-   experimenter runs the critic gates and routes the user-check
-   (Seam B) before any run is trusted.
+6. **Phase-1 hand-back** to the experimenter with the artifacts, the
+   borrow route per paper, the behavioral-check results, and any
+   extraction that could not be fitted faithfully. **Stop here.** The
+   experimenter now runs the critic gates (extraction-fidelity Check A
+   + scaffold-fidelity Check B) on the artifacts and decides whether to
+   re-invoke the coder for the smoke gate.
+
+Steps 7-8 below run in a **second coder invocation**, triggered by
+the experimenter only after both critic gates pass. The split exists
+so a smoke run is never wasted on code the critic will reject (the
+firewall: the coder does not self-certify fidelity).
+
+7. **Smoke gate (Phase 2, re-invocation only).** Run `python run.py
+   --smoke` as the end-to-end execution check (see "Stage-2 smoke
+   gate" below). 1 retry allowed on FAIL/TIMEOUT.
+8. **Phase-2 hand-back** with the single-line smoke-gate verdict
+   (`Smoke gate: PASS (Ns)` / `FAIL (...)` / `TIMEOUT (Ns)` /
+   `SKIPPED — <reason>`) and a stderr excerpt on FAIL/TIMEOUT. The
+   experimenter routes the Seam-B user-check on PASS/SKIPPED, refuses
+   the Build-evaluate transition on FAIL/TIMEOUT.
 
 Stage 2 does **not** itself decide the design, write `design.md`, or
 interpret results — those are the experimenter's and evaluator's.
@@ -698,17 +707,25 @@ escalate on exhaustion, record in `findings.md`).
 5. **Behavioral-equivalence check** (opportunistic) where the design
    permits a "neutral" setting that should reproduce the base method.
    Record PASS / skipped+why.
-6. **Smoke gate.** After the experimenter's extension-fidelity gate
-   passes, run `python run.py --smoke` per "Stage-2 smoke gate" above
-   (same semantics: one condition, one seed, one batch, no
-   checkpointing/plotting; same per-machine timeout
-   `coder_smoke_timeout.stage2`; same 1-retry policy on FAIL or
-   TIMEOUT).
-7. **Report back to the experimenter** — artifacts, the override / compose
-   choice, behavioral-check outcome, smoke-gate outcome, and any
-   extension that could not be expressed without duplicating the base.
-   The experimenter runs the extension-fidelity gate before any run
-   is trusted.
+6. **Phase-1 hand-back** to the experimenter — artifacts, the override
+   / compose choice, behavioral-check outcome, and any extension that
+   could not be expressed without duplicating the base. **Stop here.**
+   The experimenter now runs the extension-fidelity gate and decides
+   whether to re-invoke the coder for the smoke gate.
+
+Steps 7-8 run in a **second coder invocation**, triggered by the
+experimenter only after the extension-fidelity gate passes (same
+firewall as component surgery — the coder does not self-certify).
+
+7. **Smoke gate (Phase 2, re-invocation only).** Run `python run.py
+   --smoke` per "Stage-2 smoke gate" above (same semantics: one
+   condition, one seed, one batch, no checkpointing/plotting; same
+   per-machine timeout `coder_smoke_timeout.stage2`; same 1-retry
+   policy on FAIL/TIMEOUT).
+8. **Phase-2 hand-back** with the single-line smoke-gate verdict and
+   a stderr excerpt on FAIL/TIMEOUT. The experimenter routes the
+   user-review-of-code step on PASS/SKIPPED, refuses the
+   Build-evaluate transition on FAIL/TIMEOUT.
 
 ## Extension-regime self-checks
 
