@@ -469,8 +469,9 @@ so a smoke run is never wasted on code the critic will reject (the
 firewall: the coder does not self-certify fidelity).
 
 7. **Smoke gate (Phase 2, re-invocation only).** Run `python run.py
-   --smoke` as the end-to-end execution check (see "Stage-2 smoke
-   gate" below). 1 retry allowed on FAIL/TIMEOUT.
+   --smoke` as the end-to-end execution check (see § "STAGE 2 —
+   Smoke gate (shared by both regimes)" below). 1 retry allowed on
+   FAIL/TIMEOUT.
 8. **Phase-2 hand-back** with the single-line smoke-gate verdict
    (`Smoke gate: PASS (Ns)` / `FAIL (...)` / `TIMEOUT (Ns)` /
    `SKIPPED — <reason>`) and a stderr excerpt on FAIL/TIMEOUT. The
@@ -479,63 +480,6 @@ firewall: the coder does not self-certify fidelity).
 
 Stage 2 does **not** itself decide the design, write `design.md`, or
 interpret results — those are the experimenter's and evaluator's.
-
-## Stage-2 smoke gate (`run.py --smoke`)
-
-The fidelity gates (critic) cover the static question "does the code
-faithfully implement what the paper says". They cannot tell you that
-`run.py` actually executes end-to-end on the synthetic inputs `design.md`
-describes. The smoke gate is that runtime check, ordered **after** the
-critic's gates pass and **before** the coder reports back — so a smoke
-run is never wasted on code the critic will reject.
-
-### What `--smoke` must mean
-
-`run.py` must accept a `--smoke` flag whose code path is the smallest
-end-to-end execution that still touches every variant the experiment
-will run. Specifically:
-
-- **One condition per variant** (component-surgery: one slug per
-  `methods/<slug>/extracted.py`; extension regime: the single extended
-  variant plus the base condition if `design.md` calls for one).
-- **One seed**, **one batch**, **one epoch** (or whatever the smallest
-  semantically valid unit is for this design).
-- **No checkpointing, no plotting, no large-file I/O.** The smoke run
-  must not write to `results/` proper. If intermediate scratch output
-  is unavoidable, write to `results/.smoke/` and remove that folder
-  before `run.py` exits.
-- **Exits non-zero on any unhandled exception**, including a CUDA OOM
-  or a shape mismatch from the slot Protocol.
-- **Deterministic** — the seed is the same one `design.md` §4 names.
-
-### Timeout (per-machine)
-
-Cap the run at the Stage-2 timeout from
-`tools.paths.coder_runtime_timeouts()` (default 60s; user-configurable in
-`paperlab.config.yaml` under `coder_smoke_timeout.stage2` for slower
-hardware). On exceeding the budget, kill the process and report
-TIMEOUT. The user fixes by either bumping the config (slow hardware)
-or fixing the hang (real bug).
-
-### Verdict + retry
-
-| Outcome | Reported as | Action |
-|---|---|---|
-| Exit 0 within budget | `Smoke gate: PASS (Ns)` | Proceed to report-back. |
-| Exit non-zero | `Smoke gate: FAIL (...)` | 1 retry: fix and re-run. Second FAIL → report and end the turn; do not claim success. Leave the failing code in place. |
-| Hit timeout | `Smoke gate: TIMEOUT (Ns)` | 1 retry (with caveat: a real hang will TIMEOUT again). Second TIMEOUT → report and end the turn; suggest bumping `coder_smoke_timeout.stage2` if hardware-bound, or inspecting for an infinite loop. |
-
-On FAIL or TIMEOUT, include a stderr excerpt (last ~20 lines) in the
-report so the user can read the failure without re-running.
-
-### When the gate is skipped
-
-The default is to run the smoke gate for both regimes. It is skipped
-only when `design.md` explicitly says so (a rare case where the
-opportunistic behavioral-equivalence check covers the same ground —
-typical for some single-attribute extension experiments). Record the
-skip with `Smoke gate: SKIPPED — <reason from design.md §N>` in the
-report-back.
 
 ## Failure surfacing (no silent drops)
 
@@ -576,6 +520,71 @@ report-back.
 - Does not alter what an extracted component computes to make it fit.
 - Does not own the fidelity verdict — the critic does; the coder only
   builds and runs the behavioral check.
+
+---
+
+# STAGE 2 — Smoke gate (shared by both regimes)
+
+The fidelity gates (critic) cover the static question "does the code
+faithfully implement what the paper says". They cannot tell you that
+`run.py` actually executes end-to-end on the synthetic inputs `design.md`
+describes. The smoke gate is that runtime check, ordered **after** the
+critic's gates pass and **before** the coder reports back — so a smoke
+run is never wasted on code the critic will reject.
+
+This section applies to **both** Stage-2 regimes (component surgery
+above, extension regime below). The semantics, timeout, verdict +
+retry policy, and skip rule are identical; only the variant set differs
+(one slug per `methods/<slug>/extracted.py` vs. the single
+`extended.py` plus an optional base condition).
+
+## What `--smoke` must mean
+
+`run.py` must accept a `--smoke` flag whose code path is the smallest
+end-to-end execution that still touches every variant the experiment
+will run. Specifically:
+
+- **One condition per variant** (component-surgery: one slug per
+  `methods/<slug>/extracted.py`; extension regime: the single extended
+  variant plus the base condition if `design.md` calls for one).
+- **One seed**, **one batch**, **one epoch** (or whatever the smallest
+  semantically valid unit is for this design).
+- **No checkpointing, no plotting, no large-file I/O.** The smoke run
+  must not write to `results/` proper. If intermediate scratch output
+  is unavoidable, write to `results/.smoke/` and remove that folder
+  before `run.py` exits.
+- **Exits non-zero on any unhandled exception**, including a CUDA OOM
+  or a shape mismatch from the slot Protocol.
+- **Deterministic** — the seed is the same one `design.md` §4 names.
+
+## Timeout (per-machine)
+
+Cap the run at the Stage-2 timeout from
+`tools.paths.coder_runtime_timeouts()` (default 60s; user-configurable in
+`paperlab.config.yaml` under `coder_smoke_timeout.stage2` for slower
+hardware). On exceeding the budget, kill the process and report
+TIMEOUT. The user fixes by either bumping the config (slow hardware)
+or fixing the hang (real bug).
+
+## Verdict + retry
+
+| Outcome | Reported as | Action |
+|---|---|---|
+| Exit 0 within budget | `Smoke gate: PASS (Ns)` | Proceed to report-back. |
+| Exit non-zero | `Smoke gate: FAIL (...)` | 1 retry: fix and re-run. Second FAIL → report and end the turn; do not claim success. Leave the failing code in place. |
+| Hit timeout | `Smoke gate: TIMEOUT (Ns)` | 1 retry (with caveat: a real hang will TIMEOUT again). Second TIMEOUT → report and end the turn; suggest bumping `coder_smoke_timeout.stage2` if hardware-bound, or inspecting for an infinite loop. |
+
+On FAIL or TIMEOUT, include a stderr excerpt (last ~20 lines) in the
+report so the user can read the failure without re-running.
+
+## When the gate is skipped
+
+The default is to run the smoke gate for both regimes. It is skipped
+only when `design.md` explicitly says so (a rare case where the
+opportunistic behavioral-equivalence check covers the same ground —
+typical for some single-attribute extension experiments). Record the
+skip with `Smoke gate: SKIPPED — <reason from design.md §N>` in the
+report-back.
 
 ---
 
@@ -718,10 +727,10 @@ experimenter only after the extension-fidelity gate passes (same
 firewall as component surgery — the coder does not self-certify).
 
 7. **Smoke gate (Phase 2, re-invocation only).** Run `python run.py
-   --smoke` per "Stage-2 smoke gate" above (same semantics: one
-   condition, one seed, one batch, no checkpointing/plotting; same
-   per-machine timeout `coder_smoke_timeout.stage2`; same 1-retry
-   policy on FAIL/TIMEOUT).
+   --smoke` per § "STAGE 2 — Smoke gate (shared by both regimes)"
+   above (same semantics: one condition, one seed, one batch, no
+   checkpointing/plotting; same per-machine timeout
+   `coder_smoke_timeout.stage2`; same 1-retry policy on FAIL/TIMEOUT).
 8. **Phase-2 hand-back** with the single-line smoke-gate verdict and
    a stderr excerpt on FAIL/TIMEOUT. The experimenter routes the
    user-review-of-code step on PASS/SKIPPED, refuses the
