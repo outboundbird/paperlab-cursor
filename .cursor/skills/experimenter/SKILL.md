@@ -221,8 +221,9 @@ Then run the **critic extraction-fidelity gate** (backend) on the
 coder's artifacts (`scaffold.py`, each `methods/<slug>/extracted.py`,
 `run.py`). On FAIL, relay findings to the coder (retry max 2); on
 exhaustion, escalate to the user and record the blocked variant in
-`findings.md` — do not drop it silently. On PASS, route the
-**Seam-B user-check** (user reviews the written code) before any run.
+`findings.md` — do not drop it silently. On PASS, proceed to the
+**smoke gate** (below); the **Seam-B user-check** (user reviews
+the written code) is routed by the smoke-gate step, not here.
 
 **Single-method (exactly 1 member) → extension regime.** Used for
 ablations, sensitivity sweeps, planted-signal studies, reproductions,
@@ -240,8 +241,9 @@ scope** recorded in `design.md` (what is varied / added). Invoke
 Then run the **critic extension-fidelity gate** (backend) on the
 coder's artifacts (`methods/<slug>/extended.py`, `run.py`). Same retry
 + escalation policy as extraction-fidelity. There is no Seam-B check
-in extension regime (no scaffold), but the user-review-of-code step
-still applies before run.
+in extension regime (no scaffold). On PASS, proceed to the **smoke
+gate** (below); the user-review-of-code step is routed by the
+smoke-gate step, not here.
 
 If the experiment grows a second method later, the experimenter
 **promotes** it to component surgery — this is a deliberate `design.md`
