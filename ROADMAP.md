@@ -88,13 +88,14 @@ Designed but deferred until the units above are stable. *(No items currently par
 
 Things explicitly deferred during design, with the reason. Each entry should be specific enough to act on without rereading the conversation that produced it.
 
-### Two-way sync of `notes.md` between vault and repo
+### Citation gate on `design.md` / `findings.md` — intentionally omitted
 
-- **What:** if `notes.md` ever needs to be edited from outside Obsidian.
-- **Why deferred:** current model is vault-only; no demonstrated need.
-- **Trigger to revisit:** if user wants to add notes from a machine without the vault.
-- **Estimated effort:** small.
-- **Notes:** none.
+Deliberate design choice (settled 2026-06-18), not an unmet gap.
+
+- **What:** `experimenter` (`design.md`) and `evaluator` (`findings.md`) gate **LaTeX only**; they run no citation gate. `comparator` (`comparison.md`, same `experiments/<topic>/` tree) gates both. The post-hoc hook skips this tree, so the inline gate is each writer's sole verification path.
+- **Why:** both files compose material from upstream agents whose external citations are already gated (`spec.md`, `comparison.md`, `code_map.md`, `critic_reviews.md`). Novel external citations introduced *inside* `design.md` / `findings.md` are rare — `design.md` is built conversationally with the user, `findings.md` is anchored in run-output JSON, not literature. The LaTeX surface (metric formulas, restated equations) is non-trivial, so LaTeX is gated.
+- **Trigger to revisit:** a hallucinated arXiv ID, DOI, URL, or mismatched citation metadata observed in either file in practice — then add a citation gate to the offending writer (mirror the comparator's R11). Effort: small (one skill section).
+- **See:** [`AGENTS.md`](./AGENTS.md) § Verifier system; `log/2026-06-18-experimenter-evaluator-latex-gate.md`, `log/2026-06-17-evaluator-experimenter-gaps.md`.
 
 ## Known limitations
 
@@ -113,13 +114,6 @@ Things the system can't do, with workarounds where they exist.
 - **Workaround:** keep `vault_paperlab_path` ASCII (no emoji, no non-BMP characters; spaces tolerated but discouraged). Folders elsewhere in the Obsidian vault — siblings, ancestors, per-paper children — may keep emojis freely. macOS and Linux are unaffected.
 - **See:** `AGENTS.md` § "Windows path warning for `vault_paperlab_path`" and the comment block above `vault_paperlab_path` in `paperlab.config.example.yaml`.
 - **Possible fix:** make `paper-info.md` use a placeholder like `{repo_root}/papers/<slug>/<slug>.pdf` that an Obsidian plugin or hook resolves at view time. Medium effort, low priority.
-
-### No citation gate on `design.md` / `findings.md`
-
-- **What:** the `experimenter` (writes `design.md`) and `evaluator` (writes `findings.md`) gate **LaTeX only** inline, not citations. The `comparator` (writes `comparison.md` in the same `experiments/<topic>/` tree) gates both. The post-hoc hook skips this tree entirely, so citations in `design.md` / `findings.md` are *unverified*.
-- **Why:** decision recorded 2026-06-18 — both files compose material from upstream agents whose external citations are already gated (`spec.md`, `comparison.md`, `code_map.md`, `critic_reviews.md`). Novel external citations inside `design.md` / `findings.md` themselves are rare; the artifacts are anchored in user conversation and run-output JSON respectively, not literature. LaTeX surface is non-trivial in both (metric formulas, restated equations), so LaTeX is gated.
-- **Revisit trigger:** observe a hallucinated arXiv ID, DOI, URL, or mismatched citation metadata in either file in practice, then add a citation gate to the offending writer (mirror the comparator's R11). Cost: one section in the relevant skill.
-- **See:** [`AGENTS.md`](./AGENTS.md) § Verifier system; `log/2026-06-18-experimenter-evaluator-latex-gate.md`, `log/2026-06-17-evaluator-experimenter-gaps.md`.
 
 ### Agents must resolve out-of-workspace vault code via the CLI before reading
 
