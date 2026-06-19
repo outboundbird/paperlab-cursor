@@ -1,4 +1,5 @@
-# paperlab
+# PaperLab
+![](paperlab-logo.png)
 
 `paperlab` is a multiagent system to help students understand papers in machine learning and deep learning.
 
