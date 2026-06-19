@@ -1,6 +1,6 @@
 # PaperLab: Agent-Assisted Reading Of ML Methods Papers
 
-PaperLab helps the user understand mathematics in machine learning and deep learning papers.
+PaperLab helps the user understand mathematics in machine learning and deep learning papers. **Normative contracts for subagents and skills are in this file (`AGENTS.md`) and in `.cursor/skills/`** — not in [`ARCHITECTURE.md`](./ARCHITECTURE.md), which is a human-oriented orchestration overview only.
 
 ## YAML front-matter
 
@@ -14,7 +14,7 @@ Every agent-generated markdown file under `<vault>/<slug>/` carries a YAML front
 - `concepts:` — list of `[[wiki-links]]` to canonical concept names this artifact touches (concept edges; the cross-paper connective tissue). Names come from the shared concept vocabulary (see "Graph index groundwork").
 - `tags:` — Obsidian tags.
 
-**Multi-paper variant (experimenter suite).** Files under `<vault>/experiments/<topic>/` span several papers, so they replace the singular `paper:` key with `topic: <topic>` and a `papers:` list of slugs. Example header keys, in order: `topic:`, `papers:` (list), `category:` (e.g. `comparison`), `agent:` (e.g. `comparator`), `status:`, `sources:`, `concepts:`, `tags:`. These files are verified by the comparator's **inline** gate, not the post-hoc hook (the hook skips the `experiments/` tree — see Verifier system).
+**Multi-paper variant (experimenter suite).** Files under `<vault>/experiments/<topic>/` span several papers, so they replace the singular `paper:` key with `topic: <topic>` and a `papers:` list of slugs. Example header keys, in order: `topic:`, `papers:` (list), `category:` (e.g. `comparison`), `agent:` (e.g. `comparator`), `status:`, `sources:`, `concepts:`, `tags:`. These files are verified by the comparator's **inline** gate, not the post-hoc hook (the hook skips the `experiments/` tree — see Verifier system below).
 
 ### Graph index groundwork
 
@@ -66,6 +66,7 @@ All agent-generated files live flat under one folder per paper at `<vault_paperl
 - `synth__<concept_a>__<concept_b>.md` — concept synthesis, written by the `tutor`.
 - `synth__<concept_a>__<concept_b>-<slug>.md` — paper-bound synthesis intermediate, written by the `explainer` (backend).
 - `notes.md` — user notes.
+- `code/` — Stage-1 runnable method code (`method.py`, `test_invariants.py`, optional bare `README.md` stub). **Exception to the usual repo/vault split:** this is the one place runnable `.py` lives in the vault (`vault_code_dir(slug)`). The post-hoc verifier hook targets `.md` only; this tree is guarded by runtime invariant asserts. The algorithm↔code **walkthrough** is **not** here — it is `code_map.md` from the `implementer`, audited by the `critic` ([`log/2026-06-04-codemap-from-coder-critic-audit.md`](./log/2026-06-04-codemap-from-coder-critic-audit.md)).
 
 The `experimenter` suite (see Cursor Subagents) writes outside the per-paper folders, under `<vault_paperlab_path>/experiments/<topic>/` (resolve via `vault_experiments_dir(topic)`):
 
@@ -143,6 +144,25 @@ Experimenter suite:
 - `evaluator` → `.cursor/skills/ml-evaluation/SKILL.md` (**shipped 2026-06-17**)
 
 Treat those skills as authoritative for output structure, naming, scope boundaries, and self-checks.
+
+## Decision framework: agent vs. skill vs. rule vs. hook vs. MCP
+
+Recorded so future-us does not re-derive it.
+
+1. Needs access outside the repo (API, DB, external file)? → **MCP**.
+2. Should run automatically on events, deterministically? → **Hook**.
+3. Is a *role* with judgment, multi-step? → **Subagent** (typically uses skills + MCPs).
+4. Is *reference material* loaded on demand for specific tasks? → **Skill**.
+5. Is an always-on (or glob-scoped) *constraint or convention*? → **Rule**.
+
+Litmus tests:
+
+- Skill vs. Rule: needed *sometimes* (skill) or *always when touching matching files* (rule)?
+- Skill vs. Subagent: *how to do it* (skill) vs. *thing that does it* (subagent)?
+- Subagent vs. Hook: needs *judgment* (subagent) vs. *deterministic reaction* (hook)?
+- MCP vs. nothing: a shell + `Read` won't cut it? → MCP.
+
+Anti-pattern: building a subagent for a deterministic transformation. Use a hook or script.
 
 ## Verifier system
 

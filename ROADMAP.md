@@ -1,72 +1,14 @@
 # PaperLab Roadmap
 
-Status as of 2026-06-16. Living document — items move between sections as their status changes.
+Status as of 2026-06-16 (living document). **`ARCHITECTURE.md` added 2026-06-19** — file layout and decision framework moved there; see [`log/2026-06-19-architecture-md.md`](./log/2026-06-19-architecture-md.md).
 
 ## File layout contract
 
-Two locations, clean split: **code and source material in the repo, agent-generated notes in the vault**.
+**For subagents:** authoritative repo/vault layout, `code/` exception, and conventions — [`AGENTS.md`](./AGENTS.md) § Where things live and § Unified file convention. **Human-oriented trees and narrative** — [`ARCHITECTURE.md`](./ARCHITECTURE.md) § File layout contract.
 
-### Repo (`paperlab-cursor/`)
-
-```
-paperlab-cursor/
-├── .cursor/                       agents, skills, rules
-├── papers/
-│   └── <slug>/
-│       ├── <slug>.pdf             paper PDF (large; git-ignored)
-│       ├── supplementals/         appendices, supplementary PDFs
-│       └── upstream/
-│           └── <slug>/            cloned official git repo
-├── sandbox/
-│   └── <slug>/                    toy experiments
-├── paperlab.config.yaml           per-machine, git-ignored
-├── paperlab.config.example.yaml   committed template
-├── AGENTS.md
-├── ROADMAP.md
-└── README.md
-```
-
-### Vault (Obsidian)
-
-All agent-generated files live flat under one folder per paper:
-
-```
-<vault_paperlab_path>/
-└── <slug>/
-    ├── paper-info.md
-    ├── spec.md
-    ├── code_map.md
-    ├── critic_reviews.md          critic: official-source audit (when code_map.md source is `official`)
-    ├── code_review.md              critic: reconstructed-source audit (when code_map.md source is `reconstructed`; sibling, same schema)
-    ├── tutor_log.md               tutor: per-turn breadcrumb log (append-only)
-    ├── tutor_notes.md             tutor: curated study notes (user-triggered)
-    ├── <concept>.md               tutor-written (final, user-facing)
-    ├── <concept>-<slug>.md        explainer-written (backend intermediate)
-    ├── synth__<a>__<b>.md         tutor-written (final, user-facing)
-    ├── synth__<a>__<b>-<slug>.md  explainer-written (backend intermediate)
-    ├── code/                      coder Stage-1 runnable method code (see note)
-    │   ├── method.py              hybrid Method interface; paper-natural guts
-    │   ├── test_invariants.py     blueprint §4 invariants as runtime asserts
-    │   └── README.md              optional bare run-stub (NOT a walkthrough)
-    └── notes.md                   user notes
-```
-
-**Exception to the code/notes split (2026-06-04):** the `coder`'s Stage-1 output is the one place runnable `.py` lives in the **vault** rather than the repo. Rationale: this per-paper method code is reusable, user-reviewable, and git-tracked alongside the notes it is derived from. It is contained — a dedicated `code/` subfolder (`vault_code_dir(slug)`), and the post-hoc verifier hook is scoped to `.md` so it ignores this code (which is guarded instead by its own invariant assertions). Everything else still obeys "code and source material in the repo, agent-generated notes in the vault."
-
-The algorithm↔code **walkthrough** for reconstructed code is **not** in `code/` — it is the implementer's `code_map.md` (the `reconstructed` source; the same artifact official-code papers get), audited by the critic against `spec.md` ([`log/2026-06-04-codemap-from-coder-critic-audit.md`](./log/2026-06-04-codemap-from-coder-critic-audit.md)). This keeps one walkthrough format/author and keeps documentation off the code's author (the coder).
+(Content summaries moved out of this roadmap on 2026-06-19; see [`log/2026-06-19-architecture-md.md`](./log/2026-06-19-architecture-md.md).)
 
 Current `vault_paperlab_path` (work machine): `C:/Users/e0482362/OneDrive - Sanofi/Workspace/Topics/public/Modeling/PaperLab` (ASCII-only — see Known limitations for why).
-
-### Cross-references
-
-- `paper-info.md` in the vault contains **absolute** links to the repo-side PDF and upstream code, constructed from `repo_root` in `paperlab.config.yaml`.
-- Absolute paths differ per machine. `paperlab.config.yaml` is per-machine and git-ignored. Each machine carries its own copy.
-
-### Unified file convention
-
-- One schema. No agent-only or user-only file variants.
-- On regeneration of an existing file, agents MUST ask: **replace**, **append**, or **abort**. See `.cursor/rules/paperlab-regenerate-prompt.mdc`.
-- All paper folders follow the same flat structure. No per-paper config files.
 
 ## Agents
 
@@ -83,29 +25,14 @@ Living table of all subagents in the project. Update whenever an agent ships, is
 | ♻️ ~~`visualizer`~~ | **Exported to independent project (2026-06-05)** | (archived) | ~~Concept-picture generator.~~ Spun out of PaperLab as a standalone project; archived on branch `visualizer` and tag `archive-visualizer-2026-05-27`. See `visualizer-todo.md`. | (Not in this project) |
 | ♻️ ~~`figure-verifier`~~ | **Exported to independent project (2026-06-05)** | (never authored) | ~~Pass/fail check on rendered figures.~~ Part of the exported visualizer project. | (Not in this project) |
 | `prerequisite` | **Parked (2026-06-05)** | `ml-prerequisites` (parked) | Scan `spec.md`; detect assumed background; cross-check vault coverage; produce prereq graph + on-demand primers (delegates to `tutor`) | (Parked — do not invoke) |
-| `experimenter` | **Converted to skill + command (2026-06-15)**; **smoke-validated 2026-06-15/16** (GIBGAT planted-signal study); **extension-regime mechanically re-validated 2026-06-17** on GIBGAT (critic extension-fidelity gate PASS; production-flow A2 smoke pending — see [`log/2026-06-17-gibgat-extension-regime-revalidation.md`](./log/2026-06-17-gibgat-extension-regime-revalidation.md)); **inline LaTeX gate on `design.md` (no citation gate) 2026-06-18**; conversational rewrite shipped 2026-06-09; design-phase shipped (2026-06-02); Stage-2 coder hand-off wired (2026-06-04, minimal); **extension-regime branch added 2026-06-16** | `experimenter` (behavior), `ml-experiment-design` (schema) | User-facing **pair-designer** for empirical experiments built around one or more papers. **Loaded as a skill via `/experimenter` command** — runs in the main chat agent (no subagent relay). **Plan phase** (default): open prose dialogue, no `AskQuestion` / multiple-choice menus, no presumption of research type. **Build phase** (user-triggered): write `design.md`, invoke `coder` Stage 2, route the critic gate + user-check, run to **results emitted**. Two regimes by member count: **component surgery** (≥ 2 papers, with the §5.2 seam contract, gated by extraction-fidelity + Seam-B user-check) and **extension regime** (exactly 1 paper, with §5.2-variant extension scope, gated by extension-fidelity; added 2026-06-16). Owns experiment + data-synthesis *design*. Notes → `<vault>/experiments/<topic>/`; code/data → `sandbox/experiments/<topic>/`. Full implement/run orchestration protocol still being fleshed out; `findings.md` awaits the `evaluator`. | User: `/experimenter <topic>` |
+| `experimenter` | **Converted to skill + command (2026-06-15)**; **smoke-validated 2026-06-15/16** (GIBGAT planted-signal study); **extension-regime mechanically re-validated 2026-06-17** on GIBGAT (critic extension-fidelity gate PASS; production-flow A2 smoke pending — see [`log/2026-06-17-gibgat-extension-regime-revalidation.md`](./log/2026-06-17-gibgat-extension-regime-revalidation.md)); **inline LaTeX gate on `design.md` (no citation gate) 2026-06-18**; conversational rewrite shipped 2026-06-09; design-phase shipped (2026-06-02); Stage-2 coder hand-off wired (2026-06-04, minimal); **extension-regime branch added 2026-06-16** | `experimenter` (behavior), `ml-experiment-design` (schema) | User-facing **pair-designer** for empirical experiments built around one or more papers. **Loaded as a skill via `/experimenter` command** — runs in the main chat agent (no subagent relay). **Plan phase** (default): open prose dialogue, no `AskQuestion` / multiple-choice menus, no presumption of research type. **Build phase** (user-triggered): write `design.md`, invoke `coder` Stage 2, route the critic gate + user-check, run to **results emitted**. Two regimes by member count: **component surgery** (≥ 2 papers, with the §5.2 seam contract, gated by extraction-fidelity + Seam-B user-check) and **extension regime** (exactly 1 paper, with §5.2-variant extension scope, gated by extension-fidelity; added 2026-06-16). Owns experiment + data-synthesis *design*. Notes → `<vault>/experiments/<topic>/`; code/data → `sandbox/experiments/<topic>/`. See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for suite orchestration. | User: `/experimenter <topic>` |
 | `comparator` | **Shipped (2026-05-29)** | `ml-comparison` | **Conceptual** cross-method comparison from `spec.md` (+ `code_map.md` / PDF when needed) along a user-chosen axis; may refine a vague axis via propose-and-confirm. **Dual-mode:** standalone (user) or design-phase input (invoked by `experimenter`). Writes `comparison.md` under `<vault>/experiments/<topic>/`, verified by an inline LaTeX + citation gate. Carries the critic's `[A]`/`[B]` inference discipline. | User: "compare methods for `<topic>`" or (backend) invoked by `experimenter` |
 | `coder` | **Stage 1 shipped 2026-06-04**; **Stage 2 component surgery shipped 2026-06-04**; **Stage 2 extension regime shipped 2026-06-16**; **smoke gate shipped 2026-06-18** (two-invocation flow: build hand-back → critic gate → smoke re-invocation, per-machine timeout via `coder_runtime_timeouts()`; see `log/2026-06-18-coder-smoke-gate-design.md`) | `ml-experiment-code` (Stage 1, Stage 2 component surgery, Stage 2 extension all shipped) | The only agent that writes **runnable code**, two stages (design [`log/2026-06-03-two-stage-coder-design.md`](./log/2026-06-03-two-stage-coder-design.md)). **Stage 1 (user-invokable):** for one paper, write reusable method code to `vault_code_dir(slug)` (`<vault>/<slug>/code/`: `method.py` + `test_invariants.py`) from `code_blueprint.md` (primary, no code) or a reimplementation of mapped upstream code. Hybrid `Method` interface; runs the blueprint's §4 invariants as runtime asserts = **hop-2-vs-blueprint guard**. Does **not** write a walkthrough — the implementer maps `method.py` into `code_map.md` afterward, critic audits it (hop-2-vs-spec). **Stage 2 (backend, invoked by `experimenter`):** two regimes picked by `design.md` member count. **Component surgery (≥ 2 papers, multi-method):** from the §5.2 seam, synthesize a shared scaffold (principle + task fixed, pluggable slot `Protocol`) and extract each paper's divergent component into `repo_experiments_dir(topic)/methods/<slug>/extracted.py` via the borrow ladder (import-direct / extract-and-refactor); NOT black-box wrapping; gated by extraction-fidelity. Design: [`log/2026-06-04-stage2-regime2-component-surgery-design.md`](./log/2026-06-04-stage2-regime2-component-surgery-design.md). **Extension regime (exactly 1 paper, single-method, added 2026-06-16):** no scaffold, no slot — inherit / compose the audited Stage-1 `method.py` into `repo_experiments_dir(topic)/methods/<slug>/extended.py` (must not copy or hand-reimplement the base); plus `synth/generate.py` and `run.py`; gated by extension-fidelity. Used for ablations, sensitivity sweeps, planted-signal probes. See `log/2026-06-16-critic-code-review-and-coder-extension.md`. | User: `/coder code <slug>` (Stage 1); (backend) invoked by `experimenter` (Stage 2, both regimes) |
 | `evaluator` | **Shipped 2026-06-17** (backend-only); **inline LaTeX gate on `findings.md` (no citation gate) 2026-06-18** | `ml-evaluation` | **Backend-only.** Invoked by `experimenter` during the **Build-evaluate** sub-phase. Reads `design.md` (hypotheses, criterion, metrics) + `repo_experiments_dir(topic)/run/results/*.json`; writes `findings.md` to `vault_experiments_dir(topic)/`. Five fixed sections (Header, Hypothesis ledger, Results, Threats to validity, What the user can conclude); Results follows a **per-`research_type` runbook** (methods comparison / ablation / reproduction / sensitivity / exploration / custom). Returns the path + a one-paragraph summary — **no PASS/FAIL**; the user judges. Honesty discipline `[A]` paper-anchored / `[B]` reader-inferred / `[E]` empirically grounded by *this* run is mandatory in every section past the header. On under-spec runs (smoke output, missing seeds, missing metric, errored trajectory), tags affected hypotheses `[INSUFFICIENT-RUN]` and ledger status `inconclusive` — does not refuse. Refusal is the experimenter's job (pause discipline). See [`log/2026-06-17-evaluator-build.md`](./log/2026-06-17-evaluator-build.md). | (Internal — invoked by `experimenter`) |
 
 ## Decision framework: agent vs. skill vs. rule vs. hook vs. MCP
 
-Recorded so future-us doesn't re-derive it.
-
-1. Needs access outside the repo (API, DB, external file)? → **MCP**.
-2. Should run automatically on events, deterministically? → **Hook**.
-3. Is a *role* with judgment, multi-step? → **Subagent** (typically uses skills + MCPs).
-4. Is *reference material* loaded on demand for specific tasks? → **Skill**.
-5. Is an always-on (or glob-scoped) *constraint or convention*? → **Rule**.
-
-Litmus tests:
-
-- Skill vs. Rule: needed *sometimes* (skill) or *always when touching matching files* (rule)?
-- Skill vs. Subagent: *how to do it* (skill) vs. *thing that does it* (subagent)?
-- Subagent vs. Hook: needs *judgment* (subagent) vs. *deterministic reaction* (hook)?
-- MCP vs. nothing: a shell + `Read` won't cut it? → MCP.
-
-Anti-pattern: building a subagent for a deterministic transformation. Use a hook or script.
+Recorded in [`AGENTS.md`](./AGENTS.md) § Decision framework (moved 2026-06-19). Human-oriented context: [`ARCHITECTURE.md`](./ARCHITECTURE.md) § Decision framework.
 
 ## Planned units
 
@@ -192,7 +119,7 @@ Things the system can't do, with workarounds where they exist.
 - **What:** the `experimenter` (writes `design.md`) and `evaluator` (writes `findings.md`) gate **LaTeX only** inline, not citations. The `comparator` (writes `comparison.md` in the same `experiments/<topic>/` tree) gates both. The post-hoc hook skips this tree entirely, so citations in `design.md` / `findings.md` are *unverified*.
 - **Why:** decision recorded 2026-06-18 — both files compose material from upstream agents whose external citations are already gated (`spec.md`, `comparison.md`, `code_map.md`, `critic_reviews.md`). Novel external citations inside `design.md` / `findings.md` themselves are rare; the artifacts are anchored in user conversation and run-output JSON respectively, not literature. LaTeX surface is non-trivial in both (metric formulas, restated equations), so LaTeX is gated.
 - **Revisit trigger:** observe a hallucinated arXiv ID, DOI, URL, or mismatched citation metadata in either file in practice, then add a citation gate to the offending writer (mirror the comparator's R11). Cost: one section in the relevant skill.
-- **See:** `AGENTS.md` § "Asymmetry on the experiments tree", `log/2026-06-18-experimenter-evaluator-latex-gate.md`, `log/2026-06-17-evaluator-experimenter-gaps.md`.
+- **See:** [`AGENTS.md`](./AGENTS.md) § Verifier system; `log/2026-06-18-experimenter-evaluator-latex-gate.md`, `log/2026-06-17-evaluator-experimenter-gaps.md`.
 
 ### Agents must resolve out-of-workspace vault code via the CLI before reading
 
@@ -221,6 +148,12 @@ Small refinements to existing schemas that aren't urgent but are worth rememberi
 The roadmap is forward-looking. Completed-work history has moved to
 [`log/changelog_history.md`](./log/changelog_history.md); per-session
 decision narratives live in the dated logs under `log/`.
+
+## Reference: documentation
+
+- [`README.md`](./README.md) — quick start and documentation map.
+- [`AGENTS.md`](./AGENTS.md) — **authoritative** subagent and skill contracts (paths, YAML, verifier, sandbox).
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — human-oriented orchestration overview (not normative for agents).
 
 ## Reference: what's currently working
 

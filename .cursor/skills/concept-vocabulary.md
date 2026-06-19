@@ -8,7 +8,7 @@ front-matter key and `[[wiki-link]]` references across PaperLab artifacts.
 `concepts:` edges are only useful if every agent links the *same* concept by
 the *same* name. Without a controlled list, the same idea drifts into variants
 (`IB` vs. `Information Bottleneck` vs. `information-bottleneck`), and the future
-graph index (`reindex.py`, see `ROADMAP.md`) cannot connect papers that share a
+graph index (`reindex.py`, see [`ROADMAP.md`](../../ROADMAP.md)) cannot connect papers that share a
 concept. This file is the single source of canonical names.
 
 ## How agents use it
