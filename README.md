@@ -184,6 +184,7 @@ still hand control off via these files: the parent writes a draft or
 reads the child's output, no in-memory IPC.
 
 ```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 40, 'rankSpacing': 70, 'padding': 12}, 'themeVariables': {'fontSize': '18px'}}}%%
 flowchart LR
     subgraph Agents["Agents"]
         direction TB
