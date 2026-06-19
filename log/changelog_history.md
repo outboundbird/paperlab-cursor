@@ -4,6 +4,21 @@ Completed-work history, moved out of `ROADMAP.md` so the roadmap stays
 forward-looking. Most recent at the top. For the per-session decision
 narratives, see the dated logs in this folder.
 
+## Recently completed (2026-06-04 → 2026-06-18, experimenter suite completion + schema refinements)
+
+The Experimenter suite finished shipping and two `ml-evaluation` schema refinements landed. Per-agent roles live in the `ROADMAP.md` Agents table; dated logs carry the full narrative.
+
+- **`coder` — both stages shipped.** Stage 1 (user-invokable, `/coder code <slug>`, 2026-06-04) writes `method.py` + `test_invariants.py` to `vault_code_dir(slug)`. Stage 2 (backend) has two regimes: component surgery (≥ 2 papers, 2026-06-04) and extension regime (1 paper, 2026-06-16). See `log/2026-06-03-two-stage-coder-design.md`, `log/2026-06-04-stage2-regime2-component-surgery-design.md`, `log/2026-06-16-critic-code-review-and-coder-extension.md`.
+- **`coder` smoke gate (2026-06-18).** The previously-parked "does it run?" check wired into Stage 2 (`run.py --smoke`, per-machine timeout via `coder_runtime_timeouts()`, two-invocation flow with the critic gate between). See `log/2026-06-18-coder-smoke-gate-design.md`.
+- **`critic` code-review split + extension-fidelity (2026-06-16).** `reconstructed`-source audit writes `code_review.md` (sibling of `critic_reviews.md`); new extension-fidelity gate mode. See `log/2026-06-16-critic-code-review-and-coder-extension.md`.
+- **`evaluator` shipped 2026-06-17** (backend-only). Reads `design.md` + run-result JSON; writes `findings.md`. No PASS/FAIL; `[INSUFFICIENT-RUN]` on under-spec runs. See `log/2026-06-17-evaluator-build.md`.
+- **`experimenter` — skill + command conversion (2026-06-15), Build-evaluate + filesystem-state topic detection (2026-06-17).** Loaded via `/experimenter <topic>`. See `log/2026-06-17-evaluator-build.md` and the Agents table.
+- **`external-fetch-budget.mdc` rule (2026-06-18).** Per-session (≤ 20) and per-task (≤ 7) fetch caps for budget-bearing agents, asymmetric reset-on-confirm. See `log/2026-06-18-external-fetch-budget.md`.
+- **Inline LaTeX gate (no citation gate) on `design.md` / `findings.md` (2026-06-18).** See `log/2026-06-18-experimenter-evaluator-latex-gate.md`.
+- **`ml-evaluation` schema refinements (2026-06-18, moved from ROADMAP § Schema improvement candidates 2026-06-19):**
+  - **Gating-hypothesis rule** — `[GATED-OFF]` flag + `### Gating hypotheses` subsection for hypotheses whose interpretability is conditional on another being supported. See `log/2026-06-17-evaluator-experimenter-gaps.md` § Gap 4, `log/2026-06-18-evaluator-schema-followups.md`.
+  - **Table-cell tagging convention** — structural-cell exception to the `[A]`/`[B]`/`[E]` rule (don't tag controlled-vocabulary `Status` / flag `Notes` cells).
+
 ## Recently completed (2026-06-02, experimenter shell + reindex v1 + graph groundwork)
 
 Three connected pieces landed this session.

@@ -36,35 +36,15 @@ Recorded in [`AGENTS.md`](./AGENTS.md) § Decision framework (moved 2026-06-19).
 
 ## Planned units
 
-Build order is top-to-bottom. Each unit lists the primitive(s) it requires.
+Forward-looking only. Shipped work moves to [`log/changelog_history.md`](./log/changelog_history.md); per-agent status lives in the Agents table above. (External-data access — `firecrawl` MCP, the `external-fetch-budget` rule, and the now-parked `arxiv` MCP — graduated out of this section on 2026-06-19; see § Parked and the changelog.)
 
-### 1. Experimenter suite — `experimenter` + `comparator` + `coder` + `evaluator`
+### 1. Experimenter suite — shipped 2026-06-17
 
-**Suite designed 2026-05-29; all four agents shipped by 2026-06-17.**
-Full decision log in
-[`log/2026-05-29-experimenter-design.md`](./log/2026-05-29-experimenter-design.md).
-Per-agent build dates and roles live in the Agents table at the top of
-this file; the dated logs in `log/` carry the full narrative.
+All four agents (`experimenter`, `comparator`, `coder`, `evaluator`) shipped (design [`log/2026-05-29-experimenter-design.md`](./log/2026-05-29-experimenter-design.md)). **Only A2 remains:** production-flow smoke of the full `/experimenter` loop from a fresh chat (also exercises the smoke gate). See [`log/2026-06-17-gibgat-extension-regime-revalidation.md`](./log/2026-06-17-gibgat-extension-regime-revalidation.md) § Open follow-ups #1.
 
-- **Interaction model — Model 3 (hybrid).** Heavy scaffold one-shot via `coder`; tight write→check→tweak loop in-session via `experimenter`. Mirrors the proven tutor/explainer split.
-- **The flow:** design (experimenter ⇄ user) → method trade-offs on demand (`comparator`) → implement+run (`coder`, user-check gate between write and run) → evaluate (`evaluator`) → discuss.
-- **Interactive data-design phase** (owned by `experimenter`, Seam A): what property is tested (expressivity, sample efficiency, robustness, ...); what data features stress it (size, density, noise, distribution shift); synthetic vs. small real; minimum viable comparison (metrics, baselines, seeds). The `coder` implements this design; it does not decide it.
-- **File layout:** notes/design in vault `<vault>/experiments/<topic>/` (`design.md`, `findings.md`, standalone `comparison.md`); code/data in repo `sandbox/experiments/<topic>/` (`synth/`, `methods/`, `run/`, `results/`, git-ignored `data/`). `<topic>` is user-chosen; the `experiments/` namespace avoids collision with `sandbox/<slug>/`.
-- **Coder smoke gate — shipped 2026-06-18.** The previously-parked "does it run?" check is now wired into Stage 2 of `ml-experiment-code` and gated by the experimenter (`run.py --smoke`, per-machine timeout via `coder_runtime_timeouts()`, two-invocation flow with the critic gate in between). See [`log/2026-06-18-coder-smoke-gate-design.md`](./log/2026-06-18-coder-smoke-gate-design.md).
-- **Remaining work:** A2 — full implement/run orchestration smoke + production-flow re-validation via `/experimenter` from a fresh chat (now also exercises the new smoke gate). See [`log/2026-06-17-gibgat-extension-regime-revalidation.md`](./log/2026-06-17-gibgat-extension-regime-revalidation.md) § Open follow-ups #1.
+### 2. `tools.reindex` — graph index over the vault
 
-### 2. External-data access
-
-- **MCP:** `firecrawl` already configured (zero work). A thin `arxiv` MCP remains conditional — add only if structured metadata becomes a recurring need (no trigger yet).
-- **Rule: `external-fetch-budget.mdc` — shipped 2026-06-18.** Caps per-session (≤ 20) and per-paper-bound-task (≤ 7) external fetches for budget-bearing agents (`tutor`, `explainer`, `comparator`, `critic`); soft reset-on-confirm checkpoint with **asymmetric resets** (task-threshold confirmation resets only the task counter; session-threshold confirmation resets both — preserves the session cap as a real constraint). Pipeline agents (`acquirer`, `dissector`, `experimenter`, `coder`, `evaluator`) are not budget-bearers. Preferred fetch order: paper text + `spec.md` first (free), then arXiv abstract, one blog, author/lab page; never crawl whole sites. See `log/2026-06-18-external-fetch-budget.md`.
-
-### 3. `tools.reindex` — graph index over the vault
-
-**v1 shipped 2026-06-02.** Deterministic tool (`tools/reindex.py`) that walks the vault, parses each artifact's YAML front-matter (`paper`/`topic` + `papers`, `agent`, `status`, `sources`, `concepts`) and body `[[wiki-links]]`, and emits a queryable graph (`graph.json`) under `vault_index_dir()` (`<vault>/.index/`, a dotfolder so Obsidian ignores it). The index is a **derived cache** — rebuilt from the markdown, never hand-edited; if lost, rerun.
-
-- **What v1 does:** nodes for papers / topics / artifacts / concepts; edges `has_artifact`, `includes_paper`, `has_status`, `derived_from` (from `sources`), `mentions` (from `concepts` + bare body wiki-links). Drift report to stderr: artifacts missing `agent`/`status`, concept names not in `.cursor/skills/concept-vocabulary.md`, and `sources` links that don't resolve to a known artifact. CLI: `python -m tools.reindex` (write) and `--check` (report only). Path helper `vault_index_dir()` added to `tools/paths.py` (CLI verb `index-dir`).
-- **v1 resolved the three open questions** (per design 2026-06-02): (a) **link-only edges, no staleness hashing** — staleness needs a write-side hash stamp, deferred to v2a; (b) **concept normalization is report-only** — flags unknown names, never renames; (c) **JSON only** — no `_index.md` rollup (Obsidian's graph view already gives a human view).
-- **Why tool, not subagent?** Pure deterministic parse-and-aggregate.
+**v1 shipped 2026-06-02** — deterministic vault parser emitting `graph.json` (nodes: papers / topics / artifacts / concepts; link-only edges; drift report to stderr; CLI `python -m tools.reindex [--check]`). Full detail in [`log/changelog_history.md`](./log/changelog_history.md). The forward-looking work below needs a larger paper corpus to validate.
 
 #### v2 directions (need a larger paper corpus to validate)
 
@@ -82,7 +62,14 @@ The `visualizer` and `figure-verifier` are now an **independent project**, expor
 
 ## Parked
 
-Designed but deferred until the units above are stable. *(No items currently parked — the previously-parked `comparator` was un-parked and shipped 2026-05-29.)*
+Designed but deferred until the units above are stable. *(The previously-parked `comparator` was un-parked and shipped 2026-05-29.)*
+
+### Thin `arxiv` MCP — parked 2026-06-19
+
+- **What:** a small MCP for structured arXiv metadata (title, authors, abstract, versions, references).
+- **Why parked:** `firecrawl` + the citation-verifier's arXiv/Crossref resolvers cover current needs; no demonstrated problem.
+- **Trigger to revisit:** a recurring need for clean structured arXiv metadata (e.g. acquirer auto-fill, comparator reference lists).
+- **Scope guard:** metadata lookup only — not a general arXiv crawler.
 
 ## Deferred features
 
@@ -124,18 +111,7 @@ Things the system can't do, with workarounds where they exist.
 
 ## Schema improvement candidates
 
-Small refinements to existing schemas that aren't urgent but are worth remembering. These tend to surface during use.
-
-### Gating-hypothesis rule in `ml-evaluation` — shipped 2026-06-18
-
-- **What:** explicit handling for hypotheses whose interpretability is conditional on another being supported (e.g. recovery numbers gated by accuracy ≥ threshold). Distinct from `[INSUFFICIENT-RUN]`: the run can be spec-compliant while the chain of inference is broken upstream.
-- **Why surfaced:** GIBGAT validation run during the evaluator build (2026-06-17). The existing `[INSUFFICIENT-RUN]` rule did not cover the case.
-- **Status:** **shipped 2026-06-18.** New `[GATED-OFF]` flag and `### Gating hypotheses` subsection added to `ml-evaluation/SKILL.md`; self-check entry added; description updated. See `log/2026-06-17-evaluator-experimenter-gaps.md` § Gap 4 and `log/2026-06-18-evaluator-schema-followups.md`.
-
-### Table-cell tagging convention in `ml-evaluation` — shipped 2026-06-18
-
-- **What:** the "every claim past the header carries `[A]`/`[B]`/`[E]`" rule did not distinguish *claim-bearing* cells (e.g. `Observed`) from *structural* ledger cells (`Status` is controlled vocabulary, `Notes` carries flags). Tagging structural cells produced visual noise and weakened the discipline elsewhere.
-- **Status:** **shipped 2026-06-18.** Structural-cell exception added to `ml-evaluation/SKILL.md` § Inference discipline; description updated.
+Small refinements to existing schemas that aren't urgent but are worth remembering. These tend to surface during use. *(None currently open — the 2026-06-18 `ml-evaluation` refinements shipped and moved to [`log/changelog_history.md`](./log/changelog_history.md).)*
 
 ## Completed work
 
