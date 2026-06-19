@@ -20,6 +20,18 @@ No skill or `AGENTS.md` cross-reference points at the ROADMAP "Known limitations
 - `experimenter` / `evaluator` agent-table rows in ROADMAP (already say "no citation gate").
 - Skill files (`ml-experiment-design`, `ml-evaluation`, `experimenter`) — gate logic untouched.
 
-## Next
+## code-dir backfill (audit + fix, 2026-06-19)
 
-`code-dir` resolution backfill (audit-first): check whether `coder` Stage-2 and `experimenter` read `vault_code_dir(slug)` without first resolving via `python -m tools.paths code-dir <slug>`, then add the instruction only where missing.
+Audited whether `coder` Stage 2 and `experimenter` read `vault_code_dir(slug)` without first resolving via `python -m tools.paths code-dir <slug>` (the out-of-workspace vault blind spot from the 2026-06-04 GENI fix).
+
+**Finding — risk largely already handled:**
+
+- `coder` Stage 2 resolves via `code-dir <slug>` before reading in **both** regimes. Component surgery (`coder.md`, `ml-experiment-code` § component-surgery process) already spelled out the rationale ("vault is outside the workspace"); the **extension regime** gave the resolve instruction but omitted that rationale sentence.
+- `experimenter` has **no blind spot** — it never reads vault code. Plan phase explicitly forbids reading `method.py` / code blocks (`experimenter/SKILL.md`); Build phase delegates code to the `coder` and only resolves `exp-vault` / `exp-sandbox` / `spec.md`.
+
+**Fix applied (consistency only, no behavior change):** appended the caveat *"Resolve vault paths via the CLI before reading — the vault is outside the workspace."* to the two extension-regime resolve-paths steps:
+
+- `.cursor/agents/coder.md` — extension-regime process step 1.
+- `.cursor/skills/ml-experiment-code/SKILL.md` — extension-regime process step 1.
+
+**ROADMAP:** flipped the Known-limitations "Residual risk" bullet to **resolved 2026-06-19** (both coder regimes covered; experimenter doesn't read vault code).

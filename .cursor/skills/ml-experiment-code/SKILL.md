@@ -704,7 +704,8 @@ escalate on exhaustion, record in `findings.md`).
 1. **Resolve paths.** `exp-sandbox <topic>` for the output tree;
    `code-dir <slug>` (reconstructed) or `repo_upstream_dir(slug)`
    (official) for the base method; `code_map.md` / `spec.md` for the
-   anchors.
+   anchors. Resolve vault paths via the CLI **before** reading — the
+   vault is outside the workspace.
 2. **Write `methods/<slug>/extended.py`** as a subclass or composition
    of the base `Method`. Override only what `design.md` authorizes.
    Stamp the provenance header.

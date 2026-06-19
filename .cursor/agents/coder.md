@@ -177,7 +177,8 @@ Follow the **STAGE 2 — Extension regime** section of
    extension scope, `synth` plan §4). Resolve paths: `exp-sandbox
    <topic>` for the output tree; `code-dir <slug>` (reconstructed) or
    `repo_upstream_dir(slug)` (official) for the base method;
-   `code_map.md` / `spec.md` for anchors.
+   `code_map.md` / `spec.md` for anchors. Resolve vault paths via the CLI
+   **before** reading — the vault is outside the workspace.
 2. **Write `methods/<slug>/extended.py`** as a subclass or composition
    of the base `Method`. Override only what `design.md` authorizes.
    **Do not copy or hand-reimplement the base method.** Stamp the
