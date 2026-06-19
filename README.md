@@ -170,3 +170,140 @@ Stage 1 (`/coder code <slug>`, shipped 2026-06-04). In the Experimenter
 suite the `comparator` and the `experimenter` design-phase shell are
 shipped; the `coder`'s Stage 2 adapt-mode and the `evaluator` are
 designed (see `ROADMAP.md`).
+
+## Memory sharing design
+
+PaperLab agents do **not** message each other directly. They share state
+through files on disk — the vault is the shared memory substrate, the
+repo holds source material and per-topic sandbox state, and a per-paper
+citation cache survives across sessions. Every artifact has **exactly
+one writer agent** (the firewall principle), and any number of reader
+agents. Backend invocations (`tutor` → `explainer`, `experimenter` →
+`coder` / `evaluator`, `implementer` → `critic` blueprint-check, ...)
+still hand control off via these files: the parent writes a draft or
+reads the child's output, no in-memory IPC.
+
+```mermaid
+flowchart LR
+    subgraph Agents["Agents"]
+        direction TB
+        Acq((acquirer))
+        Dis((dissector))
+        Imp((implementer))
+        Cod((coder))
+        Cri((critic))
+        Tut((tutor))
+        Exp((explainer))
+        Cmp((comparator))
+        Exr((experimenter))
+        Evl((evaluator))
+    end
+
+    subgraph Paper["Per-paper vault: &lt;slug&gt;/"]
+        direction TB
+        PI[paper-info.md]
+        SP[spec.md]
+        CB[code_blueprint.md]
+        VC[code/method.py + test_invariants.py]
+        CM[code_map.md]
+        CR[critic_reviews.md / code_review.md]
+        TL[tutor_log.md]
+        EC[concept-slug.md / synth-slug.md]
+        TC[concept.md / synth.md / tutor_notes.md]
+    end
+
+    subgraph Topic["Per-topic vault: experiments/&lt;topic&gt;/"]
+        direction TB
+        CO[comparison.md]
+        DE[design.md]
+        FI[findings.md]
+    end
+
+    subgraph Side["Repo-side state"]
+        direction TB
+        CC[papers/&lt;slug&gt;/.cache/citations/]
+        SB[sandbox/experiments/&lt;topic&gt;/<br/>scaffold.py + methods/ + run/results/]
+    end
+
+    Acq ==> PI
+    Dis ==> SP
+    Imp ==> CB
+    Imp ==> CM
+    Cod ==> VC
+    Cod ==> SB
+    Cri ==> CR
+    Tut ==> TL
+    Tut ==> TC
+    Exp ==> EC
+    Cmp ==> CO
+    Exr ==> DE
+    Evl ==> FI
+
+    SP -.-> Imp
+    SP -.-> Cri
+    SP -.-> Tut
+    SP -.-> Exp
+    SP -.-> Cmp
+    SP -.-> Exr
+    SP -.-> Evl
+    CB -.-> Cod
+    CB -.-> Cri
+    VC -.-> Imp
+    VC -.-> Cri
+    VC -.-> Cod
+    CM -.-> Cri
+    CM -.-> Tut
+    CM -.-> Cmp
+    CM -.-> Cod
+    CR -.-> Tut
+    TL -.-> Tut
+    EC -.-> Tut
+    CO -.-> Exr
+    DE -.-> Cod
+    DE -.-> Evl
+    SB -.-> Evl
+    SB -.-> Cri
+```
+
+**Reading the diagram.** Thick green arrows are *writes* (one writer per
+artifact); thin dashed arrows are *reads* (any agent that needs the
+artifact). The single-writer rule is what makes the firewall checks
+(blueprint-check, hop-2-vs-spec, extraction-fidelity, extension-fidelity)
+auditable: the `critic` only ever reads what another agent wrote, never
+something it produced itself.
+
+**Three kinds of shared memory.**
+
+1. **Per-paper artifacts** under `<vault>/<slug>/` are the canonical
+   substrate. `spec.md` is read by almost every downstream agent — it is
+   the de-facto interchange format. `code_map.md` and the critic's
+   audits propagate the same way.
+2. **Per-topic artifacts** under `<vault>/experiments/<topic>/`
+   (`comparison.md`, `design.md`, `findings.md`) carry multi-paper
+   experiment state and are read only by Experimenter-suite agents and
+   the user.
+3. **Repo-side state.** `papers/<slug>/.cache/citations/` is the
+   citation-verifier's resolver cache (survives a session, cleared
+   manually). `sandbox/experiments/<topic>/` holds the runnable scaffold,
+   per-method extracted/extended code, and the JSON run results — the
+   hand-off surface between the `coder`'s output, the user's compute
+   run, and the `evaluator`'s read.
+
+**Two cross-cutting memory channels.**
+
+- **Tutor self-memory.** `tutor_log.md` is the only file an agent both
+  reads and writes for itself: the `tutor` appends per-turn breadcrumbs
+  every turn and reads them back on `/tutor` resume. Persistent memory
+  across sessions, no other agent touches it.
+- **Cross-suite bridge.** Two artifacts move information between the
+  Learning and Experimenter suites: `spec.md` (read by `comparator`,
+  `experimenter`, `evaluator`) and `code/method.py` (inherited by the
+  `coder`'s Stage-2 extension regime, extracted-from by component
+  surgery). Everything else stays inside its suite.
+
+**What is *not* shared.** No agent has access to another agent's
+prompt, scratchpad, conversation history, or in-flight reasoning. If
+information needs to flow between agents, it has to be written to one
+of the artifacts above. This is what keeps the firewalled critic gates
+honest and what makes a regenerated `spec.md` automatically propagate
+to every reader the next time they run.
