@@ -157,6 +157,36 @@ flowchart TB
 
 ### Learning suite (one paper at a time)
 
+#### Sequence view (simplified)
+
+Logical order of handoffs (vault collapsed to one lifeline). Blueprint path, Stage 1 `code/`, and `explainer` are omitted here; see prose below and [`AGENTS.md`](./AGENTS.md).
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant A as acquirer
+    participant D as dissector
+    participant I as implementer
+    participant C as critic
+    participant T as tutor
+    participant V as vault
+
+    U->>A: acquire paper
+    A->>V: paper-info.md
+    A-->>D: often auto-chained
+    D->>V: spec.md
+
+    U->>I: map paper to implementation
+    I->>V: code_map.md and related artifacts
+
+    U->>C: audit claims and alignment
+    C->>V: critic_reviews.md or code_review.md
+
+    U->>T: /tutor
+    T->>V: read spec, code_map, audits
+    T->>V: append tutor_log.md; concept files on request
+```
+
 `acquirer`, `dissector`, `implementer`, `critic`, `tutor`, plus the backend `explainer`. The `acquirer` sets up the paper; the `dissector` writes `spec.md`. The `implementer` maps concepts to code (official upstream or reconstructed `method.py`). The `critic` audits. The `tutor` is the user-facing concept interface (`/tutor <slug>`) and invokes the `explainer` when paper-bound intermediates are missing.
 
 When a paper ships **no official code**, the `implementer`'s opt-in **blueprint mode** writes `code_blueprint.md` from the math. The draft is gated **pre-emission** by the `critic` blueprint-check (independent re-derivation). On PASS the blueprint is written; on repeated FAIL the implementer escalates to the user.

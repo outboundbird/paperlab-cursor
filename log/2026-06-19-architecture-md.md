@@ -33,6 +33,10 @@ User direction: **`AGENTS.md` stays the single normative reference for subagents
 - [`ROADMAP.md`](../ROADMAP.md) file-layout stub: **subagents** → `AGENTS.md` § Where things live; **human trees** → `ARCHITECTURE.md` § File layout contract.
 - Reverted skill cross-references (`ml-latex-verify`, `ml-citation-verify`, `ml-evaluation`, `ml-experiment-design`, `concept-vocabulary`) to **`AGENTS.md` / `ROADMAP.md` only** — no skill points at `ARCHITECTURE.md` for verifier triggers.
 
+## Addendum — Learning suite sequence diagram
+
+Added a **simplified** Mermaid `sequenceDiagram` under [`ARCHITECTURE.md`](../ARCHITECTURE.md) (Learning suite): user, acquirer, dissector, implementer, critic, tutor, and vault as one lifeline. Intentionally omits blueprint gate, `coder` Stage 1, and `explainer` so the figure stays readable; full contracts remain in `AGENTS.md` and the existing Learning flowchart on the same page.
+
 ## Follow-ups
 
 - Optional: add `ARCHITECTURE.md` to `paperlab.config.example.yaml` comment block if we want config readers to see the doc map (not done).
