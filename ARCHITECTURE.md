@@ -173,7 +173,7 @@ sequenceDiagram
 
     U->>A: acquire paper
     A->>V: paper-info.md
-    A-->>D: often auto-chained
+    A->>D: often auto-chained
     D->>V: spec.md
 
     U->>I: map paper to implementation
