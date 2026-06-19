@@ -90,6 +90,64 @@ performed by the agent that authored the artifact under review.
 
 ### Experimenter suite (many papers, one topic)
 
+```mermaid
+flowchart TB
+    User([User: /experimenter topic]) --> StateCheck{Filesystem state<br/>under experiments/topic}
+
+    StateCheck -->|no design.md| Plan
+    StateCheck -->|design.md, no results| PlanResume[Plan-resume<br/>pick up dialogue]
+    StateCheck -->|design.md + results| BuildEval
+
+    subgraph Plan["Plan phase — open prose dialogue"]
+        direction TB
+        P1[research type emerges<br/>methods comparison / ablation /<br/>reproduction / sensitivity / exploration]
+        P2[member set, criterion,<br/>data-synthesis design,<br/>seam 5.2 if multi-method]
+        P1 --> P2
+        P2 -. on demand .-> Comparator((comparator))
+        Comparator --> Comparison[comparison.md]
+        Comparison -.-> P2
+    end
+
+    PlanResume --> P2
+    Plan --> Sketch[sketch design.md sections<br/>to user]
+    Sketch --> Confirm{user confirms<br/>Plan to Build}
+    Confirm -->|no| Plan
+    Confirm -->|yes| BuildImpl
+
+    subgraph BuildImpl["Build-implement"]
+        direction TB
+        WriteDesign[write design.md] --> Members{member count}
+        Members -->|>= 2 papers| Surgery((coder Stage 2<br/>component surgery))
+        Members -->|exactly 1| Extension((coder Stage 2<br/>extension regime))
+        Surgery --> ScaffoldCode[scaffold.py +<br/>methods/slug/extracted.py]
+        Extension --> ExtCode[methods/slug/extended.py +<br/>synth/ + run.py]
+        ScaffoldCode --> CritGate
+        ExtCode --> CritGate
+        CritGate{critic fidelity gate<br/>extraction or extension}
+        CritGate -->|FAIL| FixCode[experimenter routes<br/>fixes back to coder]
+        FixCode --> Surgery
+        FixCode --> Extension
+        CritGate -->|PASS| Smoke((coder re-invoked<br/>--smoke))
+        Smoke --> SmokeGate{smoke gate<br/>run.py --smoke}
+        SmokeGate -->|FAIL or TIMEOUT| FixCode
+        SmokeGate -->|PASS| HandBack[hand back to user<br/>run full experiment]
+    end
+
+    HandBack --> UserRun([user runs full experiment<br/>results land in run/results/])
+    UserRun --> BuildEval
+
+    subgraph BuildEval["Build-evaluate"]
+        direction TB
+        Eval((evaluator)) --> Findings[findings.md]
+    end
+
+    Findings --> Judge([user judges design as a whole])
+
+    SpecLearn[/spec.md + code_map.md<br/>from Learning suite/] -. feeds .-> Plan
+    VaultMethod[/vault method.py<br/>Stage 1 output/] -. inherited by .-> Extension
+    VaultMethod -. extracted from .-> Surgery
+```
+
 `experimenter`, `comparator`, `coder`, `evaluator`. The `experimenter`
 orchestrates an interactive design session (writing `design.md`,
 including the **harness interface** every method conforms to), invoking
