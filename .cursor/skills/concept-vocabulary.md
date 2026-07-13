@@ -89,9 +89,17 @@ One entry per concept:
 - Aliases: node ranking, influential node identification
 - First seen: GNR (2026-06-02)
 
+### phenotype-driven-drug-discovery
+- Aliases: phenotype-driven lead discovery, phenotypic drug discovery, connectivity mapping
+- First seen: PDGrapher (2026-07-02)
+
 ### shannon-entropy
 - Aliases: Shannon entropy, node entropy, information entropy
 - First seen: EDDC (2026-06-02)
+
+### structural-causal-model
+- Aliases: SCM, structural causal models, causal graph mutilation
+- First seen: PDGrapher (2026-07-02)
 
 ### sir-epidemic-model
 - Aliases: SIR model, susceptible-infected-recovered, epidemic spreading dynamics
